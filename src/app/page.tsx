@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { usePdfEditorStore, getFontPdfLib } from "@/store/pdf-editor-store";
 import PdfCanvas from "@/components/pdf-editor/PdfCanvas";
 import Toolbar from "@/components/pdf-editor/Toolbar";
@@ -8,7 +8,8 @@ import UploadZone from "@/components/pdf-editor/UploadZone";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "sonner";
-import { Menu } from "lucide-react";
+import { Menu, Lock, LogOut } from "lucide-react";
+import { checkPassword, isAuthenticated, setAuthenticated, logout } from "@/lib/auth";
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -19,6 +20,96 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
         b: parseInt(result[3], 16) / 255,
       }
     : null;
+}
+
+function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password.trim()) return;
+
+    setIsLoading(true);
+    setError("");
+
+    const valid = await checkPassword(password);
+    if (valid) {
+      setAuthenticated();
+      onLogin();
+    } else {
+      setError("Неверный пароль");
+      setPassword("");
+      inputRef.current?.focus();
+    }
+    setIsLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="w-full max-w-sm">
+        <div className="flex flex-col items-center gap-4 mb-8">
+          <div className="h-16 w-16 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-9 w-9 text-primary-foreground"
+            >
+              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+              <polyline points="14 2 14 8 20 8" />
+              <path d="M9 15v2" />
+              <path d="M12 12v5" />
+              <path d="M15 14v3" />
+            </svg>
+          </div>
+          <div className="text-center">
+            <h1 className="text-2xl font-bold">PDF Редактор</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Введите пароль для входа
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              ref={inputRef}
+              type="password"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(""); }}
+              placeholder="Пароль"
+              className="w-full h-11 pl-10 pr-4 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              disabled={isLoading}
+            />
+          </div>
+
+          {error && (
+            <p className="text-sm text-destructive text-center">{error}</p>
+          )}
+
+          <Button
+            type="submit"
+            className="w-full h-11"
+            disabled={isLoading || !password.trim()}
+          >
+            {isLoading ? "Проверка..." : "Войти"}
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 export default function Home() {
@@ -32,9 +123,31 @@ export default function Home() {
     setPdfFile,
   } = usePdfEditorStore();
 
+  const [authenticated, setAuthenticatedState] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+
+  // Check session on mount
+  useEffect(() => {
+    if (isAuthenticated()) {
+      setAuthenticatedState(true);
+    }
+  }, []);
+
+  const handleLogin = useCallback(() => {
+    setAuthenticatedState(true);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    logout();
+    setAuthenticatedState(false);
+    usePdfEditorStore.getState().reset();
+  }, []);
+
+  if (!authenticated) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -328,11 +441,17 @@ export default function Home() {
             </div>
           )}
         </div>
-        {pdfFile && (
-          <div className="text-xs text-muted-foreground hidden sm:block">
-            {pdfFileName}
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {pdfFile && (
+            <span className="text-xs text-muted-foreground hidden sm:block">
+              {pdfFileName}
+            </span>
+          )}
+          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={handleLogout}>
+            <LogOut className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Выход</span>
+          </Button>
+        </div>
       </header>
 
       {/* Main content */}

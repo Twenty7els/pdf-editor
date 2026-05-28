@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import { usePdfEditorStore } from "@/store/pdf-editor-store";
+import React, { useRef } from "react";
+import { usePdfEditorStore, CustomStamp } from "@/store/pdf-editor-store";
 import { STAMP_DEFINITIONS } from "@/lib/stamps";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,9 @@ import {
   ZoomIn,
   ZoomOut,
   Loader2,
+  Plus,
+  X,
+  ImagePlus,
 } from "lucide-react";
 
 interface ToolbarProps {
@@ -41,11 +44,46 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
     updateText,
     removeStamp,
     removeText,
+    customStamps,
+    addCustomStamp,
+    removeCustomStamp,
   } = usePdfEditorStore();
 
+  const customStampInputRef = useRef<HTMLInputElement>(null);
   const selectedStamp = stamps.find((s) => s.id === selectedItemId);
   const selectedText = texts.find((t) => t.id === selectedItemId);
   const hasSelection = selectedItemId !== null;
+
+  const presetStamps = STAMP_DEFINITIONS.filter((s) => s.category === "preset");
+  const builtInCustom = STAMP_DEFINITIONS.filter((s) => s.category === "custom");
+
+  const handleCustomStampUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate it's an image
+    if (!file.type.startsWith("image/")) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const name = file.name.replace(/\.[^/.]+$/, ""); // remove extension
+      const customStamp: CustomStamp = {
+        id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: name,
+        dataUrl: dataUrl,
+      };
+      addCustomStamp(customStamp);
+    };
+    reader.readAsDataURL(file);
+
+    // Reset input
+    if (customStampInputRef.current) {
+      customStampInputRef.current.value = "";
+    }
+  };
 
   return (
     <div className="flex flex-col gap-3 p-3">
@@ -110,37 +148,137 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
 
       {/* Stamps selector */}
       {activeTool === "stamp" && (
-        <Card>
-          <CardHeader className="p-3 pb-2">
-            <CardTitle className="text-sm font-medium">Печати</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-1">
-            <div className="grid grid-cols-2 gap-2">
-              {STAMP_DEFINITIONS.map((stamp) => (
-                <button
-                  key={stamp.id}
-                  className="flex flex-col items-center gap-1 p-2 rounded-lg border border-border hover:border-primary hover:bg-accent transition-colors"
-                  onClick={() =>
-                    usePdfEditorStore.getState().setSelectedStamp(stamp.id, stamp.src)
-                  }
-                >
-                  <img
-                    src={stamp.src}
-                    alt={stamp.name}
-                    className="w-14 h-14 object-contain"
-                    draggable={false}
-                  />
-                  <span className="text-[10px] text-muted-foreground text-center leading-tight">
-                    {stamp.name}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-2 text-center">
-              Выберите печать, затем кликните на PDF
-            </p>
-          </CardContent>
-        </Card>
+        <>
+          {/* Preset stamps */}
+          <Card>
+            <CardHeader className="p-3 pb-2">
+              <CardTitle className="text-sm font-medium">Стандартные печати</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-1">
+              <div className="grid grid-cols-2 gap-2">
+                {presetStamps.map((stamp) => (
+                  <button
+                    key={stamp.id}
+                    className="flex flex-col items-center gap-1 p-2 rounded-lg border border-border hover:border-primary hover:bg-accent transition-colors"
+                    onClick={() =>
+                      usePdfEditorStore.getState().setSelectedStamp(stamp.id, stamp.src)
+                    }
+                  >
+                    <img
+                      src={stamp.src}
+                      alt={stamp.name}
+                      className="w-14 h-14 object-contain"
+                      draggable={false}
+                    />
+                    <span className="text-[10px] text-muted-foreground text-center leading-tight">
+                      {stamp.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Built-in custom stamps (user's pre-loaded stamps) */}
+          {builtInCustom.length > 0 && (
+            <Card>
+              <CardHeader className="p-3 pb-2">
+                <CardTitle className="text-sm font-medium">Ваши печати</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 pt-1">
+                <div className="grid grid-cols-2 gap-2">
+                  {builtInCustom.map((stamp) => (
+                    <button
+                      key={stamp.id}
+                      className="flex flex-col items-center gap-1 p-2 rounded-lg border border-border hover:border-primary hover:bg-accent transition-colors"
+                      onClick={() =>
+                        usePdfEditorStore.getState().setSelectedStamp(stamp.id, stamp.src)
+                      }
+                    >
+                      <img
+                        src={stamp.src}
+                        alt={stamp.name}
+                        className="w-14 h-14 object-contain"
+                        draggable={false}
+                      />
+                      <span className="text-[10px] text-muted-foreground text-center leading-tight">
+                        {stamp.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* User-uploaded custom stamps */}
+          <Card>
+            <CardHeader className="p-3 pb-2">
+              <CardTitle className="text-sm font-medium">Загруженные печати</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-1 flex flex-col gap-2">
+              {customStamps.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {customStamps.map((stamp) => (
+                    <div
+                      key={stamp.id}
+                      className="relative flex flex-col items-center gap-1 p-2 rounded-lg border border-border hover:border-primary hover:bg-accent transition-colors group"
+                    >
+                      <button
+                        className="flex flex-col items-center gap-1 w-full"
+                        onClick={() =>
+                          usePdfEditorStore.getState().setSelectedStamp(stamp.id, stamp.dataUrl)
+                        }
+                      >
+                        <img
+                          src={stamp.dataUrl}
+                          alt={stamp.name}
+                          className="w-14 h-14 object-contain"
+                          draggable={false}
+                        />
+                        <span className="text-[10px] text-muted-foreground text-center leading-tight truncate w-full">
+                          {stamp.name}
+                        </span>
+                      </button>
+                      <button
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeCustomStamp(stamp.id)}
+                        title="Удалить печать"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Загрузите изображение печати
+                </p>
+              )}
+
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => customStampInputRef.current?.click()}
+              >
+                <ImagePlus className="h-4 w-4" />
+                Загрузить свою печать
+              </Button>
+
+              <input
+                ref={customStampInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={handleCustomStampUpload}
+                className="hidden"
+              />
+            </CardContent>
+          </Card>
+
+          <p className="text-[11px] text-muted-foreground text-center px-2">
+            Выберите печать, затем кликните на PDF
+          </p>
+        </>
       )}
 
       {/* Text settings */}

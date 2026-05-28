@@ -32,6 +32,12 @@ export interface TextItem {
 
 export type ToolMode = "select" | "stamp" | "text";
 
+export interface CustomStamp {
+  id: string;
+  name: string;
+  dataUrl: string; // base64 data URL of the uploaded image
+}
+
 interface PdfEditorState {
   // PDF file
   pdfFile: File | null;
@@ -63,6 +69,9 @@ interface PdfEditorState {
     bold: boolean;
   };
 
+  // Custom stamps uploaded by user
+  customStamps: CustomStamp[];
+
   // Actions
   setPdfFile: (file: File | null) => void;
   setPdfArrayBuffer: (buffer: ArrayBuffer | null) => void;
@@ -83,6 +92,8 @@ interface PdfEditorState {
   removeText: (id: string) => void;
   setSelectedItem: (id: string | null, type: "stamp" | "text" | null) => void;
   setTextSettings: (settings: Partial<PdfEditorState["textSettings"]>) => void;
+  addCustomStamp: (stamp: CustomStamp) => void;
+  removeCustomStamp: (id: string) => void;
   reset: () => void;
 }
 
@@ -111,6 +122,7 @@ const initialState = {
     fontFamily: "Helvetica",
     bold: false,
   },
+  customStamps: [],
 };
 
 export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
@@ -186,6 +198,14 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
   setTextSettings: (settings) =>
     set((state) => ({
       textSettings: { ...state.textSettings, ...settings },
+    })),
+
+  addCustomStamp: (stamp) =>
+    set((state) => ({ customStamps: [...state.customStamps, stamp] })),
+
+  removeCustomStamp: (id) =>
+    set((state) => ({
+      customStamps: state.customStamps.filter((s) => s.id !== id),
     })),
 
   reset: () => set(initialState),

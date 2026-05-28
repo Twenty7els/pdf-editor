@@ -593,10 +593,110 @@ export default function PdfCanvas() {
   const selectedText = texts.find((t) => t.id === selectedItemId);
 
   return (
-    <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden bg-muted/30">
-      {/* Properties bar above PDF — horizontal */}
+    <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden bg-muted/30 relative">
+      {/* Canvas area */}
+      <div className="flex-1 flex items-center justify-center p-5 overflow-auto">
+        {error && (
+          <div className="text-center p-8">
+            <div className="text-destructive text-lg mb-2">⚠️ {error}</div>
+            <p className="text-muted-foreground text-sm">Попробуйте загрузить другой файл</p>
+          </div>
+        )}
+
+        {isLoading && !error && (
+          <div className="flex flex-col items-center justify-center gap-3">
+            <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full" />
+            <span className="text-sm text-muted-foreground">Загрузка PDF...</span>
+          </div>
+        )}
+
+        {pdfDoc && !error && !isLoading && (
+          <div className="relative shadow-2xl border border-border rounded-lg overflow-hidden">
+            <canvas ref={canvasRef} className="block" />
+
+            {/* Overlay */}
+            <div
+              ref={overlayRef}
+              className={`absolute top-0 left-0 ${cursorClass}`}
+              onClick={handleOverlayClick}
+              style={{ width: canvasSize.width, height: canvasSize.height }}
+            >
+              {pageStamps.map((stamp) => (
+                <div
+                  key={stamp.id}
+                  className={`absolute ${selectedItemId === stamp.id ? "" : "hover:ring-1 hover:ring-primary/50"}`}
+                  style={{
+                    left: stamp.x,
+                    top: stamp.y,
+                    width: stamp.width,
+                    height: stamp.height,
+                    transform: `rotate(${stamp.rotation}deg)`,
+                    opacity: stamp.opacity,
+                    cursor: dragState?.mode === "move" ? "grabbing" : "grab",
+                  }}
+                  onMouseDown={(e) => handleItemMouseDown(e, stamp.id, "stamp")}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <img
+                    src={stamp.src}
+                    alt={stamp.type}
+                    className="w-full h-full object-contain pointer-events-none select-none"
+                    draggable={false}
+                  />
+                  {renderStampHandles(stamp)}
+                </div>
+              ))}
+
+              {pageTexts.map((textItem) => (
+                <div
+                  key={textItem.id}
+                  className={`absolute ${selectedItemId === textItem.id ? "ring-2 ring-primary ring-offset-1" : "hover:ring-1 hover:ring-primary/50"}`}
+                  style={{
+                    left: textItem.x,
+                    top: textItem.y,
+                    fontSize: textItem.fontSize,
+                    color: textItem.color,
+                    fontFamily: textItem.fontFamily,
+                    fontWeight: textItem.bold ? "bold" : "normal",
+                    transform: `rotate(${textItem.rotation}deg)`,
+                    cursor: dragState?.mode === "move" ? "grabbing" : "grab",
+                    userSelect: "none",
+                    whiteSpace: "nowrap",
+                  }}
+                  onMouseDown={(e) => handleItemMouseDown(e, textItem.id, "text")}
+                  onClick={(e) => e.stopPropagation()}
+                  onDoubleClick={(e) => handleTextDoubleClick(e, textItem)}
+                >
+                  {editingTextId === textItem.id ? (
+                    <input
+                      type="text"
+                      value={editTextValue}
+                      onChange={(e) => setEditTextValue(e.target.value)}
+                      onBlur={handleTextEditComplete}
+                      onKeyDown={handleTextKeyDown}
+                      className="bg-white/90 border border-primary px-1 outline-none"
+                      style={{
+                        fontSize: textItem.fontSize,
+                        color: textItem.color,
+                        fontFamily: textItem.fontFamily,
+                        fontWeight: textItem.bold ? "bold" : "normal",
+                        minWidth: 50,
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    <span className="bg-white/20 px-0.5">{textItem.text}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Floating properties bar — absolute positioned, doesn't shift PDF */}
       {selectedItemId && pdfDoc && !error && !isLoading && (
-        <div className="flex items-center gap-3 px-4 py-2 bg-card border-b border-border shrink-0 overflow-x-auto">
+        <div className="absolute top-0 left-0 right-0 z-20 flex items-center gap-3 px-4 py-2 bg-card/95 backdrop-blur-sm border-b border-border overflow-x-auto">
           {selectedItemType === "stamp" && selectedStamp && (
             <>
               {/* Rotation */}
@@ -733,106 +833,6 @@ export default function PdfCanvas() {
           )}
         </div>
       )}
-
-      {/* Canvas area */}
-      <div className="flex-1 flex items-center justify-center p-5 overflow-auto">
-        {error && (
-          <div className="text-center p-8">
-            <div className="text-destructive text-lg mb-2">⚠️ {error}</div>
-            <p className="text-muted-foreground text-sm">Попробуйте загрузить другой файл</p>
-          </div>
-        )}
-
-        {isLoading && !error && (
-          <div className="flex flex-col items-center justify-center gap-3">
-            <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full" />
-            <span className="text-sm text-muted-foreground">Загрузка PDF...</span>
-          </div>
-        )}
-
-        {pdfDoc && !error && !isLoading && (
-          <div className="relative shadow-2xl border border-border rounded-lg overflow-hidden">
-            <canvas ref={canvasRef} className="block" />
-
-            {/* Overlay */}
-            <div
-              ref={overlayRef}
-              className={`absolute top-0 left-0 ${cursorClass}`}
-              onClick={handleOverlayClick}
-              style={{ width: canvasSize.width, height: canvasSize.height }}
-            >
-              {pageStamps.map((stamp) => (
-                <div
-                  key={stamp.id}
-                  className={`absolute ${selectedItemId === stamp.id ? "" : "hover:ring-1 hover:ring-primary/50"}`}
-                  style={{
-                    left: stamp.x,
-                    top: stamp.y,
-                    width: stamp.width,
-                    height: stamp.height,
-                    transform: `rotate(${stamp.rotation}deg)`,
-                    opacity: stamp.opacity,
-                    cursor: dragState?.mode === "move" ? "grabbing" : "grab",
-                  }}
-                  onMouseDown={(e) => handleItemMouseDown(e, stamp.id, "stamp")}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <img
-                    src={stamp.src}
-                    alt={stamp.type}
-                    className="w-full h-full object-contain pointer-events-none select-none"
-                    draggable={false}
-                  />
-                  {renderStampHandles(stamp)}
-                </div>
-              ))}
-
-              {pageTexts.map((textItem) => (
-                <div
-                  key={textItem.id}
-                  className={`absolute ${selectedItemId === textItem.id ? "ring-2 ring-primary ring-offset-1" : "hover:ring-1 hover:ring-primary/50"}`}
-                  style={{
-                    left: textItem.x,
-                    top: textItem.y,
-                    fontSize: textItem.fontSize,
-                    color: textItem.color,
-                    fontFamily: textItem.fontFamily,
-                    fontWeight: textItem.bold ? "bold" : "normal",
-                    transform: `rotate(${textItem.rotation}deg)`,
-                    cursor: dragState?.mode === "move" ? "grabbing" : "grab",
-                    userSelect: "none",
-                    whiteSpace: "nowrap",
-                  }}
-                  onMouseDown={(e) => handleItemMouseDown(e, textItem.id, "text")}
-                  onClick={(e) => e.stopPropagation()}
-                  onDoubleClick={(e) => handleTextDoubleClick(e, textItem)}
-                >
-                  {editingTextId === textItem.id ? (
-                    <input
-                      type="text"
-                      value={editTextValue}
-                      onChange={(e) => setEditTextValue(e.target.value)}
-                      onBlur={handleTextEditComplete}
-                      onKeyDown={handleTextKeyDown}
-                      className="bg-white/90 border border-primary px-1 outline-none"
-                      style={{
-                        fontSize: textItem.fontSize,
-                        color: textItem.color,
-                        fontFamily: textItem.fontFamily,
-                        fontWeight: textItem.bold ? "bold" : "normal",
-                        minWidth: 50,
-                      }}
-                      autoFocus
-                    />
-                  ) : (
-                    <span className="bg-white/20 px-0.5">{textItem.text}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* Bottom center controls */}
       {pdfDoc && !error && !isLoading && (

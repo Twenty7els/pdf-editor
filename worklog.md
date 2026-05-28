@@ -1,21 +1,23 @@
 ---
-Task ID: 2
+Task ID: 3
 Agent: main
-Task: Add user's custom stamps and upload feature
+Task: Remove standard stamps + add resize/rotate handles on canvas
 
 Work Log:
-- Analyzed uploaded images with VLM: 2 signatures + 1 round company seal (ООО «Предприятие общественного питания Расчетный центр»)
-- Copied 3 custom stamp images to /public/stamps/ (custom-seal-ooo.png, custom-signature-1.png, custom-signature-2.png)
-- Updated stamps.ts with category field ("preset" | "custom") and added 3 custom stamps
-- Added CustomStamp interface to store with dataUrl (base64) support
-- Added addCustomStamp/removeCustomStamp actions to store
-- Updated Toolbar with 3 stamp sections: standard, your stamps (pre-loaded), uploaded stamps (with upload button)
-- Upload button reads image as dataURL for client-side pdf-lib embedding
-- Delete button (X) on hover for user-uploaded stamps
-- Added upload/ folder to .gitignore
-- Built successfully, pushed to GitHub
+- Removed all 6 preset stamps (ОДОБРЕНО, КОНФИДЕНЦИАЛЬНО, ЧЕРНОВИК, ОПЛАЧЕНО, НА РАССМОТРЕНИИ, ПРОВЕРЕНО) from stamps.ts
+- Removed "Стандартные печати" section from Toolbar
+- Added 4 corner resize handles (tl, tr, bl, br) to selected stamps on canvas overlay
+- Added rotation handle (circular icon above stamp, connected by line) for free rotation
+- Resize handles work by dragging corners to change width/height independently
+- Rotation handle calculates angle from element center to mouse position
+- Shift+rotate snaps to 15° increments
+- Updated Toolbar properties panel: separate width/height numeric inputs, rotation degree input
+- Opacity slider shows percentage value
+- Min stamp size enforced at 20px
+- Pushed to GitHub commit 8de0894
 
 Stage Summary:
-- User's 3 stamps are now in the editor under "Ваши печати" section
-- New "Загрузить свою печать" button allows uploading any PNG/JPG image as a stamp
-- Uploaded stamps are stored as base64 data URLs and embedded directly in PDF on download
+- Standard stamps removed completely
+- Stamps can now be resized by dragging corner handles on canvas
+- Stamps can be rotated freely by dragging rotation handle
+- Properties panel has numeric width/height/rotation inputs

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PDFDocument, rgb, degrees } from "pdf-lib";
+import { PDFDocument, rgb, degrees, StandardFonts } from "pdf-lib";
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,23 +41,26 @@ export async function POST(request: NextRequest) {
     const pdfBytes = Uint8Array.from(atob(pdfBase64), (c) => c.charCodeAt(0));
     const pdfDoc = await PDFDocument.load(pdfBytes);
 
+    // Embed fonts
+    const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const fontCourier = await pdfDoc.embedFont(StandardFonts.Courier);
+
     // Process stamps
     for (const stamp of stamps) {
-      const page = pdfDoc.getPage(stamp.page - 1); // 0-indexed
+      const page = pdfDoc.getPage(stamp.page - 1);
       const { width: pageWidth, height: pageHeight } = page.getSize();
-      const scale = pageScales[stamp.page] || 1;
-      
+
       // Convert canvas coordinates to PDF coordinates
-      // Canvas: origin top-left, Y increases downward
-      // PDF: origin bottom-left, Y increases upward
       const pdfX = (stamp.x / stamp.canvasWidth) * pageWidth;
       const pdfY = pageHeight - ((stamp.y + stamp.height) / stamp.canvasHeight) * pageHeight;
       const pdfWidth = (stamp.width / stamp.canvasWidth) * pageWidth;
       const pdfHeight = (stamp.height / stamp.canvasHeight) * pageHeight;
 
       try {
-        // Decode the image data URL
         const dataUrl = stamp.imageDataUrl;
+        if (!dataUrl || !dataUrl.includes(",")) continue;
+
         const base64Data = dataUrl.split(",")[1];
         const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
 
@@ -88,6 +91,8 @@ export async function POST(request: NextRequest) {
 
     // Process texts
     for (const textItem of texts) {
+      if (!textItem.text.trim()) continue;
+
       const page = pdfDoc.getPage(textItem.page - 1);
       const { width: pageWidth, height: pageHeight } = page.getSize();
 
@@ -96,27 +101,33 @@ export async function POST(request: NextRequest) {
       const pdfY =
         pageHeight -
         ((textItem.y + textItem.fontSize) / textItem.canvasHeight) * pageHeight;
-      
-      // Scale font size
+
+      // Scale font size proportionally
       const scaledFontSize = (textItem.fontSize / textItem.canvasHeight) * pageHeight;
+
+      // Pick font
+      const font =
+        textItem.fontFamily === "Courier"
+          ? fontCourier
+          : textItem.bold
+          ? fontBold
+          : fontRegular;
 
       // Parse color
       const color = hexToRgb(textItem.color);
 
-      const fontName =
-        textItem.fontFamily === "Courier"
-          ? "Courier"
-          : textItem.bold
-          ? "Helvetica-Bold"
-          : "Helvetica";
-
-      page.drawText(textItem.text, {
-        x: pdfX,
-        y: pdfY,
-        size: scaledFontSize,
-        color: color ? rgb(color.r, color.g, color.b) : rgb(0, 0, 0),
-        rotate: degrees(textItem.rotation),
-      });
+      try {
+        page.drawText(textItem.text, {
+          x: pdfX,
+          y: pdfY,
+          size: scaledFontSize,
+          font,
+          color: color ? rgb(color.r, color.g, color.b) : rgb(0, 0, 0),
+          rotate: degrees(textItem.rotation),
+        });
+      } catch (err) {
+        console.error("Error drawing text:", err);
+      }
     }
 
     // Save and return
@@ -130,7 +141,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error modifying PDF:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to modify PDF" },
+      { success: false, error: String(error) },
       { status: 500 }
     );
   }

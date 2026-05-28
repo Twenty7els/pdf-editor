@@ -8,7 +8,18 @@ import UploadZone from "@/components/pdf-editor/UploadZone";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "sonner";
-import { Menu, X } from "lucide-react";
+import { Menu } from "lucide-react";
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 8192;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, Array.from(chunk));
+  }
+  return btoa(binary);
+}
 
 export default function Home() {
   const {
@@ -36,7 +47,6 @@ export default function Home() {
     } else {
       toast.error("Пожалуйста, выберите PDF файл");
     }
-    // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -48,13 +58,7 @@ export default function Home() {
     try {
       toast.loading("Подготовка PDF...");
 
-      // Convert ArrayBuffer to base64
-      const uint8Array = new Uint8Array(pdfArrayBuffer);
-      let binary = "";
-      for (let i = 0; i < uint8Array.length; i++) {
-        binary += String.fromCharCode(uint8Array[i]);
-      }
-      const pdfBase64 = btoa(binary);
+      const pdfBase64 = arrayBufferToBase64(pdfArrayBuffer);
 
       // Fetch stamp images as data URLs
       const stampPromises = stamps.map(async (stamp) => {
@@ -66,24 +70,18 @@ export default function Home() {
             reader.onloadend = () => resolve(reader.result as string);
             reader.readAsDataURL(blob);
           });
-          return {
-            ...stamp,
-            imageDataUrl: dataUrl,
-          };
+          return { ...stamp, imageDataUrl: dataUrl };
         } catch {
-          return {
-            ...stamp,
-            imageDataUrl: "",
-          };
+          return { ...stamp, imageDataUrl: "" };
         }
       });
 
       const stampsWithImages = await Promise.all(stampPromises);
 
-      // Get canvas dimensions for each page
+      // Get displayed canvas dimensions (CSS pixels, not device pixels)
       const canvasEl = document.querySelector("canvas");
-      const canvasWidth = canvasEl?.width || 800;
-      const canvasHeight = canvasEl?.height || 1100;
+      const canvasWidth = canvasEl ? parseInt(canvasEl.style.width) || canvasEl.width : 800;
+      const canvasHeight = canvasEl ? parseInt(canvasEl.style.height) || canvasEl.height : 1100;
 
       // Build pageScales map
       const pageScales: Record<number, number> = {};
@@ -94,9 +92,7 @@ export default function Home() {
 
       const response = await fetch("/api/modify-pdf", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pdfBase64,
           stamps: stampsWithImages.map((s) => ({
@@ -134,13 +130,13 @@ export default function Home() {
       toast.dismiss();
 
       if (!response.ok) {
-        throw new Error("Failed to modify PDF");
+        const errData = await response.json().catch(() => null);
+        throw new Error(errData?.error || "Failed to modify PDF");
       }
 
       const result = await response.json();
 
       if (result.success && result.pdfBase64) {
-        // Convert base64 to blob and download
         const modifiedPdfBytes = Uint8Array.from(atob(result.pdfBase64), (c) =>
           c.charCodeAt(0)
         );
@@ -164,7 +160,7 @@ export default function Home() {
     } catch (error) {
       toast.dismiss();
       console.error("Error downloading PDF:", error);
-      toast.error("Ошибка при сохранении PDF");
+      toast.error("Ошибка при сохранении PDF: " + String(error));
     }
   }, [pdfArrayBuffer, stamps, texts, pageScale, pdfFileName]);
 
@@ -186,7 +182,6 @@ export default function Home() {
       {/* Header */}
       <header className="border-b border-border bg-card px-4 py-3 flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-3">
-          {/* Mobile menu toggle */}
           {pdfFile && (
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
               <SheetTrigger asChild>
@@ -235,14 +230,12 @@ export default function Home() {
 
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Desktop Sidebar */}
         {pdfFile && (
           <aside className="hidden md:block w-72 border-r border-border bg-card overflow-y-auto shrink-0">
             {toolbarContent}
           </aside>
         )}
 
-        {/* Canvas area */}
         {pdfFile ? <PdfCanvas /> : <UploadZone />}
       </div>
 
@@ -251,7 +244,6 @@ export default function Home() {
         PDF Редактор — добавляйте печати и текст на PDF документы
       </footer>
 
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"

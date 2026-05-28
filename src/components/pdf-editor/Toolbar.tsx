@@ -7,16 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import {
   MousePointer2,
   Stamp,
   Type,
-  Trash2,
-  RotateCw,
   Download,
   FileUp,
-  RotateCcw,
   Loader2,
   X,
   ImagePlus,
@@ -33,23 +29,13 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
     pdfFile,
     activeTool,
     setActiveTool,
-    stamps,
-    texts,
-    selectedItemId,
-    selectedItemType,
-    updateStamp,
-    updateText,
-    removeStamp,
-    removeText,
     customStamps,
     addCustomStamp,
     removeCustomStamp,
   } = usePdfEditorStore();
 
   const customStampInputRef = useRef<HTMLInputElement>(null);
-  const selectedStamp = stamps.find((s) => s.id === selectedItemId);
-  const selectedText = texts.find((t) => t.id === selectedItemId);
-  const hasSelection = selectedItemId !== null;
+  const hasSelection = false; // Properties moved to top bar
 
   const builtInCustom = STAMP_DEFINITIONS.filter((s) => s.category === "custom");
 
@@ -276,161 +262,6 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
             <p className="text-[11px] text-muted-foreground text-center">
               Кликните на PDF чтобы добавить текст
             </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Selected item properties */}
-      {hasSelection && (
-        <Card>
-          <CardHeader className="p-3 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {selectedItemType === "stamp" ? "Свойства печати" : "Свойства текста"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-1 flex flex-col gap-2.5">
-            {/* Rotation */}
-            <div className="flex items-center gap-2">
-              <Label className="text-xs w-16 shrink-0">Поворот</Label>
-              <div className="flex gap-1 items-center flex-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-7 w-7 shrink-0"
-                  onClick={() => {
-                    if (selectedItemType === "stamp" && selectedStamp) {
-                      updateStamp(selectedItemId!, { rotation: selectedStamp.rotation - 15 });
-                    } else if (selectedItemType === "text" && selectedText) {
-                      updateText(selectedItemId!, { rotation: selectedText.rotation - 15 });
-                    }
-                  }}
-                >
-                  <RotateCcw className="h-3 w-3" />
-                </Button>
-                <Input
-                  type="number"
-                  min={-180}
-                  max={180}
-                  step={1}
-                  value={Math.round(
-                    selectedItemType === "stamp" && selectedStamp
-                      ? selectedStamp.rotation
-                      : selectedItemType === "text" && selectedText
-                      ? selectedText.rotation
-                      : 0
-                  )}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value) || 0;
-                    if (selectedItemType === "stamp") updateStamp(selectedItemId!, { rotation: val });
-                    else if (selectedItemType === "text") updateText(selectedItemId!, { rotation: val });
-                  }}
-                  className="h-7 text-sm w-16 text-center"
-                />
-                <span className="text-xs text-muted-foreground">°</span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-7 w-7 shrink-0"
-                  onClick={() => {
-                    if (selectedItemType === "stamp" && selectedStamp) {
-                      updateStamp(selectedItemId!, { rotation: selectedStamp.rotation + 15 });
-                    } else if (selectedItemType === "text" && selectedText) {
-                      updateText(selectedItemId!, { rotation: selectedText.rotation + 15 });
-                    }
-                  }}
-                >
-                  <RotateCw className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Opacity for stamps */}
-            {selectedItemType === "stamp" && selectedStamp && (
-              <div className="flex items-center gap-2">
-                <Label className="text-xs w-16 shrink-0">Прозрачность</Label>
-                <Input
-                  type="range"
-                  min={0.05}
-                  max={1}
-                  step={0.05}
-                  value={selectedStamp.opacity}
-                  onChange={(e) =>
-                    updateStamp(selectedItemId!, { opacity: parseFloat(e.target.value) })
-                  }
-                  className="flex-1 h-7"
-                />
-                <span className="text-xs text-muted-foreground w-8 text-right">
-                  {Math.round(selectedStamp.opacity * 100)}%
-                </span>
-              </div>
-            )}
-
-            {/* Width & Height for stamps */}
-            {selectedItemType === "stamp" && selectedStamp && (
-              <div className="flex items-center gap-2">
-                <Label className="text-xs w-16 shrink-0">Ширина</Label>
-                <Input
-                  type="number"
-                  min={20}
-                  max={800}
-                  step={5}
-                  value={Math.round(selectedStamp.width)}
-                  onChange={(e) =>
-                    updateStamp(selectedItemId!, { width: Math.max(20, parseInt(e.target.value) || 20) })
-                  }
-                  className="h-7 text-sm flex-1"
-                />
-              </div>
-            )}
-            {selectedItemType === "stamp" && selectedStamp && (
-              <div className="flex items-center gap-2">
-                <Label className="text-xs w-16 shrink-0">Высота</Label>
-                <Input
-                  type="number"
-                  min={20}
-                  max={800}
-                  step={5}
-                  value={Math.round(selectedStamp.height)}
-                  onChange={(e) =>
-                    updateStamp(selectedItemId!, { height: Math.max(20, parseInt(e.target.value) || 20) })
-                  }
-                  className="h-7 text-sm flex-1"
-                />
-              </div>
-            )}
-
-            {/* Font size for text */}
-            {selectedItemType === "text" && selectedText && (
-              <div className="flex items-center gap-2">
-                <Label className="text-xs w-16 shrink-0">Размер</Label>
-                <Input
-                  type="number"
-                  min={8}
-                  max={72}
-                  value={selectedText.fontSize}
-                  onChange={(e) =>
-                    updateText(selectedItemId!, { fontSize: parseInt(e.target.value) || 16 })
-                  }
-                  className="h-7 text-sm flex-1"
-                />
-              </div>
-            )}
-
-            <Separator />
-
-            <Button
-              variant="destructive"
-              size="sm"
-              className="w-full gap-2"
-              onClick={() => {
-                if (selectedItemType === "stamp") removeStamp(selectedItemId!);
-                else removeText(selectedItemId!);
-                usePdfEditorStore.getState().setSelectedItem(null, null);
-              }}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Удалить
-            </Button>
           </CardContent>
         </Card>
       )}

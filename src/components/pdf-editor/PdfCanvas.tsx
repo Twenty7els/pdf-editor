@@ -9,7 +9,11 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize,
+  RotateCcw,
+  RotateCw,
+  Trash2,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 type DragMode = "move" | "resize" | "rotate" | null;
 
@@ -538,8 +542,151 @@ export default function PdfCanvas() {
     );
   };
 
+  const selectedStamp = stamps.find((s) => s.id === selectedItemId);
+  const selectedText = texts.find((t) => t.id === selectedItemId);
+
   return (
     <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden bg-muted/30">
+      {/* Properties bar above PDF — horizontal */}
+      {selectedItemId && pdfDoc && !error && !isLoading && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-card border-b border-border shrink-0 overflow-x-auto">
+          {selectedItemType === "stamp" && selectedStamp && (
+            <>
+              {/* Rotation */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs text-muted-foreground">Поворот</span>
+                <Button variant="outline" size="icon" className="h-7 w-7"
+                  onClick={() => updateStamp(selectedItemId!, { rotation: selectedStamp.rotation - 15 })}
+                >
+                  <RotateCcw className="h-3 w-3" />
+                </Button>
+                <Input
+                  type="number" min={-180} max={180} step={1}
+                  value={Math.round(selectedStamp.rotation)}
+                  onChange={(e) => updateStamp(selectedItemId!, { rotation: parseFloat(e.target.value) || 0 })}
+                  className="h-7 text-sm w-14 text-center"
+                />
+                <span className="text-xs text-muted-foreground">°</span>
+                <Button variant="outline" size="icon" className="h-7 w-7"
+                  onClick={() => updateStamp(selectedItemId!, { rotation: selectedStamp.rotation + 15 })}
+                >
+                  <RotateCw className="h-3 w-3" />
+                </Button>
+              </div>
+
+              <div className="w-px h-6 bg-border shrink-0" />
+
+              {/* Width */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs text-muted-foreground">Ш</span>
+                <Input
+                  type="number" min={20} max={800} step={5}
+                  value={Math.round(selectedStamp.width)}
+                  onChange={(e) => updateStamp(selectedItemId!, { width: Math.max(20, parseInt(e.target.value) || 20) })}
+                  className="h-7 text-sm w-16 text-center"
+                />
+              </div>
+
+              {/* Height */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs text-muted-foreground">В</span>
+                <Input
+                  type="number" min={20} max={800} step={5}
+                  value={Math.round(selectedStamp.height)}
+                  onChange={(e) => updateStamp(selectedItemId!, { height: Math.max(20, parseInt(e.target.value) || 20) })}
+                  className="h-7 text-sm w-16 text-center"
+                />
+              </div>
+
+              <div className="w-px h-6 bg-border shrink-0" />
+
+              {/* Opacity */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs text-muted-foreground">Прозрачность</span>
+                <Input
+                  type="range" min={0.05} max={1} step={0.05}
+                  value={selectedStamp.opacity}
+                  onChange={(e) => updateStamp(selectedItemId!, { opacity: parseFloat(e.target.value) })}
+                  className="w-20 h-7"
+                />
+                <span className="text-xs text-muted-foreground w-8 text-right">
+                  {Math.round(selectedStamp.opacity * 100)}%
+                </span>
+              </div>
+
+              <div className="w-px h-6 bg-border shrink-0" />
+
+              {/* Delete */}
+              <Button
+                variant="destructive" size="sm"
+                className="h-7 gap-1.5 shrink-0"
+                onClick={() => {
+                  usePdfEditorStore.getState().removeStamp(selectedItemId!);
+                  setSelectedItem(null, null);
+                }}
+              >
+                <Trash2 className="h-3 w-3" />
+                Удалить
+              </Button>
+            </>
+          )}
+
+          {selectedItemType === "text" && selectedText && (
+            <>
+              {/* Rotation */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs text-muted-foreground">Поворот</span>
+                <Button variant="outline" size="icon" className="h-7 w-7"
+                  onClick={() => updateText(selectedItemId!, { rotation: selectedText.rotation - 15 })}
+                >
+                  <RotateCcw className="h-3 w-3" />
+                </Button>
+                <Input
+                  type="number" min={-180} max={180} step={1}
+                  value={Math.round(selectedText.rotation)}
+                  onChange={(e) => updateText(selectedItemId!, { rotation: parseFloat(e.target.value) || 0 })}
+                  className="h-7 text-sm w-14 text-center"
+                />
+                <span className="text-xs text-muted-foreground">°</span>
+                <Button variant="outline" size="icon" className="h-7 w-7"
+                  onClick={() => updateText(selectedItemId!, { rotation: selectedText.rotation + 15 })}
+                >
+                  <RotateCw className="h-3 w-3" />
+                </Button>
+              </div>
+
+              <div className="w-px h-6 bg-border shrink-0" />
+
+              {/* Font size */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs text-muted-foreground">Размер</span>
+                <Input
+                  type="number" min={8} max={72}
+                  value={selectedText.fontSize}
+                  onChange={(e) => updateText(selectedItemId!, { fontSize: parseInt(e.target.value) || 16 })}
+                  className="h-7 text-sm w-16 text-center"
+                />
+              </div>
+
+              <div className="w-px h-6 bg-border shrink-0" />
+
+              {/* Delete */}
+              <Button
+                variant="destructive" size="sm"
+                className="h-7 gap-1.5 shrink-0"
+                onClick={() => {
+                  usePdfEditorStore.getState().removeText(selectedItemId!);
+                  setSelectedItem(null, null);
+                }}
+              >
+                <Trash2 className="h-3 w-3" />
+                Удалить
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Canvas area */}
       <div className="flex-1 flex items-center justify-center p-5 overflow-auto">
         {error && (

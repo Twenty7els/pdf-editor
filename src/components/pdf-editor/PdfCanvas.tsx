@@ -60,6 +60,7 @@ export default function PdfCanvas() {
   // Eraser drawing state
   const [isEraserDrawing, setIsEraserDrawing] = useState(false);
   const [currentEraserPoints, setCurrentEraserPoints] = useState<EraserPoint[]>([]);
+  const [eraserCursorPos, setEraserCursorPos] = useState<{ x: number; y: number } | null>(null);
 
   const {
     pdfFile,
@@ -261,6 +262,11 @@ export default function PdfCanvas() {
     });
   }, [canvasSize.width, canvasSize.height]);
 
+  // Clear eraser cursor when switching away from eraser tool
+  useEffect(() => {
+    if (activeTool !== "eraser") setEraserCursorPos(null);
+  }, [activeTool]);
+
   // Mouse wheel zoom with Ctrl
   useEffect(() => {
     const container = containerRef.current;
@@ -369,6 +375,7 @@ export default function PdfCanvas() {
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       setCurrentEraserPoints(prev => [...prev, { x, y }]);
+      setEraserCursorPos({ x, y });
     };
 
     const handleMouseUp = () => {
@@ -734,6 +741,13 @@ export default function PdfCanvas() {
               className={`absolute top-0 left-0 ${cursorClass}`}
               onClick={handleOverlayClick}
               onMouseDown={handleOverlayMouseDown}
+              onMouseMove={(e) => {
+                if (activeTool === "eraser") {
+                  const rect = overlayRef.current!.getBoundingClientRect();
+                  setEraserCursorPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+                }
+              }}
+              onMouseLeave={() => setEraserCursorPos(null)}
               style={{ width: canvasSize.width, height: canvasSize.height }}
             >
               {/* SVG layer for eraser strokes */}
@@ -846,19 +860,19 @@ export default function PdfCanvas() {
                 </div>
               ))}
 
-              {/* Eraser cursor preview */}
-              {activeTool === "eraser" && !isEraserDrawing && (
+              {/* Eraser cursor preview — circle that follows mouse */}
+              {activeTool === "eraser" && eraserCursorPos && (
                 <div
-                  className="absolute pointer-events-none rounded-full border-2 border-gray-400"
+                  className="absolute pointer-events-none rounded-full border-2 border-gray-500"
                   style={{
                     width: eraserSettings.brushSize,
                     height: eraserSettings.brushSize,
+                    left: eraserCursorPos.x,
+                    top: eraserCursorPos.y,
                     transform: "translate(-50%, -50%)",
                     backgroundColor: eraserSettings.color,
-                    opacity: 0.5,
+                    opacity: 0.6,
                     zIndex: 50,
-                    // This is just for visual reference — actual position tracked by CSS
-                    display: "none", // We'll use a real cursor overlay via state
                   }}
                 />
               )}

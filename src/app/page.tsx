@@ -10,15 +10,15 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/s
 import { toast } from "sonner";
 import { Menu } from "lucide-react";
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 8192;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode.apply(null, Array.from(chunk));
-  }
-  return btoa(binary);
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16) / 255,
+        g: parseInt(result[2], 16) / 255,
+        b: parseInt(result[3], 16) / 255,
+      }
+    : null;
 }
 
 export default function Home() {
@@ -27,13 +27,13 @@ export default function Home() {
     pdfArrayBuffer,
     stamps,
     texts,
-    pageScale,
     pdfFileName,
     setPdfFile,
   } = usePdfEditorStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -53,116 +53,135 @@ export default function Home() {
   };
 
   const handleDownload = useCallback(async () => {
-    if (!pdfArrayBuffer) return;
+    if (!pdfArrayBuffer || isDownloading) return;
+
+    setIsDownloading(true);
+    const loadingToast = toast.loading("Подготовка PDF...");
 
     try {
-      toast.loading("Подготовка PDF...");
+      // Dynamic import of pdf-lib (client-side)
+      const { PDFDocument, rgb, degrees, StandardFonts } = await import("pdf-lib");
 
-      const pdfBase64 = arrayBufferToBase64(pdfArrayBuffer);
+      // Load the original PDF from stored ArrayBuffer
+      const pdfDoc = await PDFDocument.load(pdfArrayBuffer);
 
-      // Fetch stamp images as data URLs
-      const stampPromises = stamps.map(async (stamp) => {
+      // Embed fonts
+      const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const fontCourier = await pdfDoc.embedFont(StandardFonts.Courier);
+
+      // Process stamps — embed images directly
+      for (const stamp of stamps) {
         try {
+          const page = pdfDoc.getPage(stamp.page - 1);
+          const { width: pageWidth, height: pageHeight } = page.getSize();
+
+          // Use stored canvas dimensions for coordinate conversion
+          const cw = stamp.canvasWidth || 800;
+          const ch = stamp.canvasHeight || 1100;
+
+          const pdfX = (stamp.x / cw) * pageWidth;
+          const pdfY = pageHeight - ((stamp.y + stamp.height) / ch) * pageHeight;
+          const pdfWidth = (stamp.width / cw) * pageWidth;
+          const pdfHeight = (stamp.height / ch) * pageHeight;
+
+          // Fetch stamp image bytes directly
           const response = await fetch(stamp.src);
-          const blob = await response.blob();
-          const dataUrl = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
+          const imageArrayBuffer = await response.arrayBuffer();
+          const imageBytes = new Uint8Array(imageArrayBuffer);
+
+          let image;
+          try {
+            image = await pdfDoc.embedPng(imageBytes);
+          } catch {
+            try {
+              image = await pdfDoc.embedJpg(imageBytes);
+            } catch {
+              console.error("Could not embed stamp image, skipping");
+              continue;
+            }
+          }
+
+          page.drawImage(image, {
+            x: pdfX,
+            y: pdfY,
+            width: pdfWidth,
+            height: pdfHeight,
+            rotate: degrees(stamp.rotation),
+            opacity: stamp.opacity,
           });
-          return { ...stamp, imageDataUrl: dataUrl };
-        } catch {
-          return { ...stamp, imageDataUrl: "" };
+        } catch (err) {
+          console.error("Error embedding stamp:", err);
         }
-      });
-
-      const stampsWithImages = await Promise.all(stampPromises);
-
-      // Get displayed canvas dimensions (CSS pixels, not device pixels)
-      const canvasEl = document.querySelector("canvas");
-      const canvasWidth = canvasEl ? parseInt(canvasEl.style.width) || canvasEl.width : 800;
-      const canvasHeight = canvasEl ? parseInt(canvasEl.style.height) || canvasEl.height : 1100;
-
-      // Build pageScales map
-      const pageScales: Record<number, number> = {};
-      const allPages = new Set([...stamps.map((s) => s.page), ...texts.map((t) => t.page)]);
-      allPages.forEach((page) => {
-        pageScales[page] = pageScale;
-      });
-
-      const response = await fetch("/api/modify-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pdfBase64,
-          stamps: stampsWithImages.map((s) => ({
-            id: s.id,
-            type: s.type,
-            imageDataUrl: s.imageDataUrl,
-            x: s.x,
-            y: s.y,
-            width: s.width,
-            height: s.height,
-            page: s.page,
-            rotation: s.rotation,
-            opacity: s.opacity,
-            canvasWidth,
-            canvasHeight,
-          })),
-          texts: texts.map((t) => ({
-            id: t.id,
-            text: t.text,
-            x: t.x,
-            y: t.y,
-            fontSize: t.fontSize,
-            color: t.color,
-            page: t.page,
-            fontFamily: t.fontFamily,
-            bold: t.bold,
-            rotation: t.rotation,
-            canvasWidth,
-            canvasHeight,
-          })),
-          pageScales,
-        }),
-      });
-
-      toast.dismiss();
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => null);
-        throw new Error(errData?.error || "Failed to modify PDF");
       }
 
-      const result = await response.json();
+      // Process texts
+      for (const textItem of texts) {
+        if (!textItem.text.trim()) continue;
 
-      if (result.success && result.pdfBase64) {
-        const modifiedPdfBytes = Uint8Array.from(atob(result.pdfBase64), (c) =>
-          c.charCodeAt(0)
-        );
-        const blob = new Blob([modifiedPdfBytes], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
+        try {
+          const page = pdfDoc.getPage(textItem.page - 1);
+          const { width: pageWidth, height: pageHeight } = page.getSize();
 
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = pdfFileName
-          ? `modified_${pdfFileName}`
-          : "modified_document.pdf";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+          const cw = textItem.canvasWidth || 800;
+          const ch = textItem.canvasHeight || 1100;
 
-        toast.success("PDF сохранён!");
-      } else {
-        throw new Error(result.error || "Unknown error");
+          const pdfX = (textItem.x / cw) * pageWidth;
+          const pdfY =
+            pageHeight -
+            ((textItem.y + textItem.fontSize) / ch) * pageHeight;
+
+          const scaledFontSize = (textItem.fontSize / ch) * pageHeight;
+
+          const font =
+            textItem.fontFamily === "Courier"
+              ? fontCourier
+              : textItem.bold
+              ? fontBold
+              : fontRegular;
+
+          const color = hexToRgb(textItem.color);
+
+          page.drawText(textItem.text, {
+            x: pdfX,
+            y: pdfY,
+            size: scaledFontSize,
+            font,
+            color: color ? rgb(color.r, color.g, color.b) : rgb(0, 0, 0),
+            rotate: degrees(textItem.rotation),
+          });
+        } catch (err) {
+          console.error("Error drawing text:", err);
+        }
       }
+
+      // Save and trigger download
+      const modifiedPdfBytes = await pdfDoc.save();
+      const blob = new Blob([modifiedPdfBytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = pdfFileName
+        ? `modified_${pdfFileName}`
+        : "modified_document.pdf";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up after a delay to ensure download starts
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+      toast.dismiss(loadingToast);
+      toast.success("PDF сохранён!");
     } catch (error) {
-      toast.dismiss();
+      toast.dismiss(loadingToast);
       console.error("Error downloading PDF:", error);
       toast.error("Ошибка при сохранении PDF: " + String(error));
+    } finally {
+      setIsDownloading(false);
     }
-  }, [pdfArrayBuffer, stamps, texts, pageScale, pdfFileName]);
+  }, [pdfArrayBuffer, stamps, texts, pdfFileName, isDownloading]);
 
   const toolbarContent = (
     <Toolbar
@@ -174,6 +193,7 @@ export default function Home() {
         handleDownload();
         setSidebarOpen(false);
       }}
+      isDownloading={isDownloading}
     />
   );
 

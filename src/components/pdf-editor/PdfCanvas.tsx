@@ -22,7 +22,7 @@ export default function PdfCanvas() {
   const [pdfjsReady, setPdfjsReady] = useState(false);
   const pdfjsRef = useRef<unknown>(null);
   const renderingRef = useRef(false);
-  const baseScaleRef = useRef(1.0); // auto-calculated "fit" scale
+  const baseScaleRef = useRef(1.0);
 
   const {
     pdfFile,
@@ -212,6 +212,8 @@ export default function PdfCanvas() {
       if (e.target !== overlayRef.current) return;
 
       const rect = overlayRef.current.getBoundingClientRect();
+      const overlayW = overlayRef.current.offsetWidth;
+      const overlayH = overlayRef.current.offsetHeight;
 
       if (activeTool === "stamp" && selectedStampType && selectedStampSrc) {
         const x = e.clientX - rect.left;
@@ -229,6 +231,8 @@ export default function PdfCanvas() {
           page: currentPage,
           rotation: 0,
           opacity: 0.8,
+          canvasWidth: overlayW,
+          canvasHeight: overlayH,
         });
       } else if (activeTool === "text") {
         const x = e.clientX - rect.left;
@@ -245,6 +249,8 @@ export default function PdfCanvas() {
           fontFamily: textSettings.fontFamily,
           bold: textSettings.bold,
           rotation: 0,
+          canvasWidth: overlayW,
+          canvasHeight: overlayH,
         };
 
         addText(newText);

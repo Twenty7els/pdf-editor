@@ -19,14 +19,16 @@ import {
   RotateCcw,
   ZoomIn,
   ZoomOut,
+  Loader2,
 } from "lucide-react";
 
 interface ToolbarProps {
   onUploadClick: () => void;
   onDownloadClick: () => void;
+  isDownloading?: boolean;
 }
 
-export default function Toolbar({ onUploadClick, onDownloadClick }: ToolbarProps) {
+export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading }: ToolbarProps) {
   const {
     pdfFile,
     activeTool,
@@ -61,10 +63,14 @@ export default function Toolbar({ onUploadClick, onDownloadClick }: ToolbarProps
           <Button
             className="w-full justify-start gap-2"
             onClick={onDownloadClick}
-            disabled={!pdfFile}
+            disabled={!pdfFile || isDownloading}
           >
-            <Download className="h-4 w-4" />
-            Скачать PDF
+            {isDownloading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            {isDownloading ? "Подготовка..." : "Скачать PDF"}
           </Button>
         </CardContent>
       </Card>

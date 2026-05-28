@@ -11,6 +11,8 @@ export interface StampItem {
   page: number;
   rotation: number;
   opacity: number;
+  canvasWidth: number;  // overlay width at time of placement
+  canvasHeight: number; // overlay height at time of placement
 }
 
 export interface TextItem {
@@ -24,6 +26,8 @@ export interface TextItem {
   fontFamily: string;
   bold: boolean;
   rotation: number;
+  canvasWidth: number;  // overlay width at time of placement
+  canvasHeight: number; // overlay height at time of placement
 }
 
 export type ToolMode = "select" | "stamp" | "text";

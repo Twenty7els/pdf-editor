@@ -197,10 +197,15 @@ export default function PdfCanvas() {
     };
   }, [pdfDoc, renderPage]);
 
-  // Handle click on canvas overlay
+  // Handle click on canvas overlay — only place items when clicking empty area
   const handleOverlayClick = useCallback(
     (e: React.MouseEvent) => {
       if (!overlayRef.current) return;
+
+      // CRITICAL: Only handle clicks directly on the overlay (empty area).
+      // If click target is a child element (stamp, text, etc), skip —
+      // otherwise clicking an existing item would create a duplicate.
+      if (e.target !== overlayRef.current) return;
 
       const rect = overlayRef.current.getBoundingClientRect();
 
@@ -245,11 +250,8 @@ export default function PdfCanvas() {
         setEditTextValue("Текст");
         setSelectedItem(newText.id, "text");
       } else if (activeTool === "select") {
-        const target = e.target as HTMLElement;
-        if (target === overlayRef.current) {
-          setSelectedItem(null, null);
-          setEditingTextId(null);
-        }
+        setSelectedItem(null, null);
+        setEditingTextId(null);
       }
     },
     [activeTool, selectedStampType, selectedStampSrc, currentPage, textSettings, addStamp, addText, setSelectedItem]

@@ -17,10 +17,7 @@ import {
   Download,
   FileUp,
   RotateCcw,
-  ZoomIn,
-  ZoomOut,
   Loader2,
-  Plus,
   X,
   ImagePlus,
 } from "lucide-react";
@@ -54,35 +51,25 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
   const selectedText = texts.find((t) => t.id === selectedItemId);
   const hasSelection = selectedItemId !== null;
 
-  const presetStamps = STAMP_DEFINITIONS.filter((s) => s.category === "preset");
   const builtInCustom = STAMP_DEFINITIONS.filter((s) => s.category === "custom");
 
   const handleCustomStampUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Validate it's an image
-    if (!file.type.startsWith("image/")) {
-      return;
-    }
-
+    if (!file.type.startsWith("image/")) return;
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
-      const name = file.name.replace(/\.[^/.]+$/, ""); // remove extension
+      const name = file.name.replace(/\.[^/.]+$/, "");
       const customStamp: CustomStamp = {
         id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        name: name,
-        dataUrl: dataUrl,
+        name,
+        dataUrl,
       };
       addCustomStamp(customStamp);
     };
     reader.readAsDataURL(file);
-
-    // Reset input
-    if (customStampInputRef.current) {
-      customStampInputRef.current.value = "";
-    }
+    if (customStampInputRef.current) customStampInputRef.current.value = "";
   };
 
   return (
@@ -149,37 +136,7 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
       {/* Stamps selector */}
       {activeTool === "stamp" && (
         <>
-          {/* Preset stamps */}
-          <Card>
-            <CardHeader className="p-3 pb-2">
-              <CardTitle className="text-sm font-medium">Стандартные печати</CardTitle>
-            </CardHeader>
-            <CardContent className="p-3 pt-1">
-              <div className="grid grid-cols-2 gap-2">
-                {presetStamps.map((stamp) => (
-                  <button
-                    key={stamp.id}
-                    className="flex flex-col items-center gap-1 p-2 rounded-lg border border-border hover:border-primary hover:bg-accent transition-colors"
-                    onClick={() =>
-                      usePdfEditorStore.getState().setSelectedStamp(stamp.id, stamp.src)
-                    }
-                  >
-                    <img
-                      src={stamp.src}
-                      alt={stamp.name}
-                      className="w-14 h-14 object-contain"
-                      draggable={false}
-                    />
-                    <span className="text-[10px] text-muted-foreground text-center leading-tight">
-                      {stamp.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Built-in custom stamps (user's pre-loaded stamps) */}
+          {/* Built-in custom stamps */}
           {builtInCustom.length > 0 && (
             <Card>
               <CardHeader className="p-3 pb-2">
@@ -252,7 +209,7 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
                 </div>
               ) : (
                 <p className="text-[11px] text-muted-foreground text-center">
-                  Загрузите изображение печати
+                  Нет загруженных печатей
                 </p>
               )}
 
@@ -334,12 +291,12 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
           <CardContent className="p-3 pt-1 flex flex-col gap-2.5">
             {/* Rotation */}
             <div className="flex items-center gap-2">
-              <Label className="text-xs w-16">Поворот</Label>
-              <div className="flex gap-1">
+              <Label className="text-xs w-16 shrink-0">Поворот</Label>
+              <div className="flex gap-1 items-center flex-1">
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-7 w-7"
+                  className="h-7 w-7 shrink-0"
                   onClick={() => {
                     if (selectedItemType === "stamp" && selectedStamp) {
                       updateStamp(selectedItemId!, { rotation: selectedStamp.rotation - 15 });
@@ -350,10 +307,30 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
                 >
                   <RotateCcw className="h-3 w-3" />
                 </Button>
+                <Input
+                  type="number"
+                  min={-180}
+                  max={180}
+                  step={1}
+                  value={Math.round(
+                    selectedItemType === "stamp" && selectedStamp
+                      ? selectedStamp.rotation
+                      : selectedItemType === "text" && selectedText
+                      ? selectedText.rotation
+                      : 0
+                  )}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    if (selectedItemType === "stamp") updateStamp(selectedItemId!, { rotation: val });
+                    else if (selectedItemType === "text") updateText(selectedItemId!, { rotation: val });
+                  }}
+                  className="h-7 text-sm w-16 text-center"
+                />
+                <span className="text-xs text-muted-foreground">°</span>
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-7 w-7"
+                  className="h-7 w-7 shrink-0"
                   onClick={() => {
                     if (selectedItemType === "stamp" && selectedStamp) {
                       updateStamp(selectedItemId!, { rotation: selectedStamp.rotation + 15 });
@@ -370,60 +347,62 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
             {/* Opacity for stamps */}
             {selectedItemType === "stamp" && selectedStamp && (
               <div className="flex items-center gap-2">
-                <Label className="text-xs w-16">Прозрачность</Label>
+                <Label className="text-xs w-16 shrink-0">Прозрачность</Label>
                 <Input
                   type="range"
-                  min={0.1}
+                  min={0.05}
                   max={1}
-                  step={0.1}
+                  step={0.05}
                   value={selectedStamp.opacity}
                   onChange={(e) =>
                     updateStamp(selectedItemId!, { opacity: parseFloat(e.target.value) })
                   }
                   className="flex-1 h-7"
                 />
+                <span className="text-xs text-muted-foreground w-8 text-right">
+                  {Math.round(selectedStamp.opacity * 100)}%
+                </span>
               </div>
             )}
 
-            {/* Size for stamps */}
+            {/* Width & Height for stamps */}
             {selectedItemType === "stamp" && selectedStamp && (
               <div className="flex items-center gap-2">
-                <Label className="text-xs w-16">Размер</Label>
-                <div className="flex gap-1">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() =>
-                      updateStamp(selectedItemId!, {
-                        width: Math.max(40, selectedStamp.width - 20),
-                        height: Math.max(40, selectedStamp.height - 20),
-                      })
-                    }
-                  >
-                    <ZoomOut className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() =>
-                      updateStamp(selectedItemId!, {
-                        width: selectedStamp.width + 20,
-                        height: selectedStamp.height + 20,
-                      })
-                    }
-                  >
-                    <ZoomIn className="h-3 w-3" />
-                  </Button>
-                </div>
+                <Label className="text-xs w-16 shrink-0">Ширина</Label>
+                <Input
+                  type="number"
+                  min={20}
+                  max={800}
+                  step={5}
+                  value={Math.round(selectedStamp.width)}
+                  onChange={(e) =>
+                    updateStamp(selectedItemId!, { width: Math.max(20, parseInt(e.target.value) || 20) })
+                  }
+                  className="h-7 text-sm flex-1"
+                />
+              </div>
+            )}
+            {selectedItemType === "stamp" && selectedStamp && (
+              <div className="flex items-center gap-2">
+                <Label className="text-xs w-16 shrink-0">Высота</Label>
+                <Input
+                  type="number"
+                  min={20}
+                  max={800}
+                  step={5}
+                  value={Math.round(selectedStamp.height)}
+                  onChange={(e) =>
+                    updateStamp(selectedItemId!, { height: Math.max(20, parseInt(e.target.value) || 20) })
+                  }
+                  className="h-7 text-sm flex-1"
+                />
               </div>
             )}
 
             {/* Font size for text */}
             {selectedItemType === "text" && selectedText && (
               <div className="flex items-center gap-2">
-                <Label className="text-xs w-16">Размер</Label>
+                <Label className="text-xs w-16 shrink-0">Размер</Label>
                 <Input
                   type="number"
                   min={8}
@@ -463,7 +442,8 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
             <b>Ctrl + колесо</b> — масштаб<br/>
             <b>← →</b> — листать страницы<br/>
             <b>Delete</b> — удалить элемент<br/>
-            <b>2× клик</b> — редактировать текст
+            <b>2× клик</b> — редактировать текст<br/>
+            <b>Shift + поворот</b> — по 15°
           </p>
         </CardContent>
       </Card>

@@ -7,49 +7,6 @@ export interface StampDefinition {
 }
 
 export const STAMP_DEFINITIONS: StampDefinition[] = [
-  // Preset stamps
-  {
-    id: "approved",
-    name: "ОДОБРЕНО",
-    src: "/stamps/approved.png",
-    color: "red",
-    category: "preset",
-  },
-  {
-    id: "confidential",
-    name: "КОНФИДЕНЦИАЛЬНО",
-    src: "/stamps/confidential.png",
-    color: "red",
-    category: "preset",
-  },
-  {
-    id: "draft",
-    name: "ЧЕРНОВИК",
-    src: "/stamps/draft.png",
-    color: "red",
-    category: "preset",
-  },
-  {
-    id: "paid",
-    name: "ОПЛАЧЕНО",
-    src: "/stamps/paid.png",
-    color: "red",
-    category: "preset",
-  },
-  {
-    id: "review",
-    name: "НА РАССМОТРЕНИИ",
-    src: "/stamps/review.png",
-    color: "blue",
-    category: "preset",
-  },
-  {
-    id: "verified",
-    name: "ПРОВЕРЕНО",
-    src: "/stamps/verified.png",
-    color: "green",
-    category: "preset",
-  },
   // Custom stamps — user's own stamps
   {
     id: "custom-seal-ooo",

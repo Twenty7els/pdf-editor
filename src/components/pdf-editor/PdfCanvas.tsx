@@ -11,6 +11,31 @@ import {
   Maximize,
 } from "lucide-react";
 
+type DragMode = "move" | "resize" | "rotate" | null;
+
+interface DragState {
+  mode: DragMode;
+  id: string;
+  type: "stamp" | "text";
+  // for move
+  offsetX: number;
+  offsetY: number;
+  // for resize — which corner: tl, tr, bl, br
+  corner?: string;
+  startX: number;
+  startY: number;
+  startLeft: number;
+  startTop: number;
+  startWidth: number;
+  startHeight: number;
+  // for rotate
+  startRotation: number;
+  startAngle: number;
+}
+
+const HANDLE_SIZE = 8;
+const ROTATE_HANDLE_DISTANCE = 25;
+
 export default function PdfCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -32,7 +57,6 @@ export default function PdfCanvas() {
     setTotalPages,
     setPdfArrayBuffer,
     setPageScale,
-    setZoomLevel,
     zoomIn,
     zoomOut,
     zoomFit,
@@ -52,14 +76,8 @@ export default function PdfCanvas() {
     textSettings,
   } = usePdfEditorStore();
 
-  // Drag state
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragItem, setDragItem] = useState<{
-    id: string;
-    type: "stamp" | "text";
-    offsetX: number;
-    offsetY: number;
-  } | null>(null);
+  // Drag / resize / rotate state
+  const [dragState, setDragState] = useState<DragState | null>(null);
 
   // Text editing
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
@@ -68,7 +86,6 @@ export default function PdfCanvas() {
   // Load pdfjs-dist dynamically on mount
   useEffect(() => {
     let cancelled = false;
-
     const loadPdfjs = async () => {
       try {
         const pdfjs = await import("pdfjs-dist");
@@ -81,7 +98,6 @@ export default function PdfCanvas() {
         setError("Ошибка загрузки PDF.js библиотеки");
       }
     };
-
     loadPdfjs();
     return () => { cancelled = true; };
   }, []);
@@ -89,21 +105,17 @@ export default function PdfCanvas() {
   // Load PDF when file changes
   useEffect(() => {
     if (!pdfFile || !pdfjsRef.current) return;
-
     const loadPdf = async () => {
       setIsLoading(true);
       setError(null);
-
       try {
         const arrayBuffer = await pdfFile.arrayBuffer();
         setPdfArrayBuffer(arrayBuffer.slice(0));
-
         const pdfjs = pdfjsRef.current as typeof import("pdfjs-dist");
         const pdf = await pdfjs.getDocument({
           data: new Uint8Array(arrayBuffer),
           useSystemFonts: true,
         }).promise;
-
         setPdfDoc(pdf);
         setTotalPages(pdf.numPages);
       } catch (err) {
@@ -113,58 +125,36 @@ export default function PdfCanvas() {
         setIsLoading(false);
       }
     };
-
     loadPdf();
   }, [pdfFile, pdfjsReady, setTotalPages, setPdfArrayBuffer]);
 
   // Render current page with zoom
   const renderPage = useCallback(async () => {
     if (!pdfDoc || !canvasRef.current || renderingRef.current) return;
-
     renderingRef.current = true;
-
     try {
       const pdf = pdfDoc as import("pdfjs-dist").PDFDocumentProxy;
       const page = await pdf.getPage(currentPage);
-
       const container = containerRef.current;
       if (!container) { renderingRef.current = false; return; }
-
-      // Calculate base "fit" scale
       const containerWidth = container.clientWidth - 40;
       const viewport = page.getViewport({ scale: 1 });
       const fitScale = containerWidth / viewport.width;
       baseScaleRef.current = fitScale;
-
-      // Apply zoom level on top of fit scale
       const scale = fitScale * zoomLevel;
       setPageScale(scale);
-
       const scaledViewport = page.getViewport({ scale });
       const canvas = canvasRef.current;
       const context = canvas.getContext("2d");
       if (!context) { renderingRef.current = false; return; }
-
       const outputScale = window.devicePixelRatio || 1;
       canvas.width = Math.floor(scaledViewport.width * outputScale);
       canvas.height = Math.floor(scaledViewport.height * outputScale);
       canvas.style.width = Math.floor(scaledViewport.width) + "px";
       canvas.style.height = Math.floor(scaledViewport.height) + "px";
-
-      const transform = outputScale !== 1
-        ? [outputScale, 0, 0, outputScale, 0, 0]
-        : undefined;
-
-      setCanvasSize({
-        width: Math.floor(scaledViewport.width),
-        height: Math.floor(scaledViewport.height),
-      });
-
-      await page.render({
-        canvasContext: context,
-        viewport: scaledViewport,
-        transform,
-      }).promise;
+      const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined;
+      setCanvasSize({ width: Math.floor(scaledViewport.width), height: Math.floor(scaledViewport.height) });
+      await page.render({ canvasContext: context, viewport: scaledViewport, transform }).promise;
     } catch (err) {
       console.error("Error rendering page:", err);
     } finally {
@@ -172,12 +162,8 @@ export default function PdfCanvas() {
     }
   }, [pdfDoc, currentPage, zoomLevel, setPageScale]);
 
-  // Re-render on changes
-  useEffect(() => {
-    if (pdfDoc) renderPage();
-  }, [renderPage, pdfDoc]);
+  useEffect(() => { if (pdfDoc) renderPage(); }, [renderPage, pdfDoc]);
 
-  // Handle resize
   useEffect(() => {
     let timeout: NodeJS.Timeout;
     const handleResize = () => {
@@ -192,15 +178,12 @@ export default function PdfCanvas() {
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        if (e.deltaY < 0) zoomIn();
-        else zoomOut();
+        if (e.deltaY < 0) zoomIn(); else zoomOut();
       }
     };
-
     container.addEventListener("wheel", handleWheel, { passive: false });
     return () => container.removeEventListener("wheel", handleWheel);
   }, [zoomIn, zoomOut]);
@@ -210,7 +193,6 @@ export default function PdfCanvas() {
     (e: React.MouseEvent) => {
       if (!overlayRef.current) return;
       if (e.target !== overlayRef.current) return;
-
       const rect = overlayRef.current.getBoundingClientRect();
       const overlayW = overlayRef.current.offsetWidth;
       const overlayH = overlayRef.current.offsetHeight;
@@ -219,7 +201,6 @@ export default function PdfCanvas() {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         const size = 120;
-
         addStamp({
           id: `stamp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           type: selectedStampType,
@@ -237,12 +218,10 @@ export default function PdfCanvas() {
       } else if (activeTool === "text") {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-
         const newText: TextItem = {
           id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           text: "Текст",
-          x,
-          y,
+          x, y,
           fontSize: textSettings.fontSize,
           color: textSettings.color,
           page: currentPage,
@@ -252,7 +231,6 @@ export default function PdfCanvas() {
           canvasWidth: overlayW,
           canvasHeight: overlayH,
         };
-
         addText(newText);
         setEditingTextId(newText.id);
         setEditTextValue("Текст");
@@ -265,34 +243,164 @@ export default function PdfCanvas() {
     [activeTool, selectedStampType, selectedStampSrc, currentPage, textSettings, addStamp, addText, setSelectedItem]
   );
 
-  // Drag
+  // Unified mouse down handler
   const handleItemMouseDown = useCallback(
     (e: React.MouseEvent, id: string, type: "stamp" | "text") => {
       e.stopPropagation();
       setSelectedItem(id, type);
-      setIsDragging(true);
-      setDragItem({ id, type, offsetX: e.nativeEvent.offsetX, offsetY: e.nativeEvent.offsetY });
+      setDragState({
+        mode: "move",
+        id,
+        type,
+        offsetX: e.nativeEvent.offsetX,
+        offsetY: e.nativeEvent.offsetY,
+        startX: e.clientX,
+        startY: e.clientY,
+        startLeft: 0,
+        startTop: 0,
+        startWidth: 0,
+        startHeight: 0,
+        startRotation: 0,
+        startAngle: 0,
+      });
     },
     [setSelectedItem]
   );
 
+  // Resize handle mouse down
+  const handleResizeMouseDown = useCallback(
+    (e: React.MouseEvent, id: string, corner: string, item: StampItem | TextItem) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const stampItem = item as StampItem;
+      setDragState({
+        mode: "resize",
+        id,
+        type: "stamp",
+        corner,
+        offsetX: 0,
+        offsetY: 0,
+        startX: e.clientX,
+        startY: e.clientY,
+        startLeft: stampItem.x,
+        startTop: stampItem.y,
+        startWidth: stampItem.width,
+        startHeight: stampItem.height,
+        startRotation: stampItem.rotation,
+        startAngle: 0,
+      });
+    },
+    []
+  );
+
+  // Rotation handle mouse down
+  const handleRotateMouseDown = useCallback(
+    (e: React.MouseEvent, id: string, item: StampItem) => {
+      e.stopPropagation();
+      e.preventDefault();
+      // Calculate center of the element
+      const cx = item.x + item.width / 2;
+      const cy = item.y + item.height / 2;
+      const rect = overlayRef.current!.getBoundingClientRect();
+      const mouseLocalX = e.clientX - rect.left;
+      const mouseLocalY = e.clientY - rect.top;
+      const angle = Math.atan2(mouseLocalY - cy, mouseLocalX - cx) * (180 / Math.PI);
+      setDragState({
+        mode: "rotate",
+        id,
+        type: "stamp",
+        offsetX: 0,
+        offsetY: 0,
+        startX: e.clientX,
+        startY: e.clientY,
+        startLeft: item.x,
+        startTop: item.y,
+        startWidth: item.width,
+        startHeight: item.height,
+        startRotation: item.rotation,
+        startAngle: angle,
+      });
+    },
+    []
+  );
+
+  // Unified mouse move / up handler
   useEffect(() => {
-    if (!isDragging || !dragItem || !overlayRef.current) return;
+    if (!dragState || !overlayRef.current) return;
 
     const handleMouseMove = (e: MouseEvent) => {
       const rect = overlayRef.current!.getBoundingClientRect();
-      const x = e.clientX - rect.left - dragItem.offsetX;
-      const y = e.clientY - rect.top - dragItem.offsetY;
-      if (dragItem.type === "stamp") updateStamp(dragItem.id, { x, y });
-      else updateText(dragItem.id, { x, y });
+
+      if (dragState.mode === "move") {
+        const x = e.clientX - rect.left - dragState.offsetX;
+        const y = e.clientY - rect.top - dragState.offsetY;
+        if (dragState.type === "stamp") updateStamp(dragState.id, { x, y });
+        else updateText(dragState.id, { x, y });
+      } else if (dragState.mode === "resize" && dragState.type === "stamp") {
+        const dx = e.clientX - dragState.startX;
+        const dy = e.clientY - dragState.startY;
+
+        let newLeft = dragState.startLeft;
+        let newTop = dragState.startTop;
+        let newWidth = dragState.startWidth;
+        let newHeight = dragState.startHeight;
+
+        const corner = dragState.corner;
+
+        if (corner === "br") {
+          newWidth = Math.max(30, dragState.startWidth + dx);
+          newHeight = Math.max(30, dragState.startHeight + dy);
+        } else if (corner === "bl") {
+          newLeft = dragState.startLeft + dx;
+          newWidth = Math.max(30, dragState.startWidth - dx);
+          newHeight = Math.max(30, dragState.startHeight + dy);
+        } else if (corner === "tr") {
+          newTop = dragState.startTop + dy;
+          newWidth = Math.max(30, dragState.startWidth + dx);
+          newHeight = Math.max(30, dragState.startHeight - dy);
+        } else if (corner === "tl") {
+          newLeft = dragState.startLeft + dx;
+          newTop = dragState.startTop + dy;
+          newWidth = Math.max(30, dragState.startWidth - dx);
+          newHeight = Math.max(30, dragState.startHeight - dy);
+        }
+
+        updateStamp(dragState.id, {
+          x: newLeft,
+          y: newTop,
+          width: newWidth,
+          height: newHeight,
+        });
+      } else if (dragState.mode === "rotate" && dragState.type === "stamp") {
+        const stamp = usePdfEditorStore.getState().stamps.find(s => s.id === dragState.id);
+        if (!stamp) return;
+        const cx = stamp.x + stamp.width / 2;
+        const cy = stamp.y + stamp.height / 2;
+        const mouseLocalX = e.clientX - rect.left;
+        const mouseLocalY = e.clientY - rect.top;
+        const currentAngle = Math.atan2(mouseLocalY - cy, mouseLocalX - cx) * (180 / Math.PI);
+        const deltaAngle = currentAngle - dragState.startAngle;
+        let newRotation = dragState.startRotation + deltaAngle;
+        // Normalize to -180..180
+        while (newRotation > 180) newRotation -= 360;
+        while (newRotation < -180) newRotation += 360;
+        // Snap to 15-degree increments when Shift is held
+        if (e.shiftKey) {
+          newRotation = Math.round(newRotation / 15) * 15;
+        }
+        updateStamp(dragState.id, { rotation: newRotation });
+      }
     };
 
-    const handleMouseUp = () => { setIsDragging(false); setDragItem(null); };
+    const handleMouseUp = () => { setDragState(null); };
 
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
-    return () => { window.removeEventListener("mousemove", handleMouseMove); window.removeEventListener("mouseup", handleMouseUp); };
-  }, [isDragging, dragItem, updateStamp, updateText]);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [dragState, updateStamp, updateText]);
 
   // Text editing
   const handleTextDoubleClick = useCallback((e: React.MouseEvent, t: TextItem) => {
@@ -342,14 +450,79 @@ export default function PdfCanvas() {
   const pageTexts = texts.filter((t) => t.page === currentPage);
 
   const cursorClass = activeTool === "stamp" || activeTool === "text" ? "cursor-crosshair" : "cursor-default";
-
   const zoomPercent = Math.round(zoomLevel * 100);
+
+  // Render resize handles for selected stamp
+  const renderStampHandles = (stamp: StampItem) => {
+    if (selectedItemId !== stamp.id) return null;
+
+    const hs = HANDLE_SIZE;
+    const halfHs = hs / 2;
+    const corners = [
+      { key: "tl", style: { left: -halfHs, top: -halfHs, cursor: "nw-resize" } },
+      { key: "tr", style: { right: -halfHs, top: -halfHs, cursor: "ne-resize" } },
+      { key: "bl", style: { left: -halfHs, bottom: -halfHs, cursor: "sw-resize" } },
+      { key: "br", style: { right: -halfHs, bottom: -halfHs, cursor: "se-resize" } },
+    ];
+
+    return (
+      <>
+        {/* Dashed border */}
+        <div className="absolute inset-0 border-2 border-dashed border-primary/60 pointer-events-none" />
+
+        {/* Corner resize handles */}
+        {corners.map((c) => (
+          <div
+            key={c.key}
+            className="absolute bg-white border-2 border-primary rounded-sm z-10"
+            style={{
+              ...c.style,
+              width: hs,
+              height: hs,
+              cursor: c.cursor,
+            }}
+            onMouseDown={(e) => handleResizeMouseDown(e, stamp.id, c.key, stamp)}
+          />
+        ))}
+
+        {/* Rotation handle */}
+        <div
+          className="absolute left-1/2 z-10"
+          style={{
+            top: -ROTATE_HANDLE_DISTANCE,
+            transform: "translateX(-50%)",
+            cursor: "grab",
+          }}
+          onMouseDown={(e) => handleRotateMouseDown(e, stamp.id, stamp)}
+        >
+          {/* Connecting line */}
+          <div
+            className="absolute left-1/2 bottom-full"
+            style={{
+              width: 1,
+              height: ROTATE_HANDLE_DISTANCE - hs,
+              backgroundColor: "hsl(var(--primary))",
+              transform: "translateX(-50%)",
+              pointerEvents: "none",
+            }}
+          />
+          {/* Rotation circle */}
+          <div
+            className="w-5 h-5 rounded-full bg-primary border-2 border-white shadow-md flex items-center justify-center"
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+            </svg>
+          </div>
+        </div>
+      </>
+    );
+  };
 
   return (
     <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden bg-muted/30">
       {/* Canvas area */}
       <div className="flex-1 flex items-center justify-center p-5 overflow-auto">
-        {/* Error */}
         {error && (
           <div className="text-center p-8">
             <div className="text-destructive text-lg mb-2">⚠️ {error}</div>
@@ -357,7 +530,6 @@ export default function PdfCanvas() {
           </div>
         )}
 
-        {/* Loading */}
         {isLoading && !error && (
           <div className="flex flex-col items-center justify-center gap-3">
             <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full" />
@@ -365,7 +537,6 @@ export default function PdfCanvas() {
           </div>
         )}
 
-        {/* PDF Canvas */}
         {pdfDoc && !error && !isLoading && (
           <div className="relative shadow-2xl border border-border rounded-lg overflow-hidden">
             <canvas ref={canvasRef} className="block" />
@@ -380,16 +551,25 @@ export default function PdfCanvas() {
               {pageStamps.map((stamp) => (
                 <div
                   key={stamp.id}
-                  className={`absolute group ${selectedItemId === stamp.id ? "ring-2 ring-primary ring-offset-1" : "hover:ring-1 hover:ring-primary/50"}`}
+                  className={`absolute ${selectedItemId === stamp.id ? "" : "hover:ring-1 hover:ring-primary/50"}`}
                   style={{
-                    left: stamp.x, top: stamp.y, width: stamp.width, height: stamp.height,
-                    transform: `rotate(${stamp.rotation}deg)`, opacity: stamp.opacity,
-                    cursor: isDragging ? "grabbing" : "grab",
+                    left: stamp.x,
+                    top: stamp.y,
+                    width: stamp.width,
+                    height: stamp.height,
+                    transform: `rotate(${stamp.rotation}deg)`,
+                    opacity: stamp.opacity,
+                    cursor: dragState?.mode === "move" ? "grabbing" : "grab",
                   }}
                   onMouseDown={(e) => handleItemMouseDown(e, stamp.id, "stamp")}
                 >
-                  <img src={stamp.src} alt={stamp.type} className="w-full h-full object-contain pointer-events-none select-none" draggable={false} />
-                  {selectedItemId === stamp.id && <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-full cursor-se-resize" />}
+                  <img
+                    src={stamp.src}
+                    alt={stamp.type}
+                    className="w-full h-full object-contain pointer-events-none select-none"
+                    draggable={false}
+                  />
+                  {renderStampHandles(stamp)}
                 </div>
               ))}
 
@@ -398,24 +578,35 @@ export default function PdfCanvas() {
                   key={textItem.id}
                   className={`absolute ${selectedItemId === textItem.id ? "ring-2 ring-primary ring-offset-1" : "hover:ring-1 hover:ring-primary/50"}`}
                   style={{
-                    left: textItem.x, top: textItem.y, fontSize: textItem.fontSize,
-                    color: textItem.color, fontFamily: textItem.fontFamily,
+                    left: textItem.x,
+                    top: textItem.y,
+                    fontSize: textItem.fontSize,
+                    color: textItem.color,
+                    fontFamily: textItem.fontFamily,
                     fontWeight: textItem.bold ? "bold" : "normal",
                     transform: `rotate(${textItem.rotation}deg)`,
-                    cursor: isDragging ? "grabbing" : "grab",
-                    userSelect: "none", whiteSpace: "nowrap",
+                    cursor: dragState?.mode === "move" ? "grabbing" : "grab",
+                    userSelect: "none",
+                    whiteSpace: "nowrap",
                   }}
                   onMouseDown={(e) => handleItemMouseDown(e, textItem.id, "text")}
                   onDoubleClick={(e) => handleTextDoubleClick(e, textItem)}
                 >
                   {editingTextId === textItem.id ? (
                     <input
-                      type="text" value={editTextValue}
+                      type="text"
+                      value={editTextValue}
                       onChange={(e) => setEditTextValue(e.target.value)}
                       onBlur={handleTextEditComplete}
                       onKeyDown={handleTextKeyDown}
                       className="bg-white/90 border border-primary px-1 outline-none"
-                      style={{ fontSize: textItem.fontSize, color: textItem.color, fontFamily: textItem.fontFamily, fontWeight: textItem.bold ? "bold" : "normal", minWidth: 50 }}
+                      style={{
+                        fontSize: textItem.fontSize,
+                        color: textItem.color,
+                        fontFamily: textItem.fontFamily,
+                        fontWeight: textItem.bold ? "bold" : "normal",
+                        minWidth: 50,
+                      }}
                       autoFocus
                     />
                   ) : (
@@ -428,11 +619,10 @@ export default function PdfCanvas() {
         )}
       </div>
 
-      {/* Bottom center controls: page navigation + zoom */}
+      {/* Bottom center controls */}
       {pdfDoc && !error && !isLoading && (
         <div className="flex justify-center pb-3 px-4">
           <div className="flex items-center gap-1 bg-card border border-border rounded-full shadow-lg px-2 py-1">
-            {/* Page navigation */}
             <Button
               variant="ghost" size="icon" className="h-8 w-8 rounded-full"
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
@@ -440,11 +630,9 @@ export default function PdfCanvas() {
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-
             <span className="text-sm font-medium tabular-nums min-w-[60px] text-center select-none">
               {currentPage} / {totalPages}
             </span>
-
             <Button
               variant="ghost" size="icon" className="h-8 w-8 rounded-full"
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
@@ -452,11 +640,7 @@ export default function PdfCanvas() {
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
-
-            {/* Separator */}
             <div className="w-px h-5 bg-border mx-1" />
-
-            {/* Zoom controls */}
             <Button
               variant="ghost" size="icon" className="h-8 w-8 rounded-full"
               onClick={zoomOut}
@@ -464,7 +648,6 @@ export default function PdfCanvas() {
             >
               <ZoomOut className="h-4 w-4" />
             </Button>
-
             <button
               className="text-sm font-medium tabular-nums min-w-[48px] text-center hover:bg-accent rounded-full py-1 px-2 transition-colors select-none"
               onClick={zoomFit}
@@ -472,7 +655,6 @@ export default function PdfCanvas() {
             >
               {zoomPercent}%
             </button>
-
             <Button
               variant="ghost" size="icon" className="h-8 w-8 rounded-full"
               onClick={zoomIn}
@@ -480,7 +662,6 @@ export default function PdfCanvas() {
             >
               <ZoomIn className="h-4 w-4" />
             </Button>
-
             <Button
               variant="ghost" size="icon" className="h-8 w-8 rounded-full"
               onClick={zoomFit}

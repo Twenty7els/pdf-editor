@@ -108,7 +108,7 @@ const initialState = {
   totalPages: 0,
   currentPage: 1,
   pageScale: 1.0,
-  zoomLevel: 1.0,
+  zoomLevel: 0.5,
   activeTool: "select" as ToolMode,
   selectedStampType: null,
   selectedStampSrc: null,
@@ -137,7 +137,7 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
       selectedItemId: null,
       selectedItemType: null,
       currentPage: 1,
-      zoomLevel: 1.0,
+      zoomLevel: 0.5,
     }),
 
   setPdfArrayBuffer: (buffer) => set({ pdfArrayBuffer: buffer }),

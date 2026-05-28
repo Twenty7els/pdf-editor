@@ -1,0 +1,168 @@
+import { create } from "zustand";
+
+export interface StampItem {
+  id: string;
+  type: string;
+  src: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  page: number;
+  rotation: number;
+  opacity: number;
+}
+
+export interface TextItem {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  fontSize: number;
+  color: string;
+  page: number;
+  fontFamily: string;
+  bold: boolean;
+  rotation: number;
+}
+
+export type ToolMode = "select" | "stamp" | "text";
+
+interface PdfEditorState {
+  // PDF file
+  pdfFile: File | null;
+  pdfArrayBuffer: ArrayBuffer | null;
+  pdfFileName: string;
+  totalPages: number;
+  currentPage: number;
+  pageScale: number;
+
+  // Tool state
+  activeTool: ToolMode;
+  selectedStampType: string | null;
+  selectedStampSrc: string | null;
+
+  // Placed items
+  stamps: StampItem[];
+  texts: TextItem[];
+
+  // Selected item for editing
+  selectedItemId: string | null;
+  selectedItemType: "stamp" | "text" | null;
+
+  // Text tool settings
+  textSettings: {
+    fontSize: number;
+    color: string;
+    fontFamily: string;
+    bold: boolean;
+  };
+
+  // Actions
+  setPdfFile: (file: File | null) => void;
+  setPdfArrayBuffer: (buffer: ArrayBuffer | null) => void;
+  setTotalPages: (pages: number) => void;
+  setCurrentPage: (page: number) => void;
+  setPageScale: (scale: number) => void;
+  setActiveTool: (tool: ToolMode) => void;
+  setSelectedStamp: (type: string, src: string) => void;
+  addStamp: (stamp: StampItem) => void;
+  updateStamp: (id: string, updates: Partial<StampItem>) => void;
+  removeStamp: (id: string) => void;
+  addText: (text: TextItem) => void;
+  updateText: (id: string, updates: Partial<TextItem>) => void;
+  removeText: (id: string) => void;
+  setSelectedItem: (id: string | null, type: "stamp" | "text" | null) => void;
+  setTextSettings: (settings: Partial<PdfEditorState["textSettings"]>) => void;
+  reset: () => void;
+}
+
+const initialState = {
+  pdfFile: null,
+  pdfArrayBuffer: null,
+  pdfFileName: "",
+  totalPages: 0,
+  currentPage: 1,
+  pageScale: 1.0,
+  activeTool: "select" as ToolMode,
+  selectedStampType: null,
+  selectedStampSrc: null,
+  stamps: [],
+  texts: [],
+  selectedItemId: null,
+  selectedItemType: null,
+  textSettings: {
+    fontSize: 16,
+    color: "#000000",
+    fontFamily: "Helvetica",
+    bold: false,
+  },
+};
+
+export const usePdfEditorStore = create<PdfEditorState>((set) => ({
+  ...initialState,
+
+  setPdfFile: (file) =>
+    set({
+      pdfFile: file,
+      pdfFileName: file?.name ?? "",
+      stamps: [],
+      texts: [],
+      selectedItemId: null,
+      selectedItemType: null,
+    }),
+
+  setPdfArrayBuffer: (buffer) => set({ pdfArrayBuffer: buffer }),
+  setTotalPages: (pages) => set({ totalPages: pages }),
+  setCurrentPage: (page) => set({ currentPage: page }),
+  setPageScale: (scale) => set({ pageScale: scale }),
+  setActiveTool: (tool) => set({ activeTool: tool }),
+  setSelectedStamp: (type, src) =>
+    set({ selectedStampType: type, selectedStampSrc: src, activeTool: "stamp" }),
+
+  addStamp: (stamp) =>
+    set((state) => ({ stamps: [...state.stamps, stamp] })),
+
+  updateStamp: (id, updates) =>
+    set((state) => ({
+      stamps: state.stamps.map((s) =>
+        s.id === id ? { ...s, ...updates } : s
+      ),
+    })),
+
+  removeStamp: (id) =>
+    set((state) => ({
+      stamps: state.stamps.filter((s) => s.id !== id),
+      selectedItemId: state.selectedItemId === id ? null : state.selectedItemId,
+      selectedItemType:
+        state.selectedItemId === id ? null : state.selectedItemType,
+    })),
+
+  addText: (text) =>
+    set((state) => ({ texts: [...state.texts, text] })),
+
+  updateText: (id, updates) =>
+    set((state) => ({
+      texts: state.texts.map((t) =>
+        t.id === id ? { ...t, ...updates } : t
+      ),
+    })),
+
+  removeText: (id) =>
+    set((state) => ({
+      texts: state.texts.filter((t) => t.id !== id),
+      selectedItemId: state.selectedItemId === id ? null : state.selectedItemId,
+      selectedItemType:
+        state.selectedItemId === id ? null : state.selectedItemType,
+    })),
+
+  setSelectedItem: (id, type) =>
+    set({ selectedItemId: id, selectedItemType: type }),
+
+  setTextSettings: (settings) =>
+    set((state) => ({
+      textSettings: { ...state.textSettings, ...settings },
+    })),
+
+  reset: () => set(initialState),
+}));

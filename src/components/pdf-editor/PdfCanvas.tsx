@@ -62,6 +62,9 @@ export default function PdfCanvas() {
   const [currentEraserPoints, setCurrentEraserPoints] = useState<EraserPoint[]>([]);
   const [eraserCursorPos, setEraserCursorPos] = useState<{ x: number; y: number } | null>(null);
 
+  // Stamp cursor state
+  const [stampCursorPos, setStampCursorPos] = useState<{ x: number; y: number } | null>(null);
+
   const {
     pdfFile,
     currentPage,
@@ -262,9 +265,10 @@ export default function PdfCanvas() {
     });
   }, [canvasSize.width, canvasSize.height]);
 
-  // Clear eraser cursor when switching away from eraser tool
+  // Clear cursors when switching tools
   useEffect(() => {
     if (activeTool !== "eraser") setEraserCursorPos(null);
+    if (activeTool !== "stamp") setStampCursorPos(null);
   }, [activeTool]);
 
   // Mouse wheel zoom with Ctrl
@@ -617,7 +621,7 @@ export default function PdfCanvas() {
   const pageTexts = texts.filter((t) => t.page === currentPage);
   const pageErasers = erasers.filter((e) => e.page === currentPage);
 
-  const cursorClass = activeTool === "stamp" || activeTool === "text" ? "cursor-crosshair" : activeTool === "eraser" ? "cursor-none" : "cursor-default";
+  const cursorClass = activeTool === "stamp" && selectedStampSrc ? "cursor-none" : activeTool === "stamp" || activeTool === "text" ? "cursor-crosshair" : activeTool === "eraser" ? "cursor-none" : "cursor-default";
   const zoomPercent = Math.round(zoomLevel * 100);
 
   // Build SVG path string from eraser points
@@ -742,12 +746,12 @@ export default function PdfCanvas() {
               onClick={handleOverlayClick}
               onMouseDown={handleOverlayMouseDown}
               onMouseMove={(e) => {
-                if (activeTool === "eraser") {
-                  const rect = overlayRef.current!.getBoundingClientRect();
-                  setEraserCursorPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-                }
+                const rect = overlayRef.current!.getBoundingClientRect();
+                const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+                if (activeTool === "eraser") setEraserCursorPos(pos);
+                if (activeTool === "stamp" && selectedStampSrc) setStampCursorPos(pos);
               }}
-              onMouseLeave={() => setEraserCursorPos(null)}
+              onMouseLeave={() => { setEraserCursorPos(null); setStampCursorPos(null); }}
               style={{ width: canvasSize.width, height: canvasSize.height }}
             >
               {/* SVG layer for eraser strokes */}
@@ -859,6 +863,25 @@ export default function PdfCanvas() {
                   )}
                 </div>
               ))}
+
+              {/* Stamp cursor preview — stamp image follows mouse */}
+              {activeTool === "stamp" && selectedStampSrc && stampCursorPos && (
+                <img
+                  src={selectedStampSrc}
+                  alt=""
+                  className="absolute pointer-events-none object-contain"
+                  style={{
+                    width: 130,
+                    height: 130,
+                    left: stampCursorPos.x,
+                    top: stampCursorPos.y,
+                    transform: "translate(-50%, -50%)",
+                    opacity: 0.6,
+                    zIndex: 50,
+                  }}
+                  draggable={false}
+                />
+              )}
 
               {/* Eraser cursor preview — circle that follows mouse */}
               {activeTool === "eraser" && eraserCursorPos && (

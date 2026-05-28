@@ -14,8 +14,6 @@ import {
   Type,
   Trash2,
   RotateCw,
-  ChevronLeft,
-  ChevronRight,
   Download,
   FileUp,
   RotateCcw,
@@ -33,9 +31,6 @@ export default function Toolbar({ onUploadClick, onDownloadClick }: ToolbarProps
     pdfFile,
     activeTool,
     setActiveTool,
-    totalPages,
-    currentPage,
-    setCurrentPage,
     stamps,
     texts,
     selectedItemId,
@@ -61,7 +56,7 @@ export default function Toolbar({ onUploadClick, onDownloadClick }: ToolbarProps
             onClick={onUploadClick}
           >
             <FileUp className="h-4 w-4" />
-            {pdfFile ? "Загрузить другой PDF" : "Загрузить PDF"}
+            {pdfFile ? "Загрузить другой" : "Загрузить PDF"}
           </Button>
           <Button
             className="w-full justify-start gap-2"
@@ -106,40 +101,6 @@ export default function Toolbar({ onUploadClick, onDownloadClick }: ToolbarProps
           </Button>
         </CardContent>
       </Card>
-
-      {/* Page navigation */}
-      {pdfFile && totalPages > 0 && (
-        <Card>
-          <CardHeader className="p-3 pb-2">
-            <CardTitle className="text-sm font-medium">Страницы</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-1">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage <= 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm flex-1 text-center">
-                {currentPage} / {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage >= totalPages}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Stamps selector */}
       {activeTool === "stamp" && (
@@ -237,13 +198,9 @@ export default function Toolbar({ onUploadClick, onDownloadClick }: ToolbarProps
                   className="h-7 w-7"
                   onClick={() => {
                     if (selectedItemType === "stamp" && selectedStamp) {
-                      updateStamp(selectedItemId!, {
-                        rotation: selectedStamp.rotation - 15,
-                      });
+                      updateStamp(selectedItemId!, { rotation: selectedStamp.rotation - 15 });
                     } else if (selectedItemType === "text" && selectedText) {
-                      updateText(selectedItemId!, {
-                        rotation: selectedText.rotation - 15,
-                      });
+                      updateText(selectedItemId!, { rotation: selectedText.rotation - 15 });
                     }
                   }}
                 >
@@ -255,13 +212,9 @@ export default function Toolbar({ onUploadClick, onDownloadClick }: ToolbarProps
                   className="h-7 w-7"
                   onClick={() => {
                     if (selectedItemType === "stamp" && selectedStamp) {
-                      updateStamp(selectedItemId!, {
-                        rotation: selectedStamp.rotation + 15,
-                      });
+                      updateStamp(selectedItemId!, { rotation: selectedStamp.rotation + 15 });
                     } else if (selectedItemType === "text" && selectedText) {
-                      updateText(selectedItemId!, {
-                        rotation: selectedText.rotation + 15,
-                      });
+                      updateText(selectedItemId!, { rotation: selectedText.rotation + 15 });
                     }
                   }}
                 >
@@ -281,9 +234,7 @@ export default function Toolbar({ onUploadClick, onDownloadClick }: ToolbarProps
                   step={0.1}
                   value={selectedStamp.opacity}
                   onChange={(e) =>
-                    updateStamp(selectedItemId!, {
-                      opacity: parseFloat(e.target.value),
-                    })
+                    updateStamp(selectedItemId!, { opacity: parseFloat(e.target.value) })
                   }
                   className="flex-1 h-7"
                 />
@@ -335,9 +286,7 @@ export default function Toolbar({ onUploadClick, onDownloadClick }: ToolbarProps
                   max={72}
                   value={selectedText.fontSize}
                   onChange={(e) =>
-                    updateText(selectedItemId!, {
-                      fontSize: parseInt(e.target.value) || 16,
-                    })
+                    updateText(selectedItemId!, { fontSize: parseInt(e.target.value) || 16 })
                   }
                   className="h-7 text-sm flex-1"
                 />
@@ -351,11 +300,8 @@ export default function Toolbar({ onUploadClick, onDownloadClick }: ToolbarProps
               size="sm"
               className="w-full gap-2"
               onClick={() => {
-                if (selectedItemType === "stamp") {
-                  removeStamp(selectedItemId!);
-                } else {
-                  removeText(selectedItemId!);
-                }
+                if (selectedItemType === "stamp") removeStamp(selectedItemId!);
+                else removeText(selectedItemId!);
                 usePdfEditorStore.getState().setSelectedItem(null, null);
               }}
             >
@@ -365,6 +311,18 @@ export default function Toolbar({ onUploadClick, onDownloadClick }: ToolbarProps
           </CardContent>
         </Card>
       )}
+
+      {/* Hints */}
+      <Card>
+        <CardContent className="p-3">
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            <b>Ctrl + колесо</b> — масштаб<br/>
+            <b>← →</b> — листать страницы<br/>
+            <b>Delete</b> — удалить элемент<br/>
+            <b>2× клик</b> — редактировать текст
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

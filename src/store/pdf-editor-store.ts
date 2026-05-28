@@ -35,7 +35,8 @@ interface PdfEditorState {
   pdfFileName: string;
   totalPages: number;
   currentPage: number;
-  pageScale: number;
+  pageScale: number; // auto-calculated scale from zoom
+  zoomLevel: number; // user zoom: 0.5 = 50%, 1 = fit, 1.5 = 150%, etc.
 
   // Tool state
   activeTool: ToolMode;
@@ -64,6 +65,10 @@ interface PdfEditorState {
   setTotalPages: (pages: number) => void;
   setCurrentPage: (page: number) => void;
   setPageScale: (scale: number) => void;
+  setZoomLevel: (zoom: number) => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  zoomFit: () => void;
   setActiveTool: (tool: ToolMode) => void;
   setSelectedStamp: (type: string, src: string) => void;
   addStamp: (stamp: StampItem) => void;
@@ -77,6 +82,10 @@ interface PdfEditorState {
   reset: () => void;
 }
 
+const ZOOM_STEP = 0.25;
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 3.0;
+
 const initialState = {
   pdfFile: null,
   pdfArrayBuffer: null,
@@ -84,6 +93,7 @@ const initialState = {
   totalPages: 0,
   currentPage: 1,
   pageScale: 1.0,
+  zoomLevel: 1.0,
   activeTool: "select" as ToolMode,
   selectedStampType: null,
   selectedStampSrc: null,
@@ -99,7 +109,7 @@ const initialState = {
   },
 };
 
-export const usePdfEditorStore = create<PdfEditorState>((set) => ({
+export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
   ...initialState,
 
   setPdfFile: (file) =>
@@ -110,12 +120,22 @@ export const usePdfEditorStore = create<PdfEditorState>((set) => ({
       texts: [],
       selectedItemId: null,
       selectedItemType: null,
+      currentPage: 1,
+      zoomLevel: 1.0,
     }),
 
   setPdfArrayBuffer: (buffer) => set({ pdfArrayBuffer: buffer }),
   setTotalPages: (pages) => set({ totalPages: pages }),
   setCurrentPage: (page) => set({ currentPage: page }),
   setPageScale: (scale) => set({ pageScale: scale }),
+  setZoomLevel: (zoom) =>
+    set({ zoomLevel: Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom)) }),
+  zoomIn: () =>
+    set({ zoomLevel: Math.min(ZOOM_MAX, get().zoomLevel + ZOOM_STEP) }),
+  zoomOut: () =>
+    set({ zoomLevel: Math.max(ZOOM_MIN, get().zoomLevel - ZOOM_STEP) }),
+  zoomFit: () => set({ zoomLevel: 1.0 }),
+
   setActiveTool: (tool) => set({ activeTool: tool }),
   setSelectedStamp: (type, src) =>
     set({ selectedStampType: type, selectedStampSrc: src, activeTool: "stamp" }),

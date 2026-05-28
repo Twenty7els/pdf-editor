@@ -17,14 +17,14 @@ export const STAMP_DEFINITIONS: StampDefinition[] = [
   },
   {
     id: "custom-signature-1",
-    name: "Подпись 1",
+    name: "Литвинкин",
     src: "/stamps/custom-signature-1.png",
     color: "blue",
     category: "custom",
   },
   {
     id: "custom-signature-2",
-    name: "Подпись 2",
+    name: "Вегеш",
     src: "/stamps/custom-signature-2.png",
     color: "blue",
     category: "custom",

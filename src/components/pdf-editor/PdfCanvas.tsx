@@ -314,7 +314,7 @@ export default function PdfCanvas() {
           height: size,
           page: currentPage,
           rotation: 0,
-          opacity: 0.8,
+          opacity: 1.0,
           canvasWidth: overlayW,
           canvasHeight: overlayH,
         });
@@ -876,7 +876,7 @@ export default function PdfCanvas() {
                     left: stampCursorPos.x,
                     top: stampCursorPos.y,
                     transform: "translate(-50%, -50%)",
-                    opacity: 0.6,
+                    opacity: 0.7,
                     zIndex: 50,
                   }}
                   draggable={false}

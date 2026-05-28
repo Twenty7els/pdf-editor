@@ -180,29 +180,54 @@ export default function Home() {
         }
       }
 
-      // Process erasers — draw filled rectangles
+      // Process erasers — draw filled thick lines along the path
       for (const eraserItem of erasers) {
         try {
+          if (eraserItem.points.length === 0) continue;
+
           const page = pdfDoc.getPage(eraserItem.page - 1);
           const { width: pageWidth, height: pageHeight } = page.getSize();
 
           const cw = eraserItem.canvasWidth || 800;
           const ch = eraserItem.canvasHeight || 1100;
 
-          const pdfX = (eraserItem.x / cw) * pageWidth;
-          const pdfY = pageHeight - ((eraserItem.y + eraserItem.height) / ch) * pageHeight;
-          const pdfWidth = (eraserItem.width / cw) * pageWidth;
-          const pdfHeight = (eraserItem.height / ch) * pageHeight;
-
           const eraserColor = hexToRgb(eraserItem.color);
+          const pdfColor = eraserColor ? rgb(eraserColor.r, eraserColor.g, eraserColor.b) : rgb(1, 1, 1);
 
-          page.drawRectangle({
-            x: pdfX,
-            y: pdfY,
-            width: pdfWidth,
-            height: pdfHeight,
-            color: eraserColor ? rgb(eraserColor.r, eraserColor.g, eraserColor.b) : rgb(1, 1, 1),
-          });
+          // Scale stroke width to PDF coordinates
+          const pdfStrokeWidth = (eraserItem.strokeWidth / ch) * pageHeight;
+
+          // Draw line segments for each pair of consecutive points
+          for (let i = 0; i < eraserItem.points.length; i++) {
+            const p = eraserItem.points[i];
+
+            // Convert overlay coords to PDF coords
+            const pdfX = (p.x / cw) * pageWidth;
+            const pdfY = pageHeight - (p.y / ch) * pageHeight;
+
+            if (i === 0 && eraserItem.points.length === 1) {
+              // Single point — draw a small filled circle (rectangle approximation)
+              const halfSize = pdfStrokeWidth / 2;
+              page.drawRectangle({
+                x: pdfX - halfSize,
+                y: pdfY - halfSize,
+                width: pdfStrokeWidth,
+                height: pdfStrokeWidth,
+                color: pdfColor,
+              });
+            } else if (i > 0) {
+              const prevP = eraserItem.points[i - 1];
+              const prevPdfX = (prevP.x / cw) * pageWidth;
+              const prevPdfY = pageHeight - (prevP.y / ch) * pageHeight;
+
+              page.drawLine({
+                start: { x: prevPdfX, y: prevPdfY },
+                end: { x: pdfX, y: pdfY },
+                thickness: pdfStrokeWidth,
+                color: pdfColor,
+              });
+            }
+          }
         } catch (err) {
           console.error("Error drawing eraser:", err);
         }

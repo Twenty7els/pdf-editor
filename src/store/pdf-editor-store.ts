@@ -31,14 +31,17 @@ export interface TextItem {
   canvasHeight: number; // overlay height at time of placement
 }
 
-export interface EraserItem {
-  id: string;
+export interface EraserPoint {
   x: number;
   y: number;
-  width: number;
-  height: number;
+}
+
+export interface EraserItem {
+  id: string;
+  points: EraserPoint[]; // freehand brush path
+  strokeWidth: number;   // brush size
+  color: string;         // usually white
   page: number;
-  color: string; // usually white, but can be any color
   canvasWidth: number;
   canvasHeight: number;
 }
@@ -113,8 +116,7 @@ interface PdfEditorState {
 
   // Eraser tool settings
   eraserSettings: {
-    width: number;
-    height: number;
+    brushSize: number;
     color: string;
   };
 
@@ -178,8 +180,7 @@ const initialState = {
     italic: false,
   },
   eraserSettings: {
-    width: 120,
-    height: 40,
+    brushSize: 20,
     color: "#FFFFFF",
   },
   customStamps: [],

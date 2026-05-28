@@ -1,12 +1,10 @@
 "use client";
 
 import React, { useRef } from "react";
-import { usePdfEditorStore, CustomStamp, AVAILABLE_FONTS, EraserItem } from "@/store/pdf-editor-store";
+import { usePdfEditorStore, CustomStamp } from "@/store/pdf-editor-store";
 import { STAMP_DEFINITIONS } from "@/lib/stamps";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   MousePointer2,
   Stamp,
@@ -16,9 +14,7 @@ import {
   Loader2,
   X,
   ImagePlus,
-  Bold,
-  Italic,
-  Eraser,
+  Paintbrush,
 } from "lucide-react";
 
 interface ToolbarProps {
@@ -35,10 +31,6 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
     customStamps,
     addCustomStamp,
     removeCustomStamp,
-    textSettings,
-    setTextSettings,
-    eraserSettings,
-    setEraserSettings,
   } = usePdfEditorStore();
 
   const customStampInputRef = useRef<HTMLInputElement>(null);
@@ -127,7 +119,7 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
             className="w-full justify-start gap-2"
             onClick={() => setActiveTool("eraser")}
           >
-            <Eraser className="h-4 w-4" />
+            <Paintbrush className="h-4 w-4" />
             Ластик
           </Button>
         </CardContent>
@@ -238,199 +230,18 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
         </>
       )}
 
-      {/* Text settings */}
+      {/* Text tool hint */}
       {activeTool === "text" && (
-        <Card>
-          <CardHeader className="p-3 pb-2">
-            <CardTitle className="text-sm font-medium">Настройки текста</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-1 flex flex-col gap-3">
-            {/* Font selector */}
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs">Шрифт</Label>
-              <select
-                value={textSettings.fontFamily}
-                onChange={(e) => setTextSettings({ fontFamily: e.target.value })}
-                className="h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                {AVAILABLE_FONTS.map((font) => (
-                  <option key={font.id} value={font.id} style={{ fontFamily: font.css }}>
-                    {font.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Font size + Bold/Italic row */}
-            <div className="flex items-end gap-2">
-              <div className="flex flex-col gap-1 flex-1">
-                <Label className="text-xs">Размер</Label>
-                <Input
-                  type="number"
-                  min={6}
-                  max={96}
-                  value={textSettings.fontSize}
-                  onChange={(e) =>
-                    setTextSettings({ fontSize: parseInt(e.target.value) || 14 })
-                  }
-                  className="h-8 text-sm"
-                />
-              </div>
-              <Button
-                variant={textSettings.bold ? "default" : "outline"}
-                size="icon"
-                className="h-8 w-8 shrink-0"
-                onClick={() => setTextSettings({ bold: !textSettings.bold })}
-                title="Жирный"
-              >
-                <Bold className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={textSettings.italic ? "default" : "outline"}
-                size="icon"
-                className="h-8 w-8 shrink-0"
-                onClick={() => setTextSettings({ italic: !textSettings.italic })}
-                title="Курсив"
-              >
-                <Italic className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {/* Color */}
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs">Цвет</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="color"
-                  value={textSettings.color}
-                  onChange={(e) => setTextSettings({ color: e.target.value })}
-                  className="h-8 w-12 cursor-pointer shrink-0 p-0.5"
-                />
-                <Input
-                  type="text"
-                  value={textSettings.color}
-                  onChange={(e) => setTextSettings({ color: e.target.value })}
-                  className="h-8 text-sm font-mono flex-1"
-                  maxLength={7}
-                />
-              </div>
-            </div>
-
-            {/* Preview */}
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs">Предпросмотр</Label>
-              <div
-                className="h-10 rounded-md border border-input bg-white px-2 flex items-center overflow-hidden"
-                style={{
-                  fontFamily: AVAILABLE_FONTS.find((f) => f.id === textSettings.fontFamily)?.css || "Arial",
-                  fontSize: Math.min(textSettings.fontSize, 20),
-                  fontWeight: textSettings.bold ? "bold" : "normal",
-                  fontStyle: textSettings.italic ? "italic" : "normal",
-                  color: textSettings.color,
-                }}
-              >
-                Пример текста
-              </div>
-            </div>
-
-            <p className="text-[11px] text-muted-foreground text-center">
-              Кликните на PDF чтобы добавить текст
-            </p>
-          </CardContent>
-        </Card>
+        <p className="text-[11px] text-muted-foreground text-center px-2">
+          Настройки текста — вверху экрана. Кликните на PDF чтобы добавить текст.
+        </p>
       )}
 
-      {/* Eraser settings */}
+      {/* Eraser tool hint */}
       {activeTool === "eraser" && (
-        <Card>
-          <CardHeader className="p-3 pb-2">
-            <CardTitle className="text-sm font-medium">Настройки ластика</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-1 flex flex-col gap-3">
-            {/* Size */}
-            <div className="flex items-end gap-2">
-              <div className="flex flex-col gap-1 flex-1">
-                <Label className="text-xs">Ширина</Label>
-                <Input
-                  type="number"
-                  min={10}
-                  max={800}
-                  value={eraserSettings.width}
-                  onChange={(e) =>
-                    setEraserSettings({ width: parseInt(e.target.value) || 120 })
-                  }
-                  className="h-8 text-sm"
-                />
-              </div>
-              <div className="flex flex-col gap-1 flex-1">
-                <Label className="text-xs">Высота</Label>
-                <Input
-                  type="number"
-                  min={10}
-                  max={800}
-                  value={eraserSettings.height}
-                  onChange={(e) =>
-                    setEraserSettings({ height: parseInt(e.target.value) || 40 })
-                  }
-                  className="h-8 text-sm"
-                />
-              </div>
-            </div>
-
-            {/* Color */}
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs">Цвет замазки</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="color"
-                  value={eraserSettings.color}
-                  onChange={(e) => setEraserSettings({ color: e.target.value })}
-                  className="h-8 w-12 cursor-pointer shrink-0 p-0.5"
-                />
-                <Input
-                  type="text"
-                  value={eraserSettings.color}
-                  onChange={(e) => setEraserSettings({ color: e.target.value })}
-                  className="h-8 text-sm font-mono flex-1"
-                  maxLength={7}
-                />
-              </div>
-            </div>
-
-            {/* Quick colors */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground shrink-0">Быстро:</span>
-              {["#FFFFFF", "#000000", "#F5F5F5", "#D4D4D4"].map((c) => (
-                <button
-                  key={c}
-                  className={`w-7 h-7 rounded border-2 ${eraserSettings.color === c ? "border-primary" : "border-border"} transition-colors`}
-                  style={{ backgroundColor: c }}
-                  onClick={() => setEraserSettings({ color: c })}
-                  title={c}
-                />
-              ))}
-            </div>
-
-            {/* Preview */}
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs">Предпросмотр</Label>
-              <div className="h-12 rounded-md border border-input bg-muted/30 flex items-center justify-center">
-                <div
-                  style={{
-                    width: Math.min(eraserSettings.width, 200),
-                    height: Math.min(eraserSettings.height, 40),
-                    backgroundColor: eraserSettings.color,
-                    borderRadius: 2,
-                  }}
-                />
-              </div>
-            </div>
-
-            <p className="text-[11px] text-muted-foreground text-center">
-              Кликните на PDF чтобы замазать область
-            </p>
-          </CardContent>
-        </Card>
+        <p className="text-[11px] text-muted-foreground text-center px-2">
+          Настройки ластика — вверху экрана. Рисуйте на PDF чтобы замазать.
+        </p>
       )}
     </div>
   );

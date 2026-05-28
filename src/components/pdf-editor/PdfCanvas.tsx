@@ -78,6 +78,7 @@ export default function PdfCanvas() {
     updateText,
     setSelectedItem,
     setCurrentPage,
+    setActiveTool,
     textSettings,
   } = usePdfEditorStore();
 
@@ -221,8 +222,9 @@ export default function PdfCanvas() {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         const size = 130;
+        const newId = `stamp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         addStamp({
-          id: `stamp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: newId,
           type: selectedStampType,
           src: selectedStampSrc,
           x: x - size / 2,
@@ -235,6 +237,9 @@ export default function PdfCanvas() {
           canvasWidth: overlayW,
           canvasHeight: overlayH,
         });
+        // Auto-switch to select mode after placing stamp
+        setActiveTool("select");
+        setSelectedItem(newId, "stamp");
       } else if (activeTool === "text") {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
@@ -260,7 +265,7 @@ export default function PdfCanvas() {
         setEditingTextId(null);
       }
     },
-    [activeTool, selectedStampType, selectedStampSrc, currentPage, textSettings, addStamp, addText, setSelectedItem]
+    [activeTool, selectedStampType, selectedStampSrc, currentPage, textSettings, addStamp, addText, setSelectedItem, setActiveTool]
   );
 
   // Unified mouse down handler

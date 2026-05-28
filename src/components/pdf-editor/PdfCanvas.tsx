@@ -138,6 +138,8 @@ export default function PdfCanvas() {
       const container = containerRef.current;
       if (!container) { renderingRef.current = false; return; }
       const containerWidth = container.clientWidth - 40;
+      // Skip render if container hasn't been laid out yet
+      if (containerWidth < 100) { renderingRef.current = false; return; }
       const viewport = page.getViewport({ scale: 1 });
       const fitScale = containerWidth / viewport.width;
       baseScaleRef.current = fitScale;
@@ -162,7 +164,15 @@ export default function PdfCanvas() {
     }
   }, [pdfDoc, currentPage, zoomLevel, setPageScale]);
 
-  useEffect(() => { if (pdfDoc) renderPage(); }, [renderPage, pdfDoc]);
+  // Initial render + delayed re-render to catch layout changes (sidebar appearing etc)
+  useEffect(() => {
+    if (!pdfDoc) return;
+    renderPage();
+    // Re-render after layout settles (sidebar, viewport changes)
+    const t1 = setTimeout(() => renderPage(), 100);
+    const t2 = setTimeout(() => renderPage(), 400);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [renderPage, pdfDoc]);
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;

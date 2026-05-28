@@ -572,6 +572,7 @@ export default function PdfCanvas() {
                     cursor: dragState?.mode === "move" ? "grabbing" : "grab",
                   }}
                   onMouseDown={(e) => handleItemMouseDown(e, stamp.id, "stamp")}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <img
                     src={stamp.src}
@@ -600,6 +601,7 @@ export default function PdfCanvas() {
                     whiteSpace: "nowrap",
                   }}
                   onMouseDown={(e) => handleItemMouseDown(e, textItem.id, "text")}
+                  onClick={(e) => e.stopPropagation()}
                   onDoubleClick={(e) => handleTextDoubleClick(e, textItem)}
                 >
                   {editingTextId === textItem.id ? (

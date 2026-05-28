@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { usePdfEditorStore, StampItem, TextItem } from "@/store/pdf-editor-store";
+import { usePdfEditorStore, StampItem, TextItem, getFontCss, AVAILABLE_FONTS } from "@/store/pdf-editor-store";
 import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,
@@ -12,6 +12,8 @@ import {
   RotateCcw,
   RotateCw,
   Trash2,
+  Bold,
+  Italic,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
@@ -294,6 +296,7 @@ export default function PdfCanvas() {
           page: currentPage,
           fontFamily: textSettings.fontFamily,
           bold: textSettings.bold,
+          italic: textSettings.italic,
           rotation: 0,
           canvasWidth: overlayW,
           canvasHeight: overlayH,
@@ -656,8 +659,9 @@ export default function PdfCanvas() {
                     top: textItem.y,
                     fontSize: textItem.fontSize,
                     color: textItem.color,
-                    fontFamily: textItem.fontFamily,
+                    fontFamily: getFontCss(textItem.fontFamily),
                     fontWeight: textItem.bold ? "bold" : "normal",
+                    fontStyle: textItem.italic ? "italic" : "normal",
                     transform: `rotate(${textItem.rotation}deg)`,
                     cursor: dragState?.mode === "move" ? "grabbing" : "grab",
                     userSelect: "none",
@@ -678,8 +682,9 @@ export default function PdfCanvas() {
                       style={{
                         fontSize: textItem.fontSize,
                         color: textItem.color,
-                        fontFamily: textItem.fontFamily,
+                        fontFamily: getFontCss(textItem.fontFamily),
                         fontWeight: textItem.bold ? "bold" : "normal",
+                        fontStyle: textItem.italic ? "italic" : "normal",
                         minWidth: 50,
                       }}
                       autoFocus
@@ -780,6 +785,57 @@ export default function PdfCanvas() {
 
           {selectedItemType === "text" && selectedText && (
             <>
+              {/* Font selector */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs text-muted-foreground">Шрифт</span>
+                <select
+                  value={selectedText.fontFamily}
+                  onChange={(e) => updateText(selectedItemId!, { fontFamily: e.target.value })}
+                  className="h-7 rounded border border-input bg-background px-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  {AVAILABLE_FONTS.map((font) => (
+                    <option key={font.id} value={font.id}>{font.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="w-px h-6 bg-border shrink-0" />
+
+              {/* Font size */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs text-muted-foreground">Размер</span>
+                <Input
+                  type="number" min={6} max={96}
+                  value={selectedText.fontSize}
+                  onChange={(e) => updateText(selectedItemId!, { fontSize: parseInt(e.target.value) || 14 })}
+                  className="h-7 text-sm w-14 text-center"
+                />
+              </div>
+
+              <div className="w-px h-6 bg-border shrink-0" />
+
+              {/* Bold */}
+              <Button
+                variant={selectedText.bold ? "default" : "outline"}
+                size="icon" className="h-7 w-7 shrink-0"
+                onClick={() => updateText(selectedItemId!, { bold: !selectedText.bold })}
+                title="Жирный"
+              >
+                <Bold className="h-3 w-3" />
+              </Button>
+
+              {/* Italic */}
+              <Button
+                variant={selectedText.italic ? "default" : "outline"}
+                size="icon" className="h-7 w-7 shrink-0"
+                onClick={() => updateText(selectedItemId!, { italic: !selectedText.italic })}
+                title="Курсив"
+              >
+                <Italic className="h-3 w-3" />
+              </Button>
+
+              <div className="w-px h-6 bg-border shrink-0" />
+
               {/* Rotation */}
               <div className="flex items-center gap-1.5 shrink-0">
                 <span className="text-xs text-muted-foreground">Поворот</span>
@@ -800,19 +856,6 @@ export default function PdfCanvas() {
                 >
                   <RotateCw className="h-3 w-3" />
                 </Button>
-              </div>
-
-              <div className="w-px h-6 bg-border shrink-0" />
-
-              {/* Font size */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-xs text-muted-foreground">Размер</span>
-                <Input
-                  type="number" min={8} max={72}
-                  value={selectedText.fontSize}
-                  onChange={(e) => updateText(selectedItemId!, { fontSize: parseInt(e.target.value) || 16 })}
-                  className="h-7 text-sm w-16 text-center"
-                />
               </div>
 
               <div className="w-px h-6 bg-border shrink-0" />

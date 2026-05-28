@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useRef, useState } from "react";
-import { usePdfEditorStore } from "@/store/pdf-editor-store";
+import { usePdfEditorStore, getFontPdfLib } from "@/store/pdf-editor-store";
 import PdfCanvas from "@/components/pdf-editor/PdfCanvas";
 import Toolbar from "@/components/pdf-editor/Toolbar";
 import UploadZone from "@/components/pdf-editor/UploadZone";
@@ -65,10 +65,32 @@ export default function Home() {
       // Load the original PDF from stored ArrayBuffer
       const pdfDoc = await PDFDocument.load(pdfArrayBuffer);
 
-      // Embed fonts
-      const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-      const fontCourier = await pdfDoc.embedFont(StandardFonts.Courier);
+      // Embed all needed fonts (regular + bold + italic + bold-italic for each family)
+      const fontCache: Record<string, { regular: unknown; bold: unknown; italic: unknown; boldItalic: unknown }> = {};
+
+      const getFonts = async (pdfLibFont: string) => {
+        if (fontCache[pdfLibFont]) return fontCache[pdfLibFont];
+        let regular: unknown, bold: unknown, italic: unknown, boldItalic: unknown;
+        if (pdfLibFont === "TimesRoman") {
+          regular = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+          bold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+          italic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+          boldItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
+        } else if (pdfLibFont === "Courier") {
+          regular = await pdfDoc.embedFont(StandardFonts.Courier);
+          bold = await pdfDoc.embedFont(StandardFonts.CourierBold);
+          italic = await pdfDoc.embedFont(StandardFonts.CourierOblique);
+          boldItalic = await pdfDoc.embedFont(StandardFonts.CourierBoldOblique);
+        } else {
+          // Helvetica (default for Arial, Verdana, Tahoma, etc.)
+          regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+          bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+          italic = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+          boldItalic = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
+        }
+        fontCache[pdfLibFont] = { regular, bold, italic, boldItalic };
+        return fontCache[pdfLibFont];
+      };
 
       // Process stamps — embed images directly
       for (const stamp of stamps) {
@@ -133,12 +155,14 @@ export default function Home() {
 
           const scaledFontSize = (textItem.fontSize / ch) * pageHeight;
 
-          const font =
-            textItem.fontFamily === "Courier"
-              ? fontCourier
-              : textItem.bold
-              ? fontBold
-              : fontRegular;
+          // Select proper font variant (regular/bold/italic/boldItalic)
+          const pdfLibFontName = getFontPdfLib(textItem.fontFamily);
+          const fonts = await getFonts(pdfLibFontName);
+          let font: unknown;
+          if (textItem.bold && textItem.italic) font = fonts.boldItalic;
+          else if (textItem.bold) font = fonts.bold;
+          else if (textItem.italic) font = fonts.italic;
+          else font = fonts.regular;
 
           const color = hexToRgb(textItem.color);
 
@@ -146,7 +170,7 @@ export default function Home() {
             x: pdfX,
             y: pdfY,
             size: scaledFontSize,
-            font,
+            font: font as import("pdf-lib").PDFFont,
             color: color ? rgb(color.r, color.g, color.b) : rgb(0, 0, 0),
             rotate: degrees(textItem.rotation),
           });

@@ -25,6 +25,7 @@ export interface TextItem {
   page: number;
   fontFamily: string;
   bold: boolean;
+  italic: boolean;
   rotation: number;
   canvasWidth: number;  // overlay width at time of placement
   canvasHeight: number; // overlay height at time of placement
@@ -36,6 +37,33 @@ export interface CustomStamp {
   id: string;
   name: string;
   dataUrl: string; // base64 data URL of the uploaded image
+}
+
+// Available fonts for text tool
+// Each font has: name (display), css (for canvas rendering), pdfLib (for StandardFonts mapping)
+export const AVAILABLE_FONTS = [
+  { id: "Arial", name: "Arial", css: "Arial, Helvetica, sans-serif", pdfLib: "Helvetica" },
+  { id: "TimesNewRoman", name: "Times New Roman", css: "'Times New Roman', Times, serif", pdfLib: "TimesRoman" },
+  { id: "Courier", name: "Courier New", css: "'Courier New', Courier, monospace", pdfLib: "Courier" },
+  { id: "Georgia", name: "Georgia", css: "Georgia, serif", pdfLib: "TimesRoman" },
+  { id: "Verdana", name: "Verdana", css: "Verdana, Geneva, sans-serif", pdfLib: "Helvetica" },
+  { id: "Tahoma", name: "Tahoma", css: "Tahoma, Geneva, sans-serif", pdfLib: "Helvetica" },
+  { id: "TrebuchetMS", name: "Trebuchet MS", css: "'Trebuchet MS', Helvetica, sans-serif", pdfLib: "Helvetica" },
+  { id: "Impact", name: "Impact", css: "Impact, Charcoal, sans-serif", pdfLib: "Helvetica" },
+] as const;
+
+export type FontId = (typeof AVAILABLE_FONTS)[number]["id"];
+
+// Map font ID to css font-family string
+export function getFontCss(fontId: string): string {
+  const font = AVAILABLE_FONTS.find((f) => f.id === fontId);
+  return font ? font.css : "Arial, Helvetica, sans-serif";
+}
+
+// Map font ID to pdf-lib StandardFonts font name
+export function getFontPdfLib(fontId: string): string {
+  const font = AVAILABLE_FONTS.find((f) => f.id === fontId);
+  return font ? font.pdfLib : "Helvetica";
 }
 
 interface PdfEditorState {
@@ -67,6 +95,7 @@ interface PdfEditorState {
     color: string;
     fontFamily: string;
     bold: boolean;
+    italic: boolean;
   };
 
   // Custom stamps uploaded by user
@@ -117,10 +146,11 @@ const initialState = {
   selectedItemId: null,
   selectedItemType: null,
   textSettings: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#000000",
-    fontFamily: "Helvetica",
+    fontFamily: "Arial",
     bold: false,
+    italic: false,
   },
   customStamps: [],
 };

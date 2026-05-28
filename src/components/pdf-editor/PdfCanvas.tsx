@@ -216,7 +216,7 @@ export default function PdfCanvas() {
       if (activeTool === "stamp" && selectedStampType && selectedStampSrc) {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        const size = 120;
+        const size = 126;
         addStamp({
           id: `stamp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           type: selectedStampType,

@@ -145,15 +145,11 @@ export default function Home() {
     usePdfEditorStore.getState().reset();
   }, []);
 
-  if (!authenticated) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
-
-  const handleUploadClick = () => {
+  const handleUploadClick = useCallback(() => {
     fileInputRef.current?.click();
-  };
+  }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type === "application/pdf") {
       setPdfFile(file);
@@ -164,7 +160,7 @@ export default function Home() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-  };
+  }, [setPdfFile]);
 
   const handleDownload = useCallback(async () => {
     if (!pdfArrayBuffer || isDownloading) return;
@@ -387,6 +383,10 @@ export default function Home() {
       isDownloading={isDownloading}
     />
   );
+
+  if (!authenticated) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

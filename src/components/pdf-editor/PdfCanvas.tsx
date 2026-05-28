@@ -960,21 +960,19 @@ export default function PdfCanvas() {
             <>
               <Eraser className="h-4 w-4 shrink-0 text-muted-foreground" />
               
-              {/* Brush size */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-xs text-muted-foreground">Размер</span>
-                <Input
-                  type="range" min={3} max={80} step={1}
-                  value={eraserSettings.brushSize}
-                  onChange={(e) => setEraserSettings({ brushSize: parseInt(e.target.value) || 20 })}
-                  className="w-20 h-7"
-                />
-                <Input
-                  type="number" min={3} max={80}
-                  value={eraserSettings.brushSize}
-                  onChange={(e) => setEraserSettings({ brushSize: Math.max(3, parseInt(e.target.value) || 20) })}
-                  className="h-7 text-sm w-12 text-center"
-                />
+              {/* Brush size presets */}
+              <div className="flex items-center gap-1 shrink-0">
+                {[5, 10, 20, 40, 60].map((size) => (
+                  <Button
+                    key={size}
+                    variant={eraserSettings.brushSize === size ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 px-2 text-xs shrink-0"
+                    onClick={() => setEraserSettings({ brushSize: size })}
+                  >
+                    {size}
+                  </Button>
+                ))}
               </div>
 
               <div className="w-px h-6 bg-border shrink-0" />

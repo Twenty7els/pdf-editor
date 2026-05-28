@@ -48,6 +48,7 @@ export default function PdfCanvas() {
   const pdfjsRef = useRef<unknown>(null);
   const renderingRef = useRef(false);
   const baseScaleRef = useRef(1.0);
+  const clickedOnElementRef = useRef(false);
 
   const {
     pdfFile,
@@ -203,6 +204,11 @@ export default function PdfCanvas() {
     (e: React.MouseEvent) => {
       if (!overlayRef.current) return;
       if (e.target !== overlayRef.current) return;
+      // Skip if user just clicked on an existing element (stamp/text/handle)
+      if (clickedOnElementRef.current) {
+        clickedOnElementRef.current = false;
+        return;
+      }
       const rect = overlayRef.current.getBoundingClientRect();
       const overlayW = overlayRef.current.offsetWidth;
       const overlayH = overlayRef.current.offsetHeight;
@@ -257,6 +263,7 @@ export default function PdfCanvas() {
   const handleItemMouseDown = useCallback(
     (e: React.MouseEvent, id: string, type: "stamp" | "text") => {
       e.stopPropagation();
+      clickedOnElementRef.current = true;
       setSelectedItem(id, type);
       setDragState({
         mode: "move",
@@ -282,6 +289,7 @@ export default function PdfCanvas() {
     (e: React.MouseEvent, id: string, corner: string, item: StampItem | TextItem) => {
       e.stopPropagation();
       e.preventDefault();
+      clickedOnElementRef.current = true;
       const stampItem = item as StampItem;
       setDragState({
         mode: "resize",
@@ -308,6 +316,7 @@ export default function PdfCanvas() {
     (e: React.MouseEvent, id: string, item: StampItem) => {
       e.stopPropagation();
       e.preventDefault();
+      clickedOnElementRef.current = true;
       // Calculate center of the element
       const cx = item.x + item.width / 2;
       const cy = item.y + item.height / 2;

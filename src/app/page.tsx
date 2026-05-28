@@ -240,6 +240,15 @@ export default function Home() {
               Печати и текст на документах
             </p>
           </div>
+          {pdfFile && (
+            <div className="hidden lg:flex items-center gap-3 ml-6 text-[11px] text-muted-foreground">
+              <span><kbd className="px-1 py-0.5 bg-muted rounded text-[10px] font-mono">Ctrl+Колесо</kbd> масштаб</span>
+              <span><kbd className="px-1 py-0.5 bg-muted rounded text-[10px] font-mono">← →</kbd> страницы</span>
+              <span><kbd className="px-1 py-0.5 bg-muted rounded text-[10px] font-mono">Delete</kbd> удалить</span>
+              <span><kbd className="px-1 py-0.5 bg-muted rounded text-[10px] font-mono">2× клик</kbd> текст</span>
+              <span><kbd className="px-1 py-0.5 bg-muted rounded text-[10px] font-mono">Shift+Поворот</kbd> 15°</span>
+            </div>
+          )}
         </div>
         {pdfFile && (
           <div className="text-xs text-muted-foreground hidden sm:block">

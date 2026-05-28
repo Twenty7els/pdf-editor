@@ -266,18 +266,7 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
         </Card>
       )}
 
-      {/* Hints */}
-      <Card>
-        <CardContent className="p-3">
-          <p className="text-[10px] text-muted-foreground leading-relaxed">
-            <b>Ctrl + колесо</b> — масштаб<br/>
-            <b>← →</b> — листать страницы<br/>
-            <b>Delete</b> — удалить элемент<br/>
-            <b>2× клик</b> — редактировать текст<br/>
-            <b>Shift + поворот</b> — по 15°
-          </p>
-        </CardContent>
-      </Card>
+
     </div>
   );
 }

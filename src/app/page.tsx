@@ -27,6 +27,7 @@ export default function Home() {
     pdfArrayBuffer,
     stamps,
     texts,
+    erasers,
     pdfFileName,
     setPdfFile,
   } = usePdfEditorStore();
@@ -179,6 +180,34 @@ export default function Home() {
         }
       }
 
+      // Process erasers — draw filled rectangles
+      for (const eraserItem of erasers) {
+        try {
+          const page = pdfDoc.getPage(eraserItem.page - 1);
+          const { width: pageWidth, height: pageHeight } = page.getSize();
+
+          const cw = eraserItem.canvasWidth || 800;
+          const ch = eraserItem.canvasHeight || 1100;
+
+          const pdfX = (eraserItem.x / cw) * pageWidth;
+          const pdfY = pageHeight - ((eraserItem.y + eraserItem.height) / ch) * pageHeight;
+          const pdfWidth = (eraserItem.width / cw) * pageWidth;
+          const pdfHeight = (eraserItem.height / ch) * pageHeight;
+
+          const eraserColor = hexToRgb(eraserItem.color);
+
+          page.drawRectangle({
+            x: pdfX,
+            y: pdfY,
+            width: pdfWidth,
+            height: pdfHeight,
+            color: eraserColor ? rgb(eraserColor.r, eraserColor.g, eraserColor.b) : rgb(1, 1, 1),
+          });
+        } catch (err) {
+          console.error("Error drawing eraser:", err);
+        }
+      }
+
       // Save and trigger download
       const modifiedPdfBytes = await pdfDoc.save();
       const blob = new Blob([modifiedPdfBytes], { type: "application/pdf" });
@@ -205,7 +234,7 @@ export default function Home() {
     } finally {
       setIsDownloading(false);
     }
-  }, [pdfArrayBuffer, stamps, texts, pdfFileName, isDownloading]);
+  }, [pdfArrayBuffer, stamps, texts, erasers, pdfFileName, isDownloading]);
 
   const toolbarContent = (
     <Toolbar

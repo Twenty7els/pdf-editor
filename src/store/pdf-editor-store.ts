@@ -31,7 +31,19 @@ export interface TextItem {
   canvasHeight: number; // overlay height at time of placement
 }
 
-export type ToolMode = "select" | "stamp" | "text";
+export interface EraserItem {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  page: number;
+  color: string; // usually white, but can be any color
+  canvasWidth: number;
+  canvasHeight: number;
+}
+
+export type ToolMode = "select" | "stamp" | "text" | "eraser";
 
 export interface CustomStamp {
   id: string;
@@ -84,10 +96,11 @@ interface PdfEditorState {
   // Placed items
   stamps: StampItem[];
   texts: TextItem[];
+  erasers: EraserItem[];
 
   // Selected item for editing
   selectedItemId: string | null;
-  selectedItemType: "stamp" | "text" | null;
+  selectedItemType: "stamp" | "text" | "eraser" | null;
 
   // Text tool settings
   textSettings: {
@@ -96,6 +109,13 @@ interface PdfEditorState {
     fontFamily: string;
     bold: boolean;
     italic: boolean;
+  };
+
+  // Eraser tool settings
+  eraserSettings: {
+    width: number;
+    height: number;
+    color: string;
   };
 
   // Custom stamps uploaded by user
@@ -119,8 +139,12 @@ interface PdfEditorState {
   addText: (text: TextItem) => void;
   updateText: (id: string, updates: Partial<TextItem>) => void;
   removeText: (id: string) => void;
-  setSelectedItem: (id: string | null, type: "stamp" | "text" | null) => void;
+  addEraser: (eraser: EraserItem) => void;
+  updateEraser: (id: string, updates: Partial<EraserItem>) => void;
+  removeEraser: (id: string) => void;
+  setSelectedItem: (id: string | null, type: "stamp" | "text" | "eraser" | null) => void;
   setTextSettings: (settings: Partial<PdfEditorState["textSettings"]>) => void;
+  setEraserSettings: (settings: Partial<PdfEditorState["eraserSettings"]>) => void;
   addCustomStamp: (stamp: CustomStamp) => void;
   removeCustomStamp: (id: string) => void;
   reset: () => void;
@@ -143,14 +167,20 @@ const initialState = {
   selectedStampSrc: null,
   stamps: [],
   texts: [],
+  erasers: [],
   selectedItemId: null,
-  selectedItemType: null,
+  selectedItemType: null as "stamp" | "text" | "eraser" | null,
   textSettings: {
     fontSize: 14,
     color: "#000000",
     fontFamily: "Arial",
     bold: false,
     italic: false,
+  },
+  eraserSettings: {
+    width: 120,
+    height: 40,
+    color: "#FFFFFF",
   },
   customStamps: [],
 };
@@ -164,6 +194,7 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
       pdfFileName: file?.name ?? "",
       stamps: [],
       texts: [],
+      erasers: [],
       selectedItemId: null,
       selectedItemType: null,
       currentPage: 1,
@@ -222,12 +253,35 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
         state.selectedItemId === id ? null : state.selectedItemType,
     })),
 
+  addEraser: (eraser) =>
+    set((state) => ({ erasers: [...state.erasers, eraser] })),
+
+  updateEraser: (id, updates) =>
+    set((state) => ({
+      erasers: state.erasers.map((e) =>
+        e.id === id ? { ...e, ...updates } : e
+      ),
+    })),
+
+  removeEraser: (id) =>
+    set((state) => ({
+      erasers: state.erasers.filter((e) => e.id !== id),
+      selectedItemId: state.selectedItemId === id ? null : state.selectedItemId,
+      selectedItemType:
+        state.selectedItemId === id ? null : state.selectedItemType,
+    })),
+
   setSelectedItem: (id, type) =>
     set({ selectedItemId: id, selectedItemType: type }),
 
   setTextSettings: (settings) =>
     set((state) => ({
       textSettings: { ...state.textSettings, ...settings },
+    })),
+
+  setEraserSettings: (settings) =>
+    set((state) => ({
+      eraserSettings: { ...state.eraserSettings, ...settings },
     })),
 
   addCustomStamp: (stamp) =>

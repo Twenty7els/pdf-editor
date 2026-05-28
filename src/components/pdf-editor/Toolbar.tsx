@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef } from "react";
-import { usePdfEditorStore, CustomStamp, AVAILABLE_FONTS } from "@/store/pdf-editor-store";
+import { usePdfEditorStore, CustomStamp, AVAILABLE_FONTS, EraserItem } from "@/store/pdf-editor-store";
 import { STAMP_DEFINITIONS } from "@/lib/stamps";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
   ImagePlus,
   Bold,
   Italic,
+  Eraser,
 } from "lucide-react";
 
 interface ToolbarProps {
@@ -36,6 +37,8 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
     removeCustomStamp,
     textSettings,
     setTextSettings,
+    eraserSettings,
+    setEraserSettings,
   } = usePdfEditorStore();
 
   const customStampInputRef = useRef<HTMLInputElement>(null);
@@ -118,6 +121,14 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
           >
             <Type className="h-4 w-4" />
             Текст
+          </Button>
+          <Button
+            variant={activeTool === "eraser" ? "default" : "outline"}
+            className="w-full justify-start gap-2"
+            onClick={() => setActiveTool("eraser")}
+          >
+            <Eraser className="h-4 w-4" />
+            Ластик
           </Button>
         </CardContent>
       </Card>
@@ -324,6 +335,99 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
 
             <p className="text-[11px] text-muted-foreground text-center">
               Кликните на PDF чтобы добавить текст
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Eraser settings */}
+      {activeTool === "eraser" && (
+        <Card>
+          <CardHeader className="p-3 pb-2">
+            <CardTitle className="text-sm font-medium">Настройки ластика</CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 pt-1 flex flex-col gap-3">
+            {/* Size */}
+            <div className="flex items-end gap-2">
+              <div className="flex flex-col gap-1 flex-1">
+                <Label className="text-xs">Ширина</Label>
+                <Input
+                  type="number"
+                  min={10}
+                  max={800}
+                  value={eraserSettings.width}
+                  onChange={(e) =>
+                    setEraserSettings({ width: parseInt(e.target.value) || 120 })
+                  }
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1 flex-1">
+                <Label className="text-xs">Высота</Label>
+                <Input
+                  type="number"
+                  min={10}
+                  max={800}
+                  value={eraserSettings.height}
+                  onChange={(e) =>
+                    setEraserSettings({ height: parseInt(e.target.value) || 40 })
+                  }
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Color */}
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs">Цвет замазки</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="color"
+                  value={eraserSettings.color}
+                  onChange={(e) => setEraserSettings({ color: e.target.value })}
+                  className="h-8 w-12 cursor-pointer shrink-0 p-0.5"
+                />
+                <Input
+                  type="text"
+                  value={eraserSettings.color}
+                  onChange={(e) => setEraserSettings({ color: e.target.value })}
+                  className="h-8 text-sm font-mono flex-1"
+                  maxLength={7}
+                />
+              </div>
+            </div>
+
+            {/* Quick colors */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground shrink-0">Быстро:</span>
+              {["#FFFFFF", "#000000", "#F5F5F5", "#D4D4D4"].map((c) => (
+                <button
+                  key={c}
+                  className={`w-7 h-7 rounded border-2 ${eraserSettings.color === c ? "border-primary" : "border-border"} transition-colors`}
+                  style={{ backgroundColor: c }}
+                  onClick={() => setEraserSettings({ color: c })}
+                  title={c}
+                />
+              ))}
+            </div>
+
+            {/* Preview */}
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs">Предпросмотр</Label>
+              <div className="h-12 rounded-md border border-input bg-muted/30 flex items-center justify-center">
+                <div
+                  style={{
+                    width: Math.min(eraserSettings.width, 200),
+                    height: Math.min(eraserSettings.height, 40),
+                    backgroundColor: eraserSettings.color,
+                    borderRadius: 2,
+                  }}
+                />
+              </div>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground text-center">
+              Кликните на PDF чтобы замазать область
             </p>
           </CardContent>
         </Card>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { usePdfEditorStore, StampItem, TextItem, getFontCss, AVAILABLE_FONTS } from "@/store/pdf-editor-store";
+import { usePdfEditorStore, StampItem, TextItem, EraserItem, getFontCss, AVAILABLE_FONTS } from "@/store/pdf-editor-store";
 import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,
@@ -22,7 +22,7 @@ type DragMode = "move" | "resize" | "rotate" | null;
 interface DragState {
   mode: DragMode;
   id: string;
-  type: "stamp" | "text";
+  type: "stamp" | "text" | "eraser";
   // for move
   offsetX: number;
   offsetY: number;
@@ -72,16 +72,20 @@ export default function PdfCanvas() {
     selectedStampSrc,
     stamps,
     texts,
+    erasers,
     selectedItemId,
     selectedItemType,
     addStamp,
     addText,
+    addEraser,
     updateStamp,
     updateText,
+    updateEraser,
     setSelectedItem,
     setCurrentPage,
     setActiveTool,
     textSettings,
+    eraserSettings,
   } = usePdfEditorStore();
 
   // Drag / resize / rotate state
@@ -232,6 +236,24 @@ export default function PdfCanvas() {
         canvasHeight: canvasSize.height,
       });
     });
+
+    // Scale erasers whose canvas dimensions don't match current
+    state.erasers.forEach((eraser) => {
+      if (Math.abs(eraser.canvasWidth - canvasSize.width) < 1 &&
+          Math.abs(eraser.canvasHeight - canvasSize.height) < 1) return;
+
+      const scaleX = canvasSize.width / (eraser.canvasWidth || canvasSize.width);
+      const scaleY = canvasSize.height / (eraser.canvasHeight || canvasSize.height);
+
+      state.updateEraser(eraser.id, {
+        x: eraser.x * scaleX,
+        y: eraser.y * scaleY,
+        width: eraser.width * scaleX,
+        height: eraser.height * scaleY,
+        canvasWidth: canvasSize.width,
+        canvasHeight: canvasSize.height,
+      });
+    });
   }, [canvasSize.width, canvasSize.height]);
 
   // Mouse wheel zoom with Ctrl
@@ -305,12 +327,29 @@ export default function PdfCanvas() {
         setEditingTextId(newText.id);
         setEditTextValue("Текст");
         setSelectedItem(newText.id, "text");
+      } else if (activeTool === "eraser") {
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const newId = `eraser-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        addEraser({
+          id: newId,
+          x: x - eraserSettings.width / 2,
+          y: y - eraserSettings.height / 2,
+          width: eraserSettings.width,
+          height: eraserSettings.height,
+          page: currentPage,
+          color: eraserSettings.color,
+          canvasWidth: overlayW,
+          canvasHeight: overlayH,
+        });
+        setActiveTool("select");
+        setSelectedItem(newId, "eraser");
       } else if (activeTool === "select") {
         setSelectedItem(null, null);
         setEditingTextId(null);
       }
     },
-    [activeTool, selectedStampType, selectedStampSrc, currentPage, textSettings, addStamp, addText, setSelectedItem, setActiveTool]
+    [activeTool, selectedStampType, selectedStampSrc, currentPage, textSettings, eraserSettings, addStamp, addText, addEraser, setSelectedItem, setActiveTool]
   );
 
   // Unified mouse down handler
@@ -408,8 +447,9 @@ export default function PdfCanvas() {
         const x = e.clientX - rect.left - dragState.offsetX;
         const y = e.clientY - rect.top - dragState.offsetY;
         if (dragState.type === "stamp") updateStamp(dragState.id, { x, y });
+        else if (dragState.type === "eraser") updateEraser(dragState.id, { x, y });
         else updateText(dragState.id, { x, y });
-      } else if (dragState.mode === "resize" && dragState.type === "stamp") {
+      } else if (dragState.mode === "resize" && (dragState.type === "stamp" || dragState.type === "eraser")) {
         const dx = e.clientX - dragState.startX;
         const dy = e.clientY - dragState.startY;
 
@@ -438,12 +478,21 @@ export default function PdfCanvas() {
           newHeight = Math.max(30, dragState.startHeight - dy);
         }
 
-        updateStamp(dragState.id, {
-          x: newLeft,
-          y: newTop,
-          width: newWidth,
-          height: newHeight,
-        });
+        if (dragState.type === "stamp") {
+          updateStamp(dragState.id, {
+            x: newLeft,
+            y: newTop,
+            width: newWidth,
+            height: newHeight,
+          });
+        } else {
+          updateEraser(dragState.id, {
+            x: newLeft,
+            y: newTop,
+            width: newWidth,
+            height: newHeight,
+          });
+        }
       } else if (dragState.mode === "rotate" && dragState.type === "stamp") {
         const stamp = usePdfEditorStore.getState().stamps.find(s => s.id === dragState.id);
         if (!stamp) return;
@@ -473,7 +522,7 @@ export default function PdfCanvas() {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [dragState, updateStamp, updateText]);
+  }, [dragState, updateStamp, updateText, updateEraser]);
 
   // Text editing
   const handleTextDoubleClick = useCallback((e: React.MouseEvent, t: TextItem) => {
@@ -501,6 +550,7 @@ export default function PdfCanvas() {
         if (e.key === "Backspace" && !(e.target instanceof HTMLInputElement)) e.preventDefault();
         if (selectedItemType === "stamp") usePdfEditorStore.getState().removeStamp(selectedItemId);
         else if (selectedItemType === "text") usePdfEditorStore.getState().removeText(selectedItemId);
+        else if (selectedItemType === "eraser") usePdfEditorStore.getState().removeEraser(selectedItemId);
         setSelectedItem(null, null);
       }
     };
@@ -521,8 +571,9 @@ export default function PdfCanvas() {
 
   const pageStamps = stamps.filter((s) => s.page === currentPage);
   const pageTexts = texts.filter((t) => t.page === currentPage);
+  const pageErasers = erasers.filter((e) => e.page === currentPage);
 
-  const cursorClass = activeTool === "stamp" || activeTool === "text" ? "cursor-crosshair" : "cursor-default";
+  const cursorClass = activeTool === "stamp" || activeTool === "text" || activeTool === "eraser" ? "cursor-crosshair" : "cursor-default";
   const zoomPercent = Math.round(zoomLevel * 100);
 
   // Render resize handles for selected stamp
@@ -594,6 +645,63 @@ export default function PdfCanvas() {
 
   const selectedStamp = stamps.find((s) => s.id === selectedItemId);
   const selectedText = texts.find((t) => t.id === selectedItemId);
+  const selectedEraser = erasers.find((e) => e.id === selectedItemId);
+
+  // Render resize handles for eraser
+  const renderEraserHandles = (eraserItem: EraserItem) => {
+    if (selectedItemId !== eraserItem.id) return null;
+
+    const hs = HANDLE_SIZE;
+    const halfHs = hs / 2;
+    const corners = [
+      { key: "tl", style: { left: -halfHs, top: -halfHs, cursor: "nw-resize" } },
+      { key: "tr", style: { right: -halfHs, top: -halfHs, cursor: "ne-resize" } },
+      { key: "bl", style: { left: -halfHs, bottom: -halfHs, cursor: "sw-resize" } },
+      { key: "br", style: { right: -halfHs, bottom: -halfHs, cursor: "se-resize" } },
+    ];
+
+    return (
+      <>
+        {/* Dashed border */}
+        <div className="absolute inset-0 border-2 border-dashed border-primary/60 pointer-events-none" />
+        {/* Corner resize handles */}
+        {corners.map((c) => (
+          <div
+            key={c.key}
+            className="absolute bg-white border-2 border-primary rounded-sm z-10"
+            style={{ ...c.style, width: hs, height: hs, cursor: c.cursor }}
+            onMouseDown={(e) => handleEraserResizeMouseDown(e, eraserItem.id, c.key, eraserItem)}
+          />
+        ))}
+      </>
+    );
+  };
+
+  // Eraser resize handle mouse down
+  const handleEraserResizeMouseDown = useCallback(
+    (e: React.MouseEvent, id: string, corner: string, item: EraserItem) => {
+      e.stopPropagation();
+      e.preventDefault();
+      clickedOnElementRef.current = true;
+      setDragState({
+        mode: "resize",
+        id,
+        type: "eraser",
+        corner,
+        offsetX: 0,
+        offsetY: 0,
+        startX: e.clientX,
+        startY: e.clientY,
+        startLeft: item.x,
+        startTop: item.y,
+        startWidth: item.width,
+        startHeight: item.height,
+        startRotation: 0,
+        startAngle: 0,
+      });
+    },
+    []
+  );
 
   return (
     <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden bg-muted/30 relative">
@@ -692,6 +800,27 @@ export default function PdfCanvas() {
                   ) : (
                     <span className="bg-white/20 px-0.5">{textItem.text}</span>
                   )}
+                </div>
+              ))}
+              
+              {/* Eraser items */}
+              {pageErasers.map((eraserItem) => (
+                <div
+                  key={eraserItem.id}
+                  className={`absolute ${selectedItemId === eraserItem.id ? "ring-2 ring-primary ring-offset-1" : "hover:ring-1 hover:ring-primary/50"}`}
+                  style={{
+                    left: eraserItem.x,
+                    top: eraserItem.y,
+                    width: eraserItem.width,
+                    height: eraserItem.height,
+                    backgroundColor: eraserItem.color,
+                    cursor: dragState?.mode === "move" ? "grabbing" : "grab",
+                  }}
+                  onMouseDown={(e) => handleItemMouseDown(e, eraserItem.id, "eraser")}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Resize handles for selected eraser */}
+                  {selectedItemId === eraserItem.id && renderEraserHandles(eraserItem)}
                 </div>
               ))}
             </div>
@@ -866,6 +995,60 @@ export default function PdfCanvas() {
                 className="h-7 gap-1.5 shrink-0"
                 onClick={() => {
                   usePdfEditorStore.getState().removeText(selectedItemId!);
+                  setSelectedItem(null, null);
+                }}
+              >
+                <Trash2 className="h-3 w-3" />
+                Удалить
+              </Button>
+            </>
+          )}
+
+          {selectedItemType === "eraser" && selectedEraser && (
+            <>
+              {/* Width */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs text-muted-foreground">Ш</span>
+                <Input
+                  type="number" min={10} max={800} step={5}
+                  value={Math.round(selectedEraser.width)}
+                  onChange={(e) => updateEraser(selectedItemId!, { width: Math.max(10, parseInt(e.target.value) || 10) })}
+                  className="h-7 text-sm w-16 text-center"
+                />
+              </div>
+
+              {/* Height */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs text-muted-foreground">В</span>
+                <Input
+                  type="number" min={10} max={800} step={5}
+                  value={Math.round(selectedEraser.height)}
+                  onChange={(e) => updateEraser(selectedItemId!, { height: Math.max(10, parseInt(e.target.value) || 10) })}
+                  className="h-7 text-sm w-16 text-center"
+                />
+              </div>
+
+              <div className="w-px h-6 bg-border shrink-0" />
+
+              {/* Color */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs text-muted-foreground">Цвет</span>
+                <Input
+                  type="color"
+                  value={selectedEraser.color}
+                  onChange={(e) => updateEraser(selectedItemId!, { color: e.target.value })}
+                  className="h-7 w-8 cursor-pointer p-0"
+                />
+              </div>
+
+              <div className="w-px h-6 bg-border shrink-0" />
+
+              {/* Delete */}
+              <Button
+                variant="destructive" size="sm"
+                className="h-7 gap-1.5 shrink-0"
+                onClick={() => {
+                  usePdfEditorStore.getState().removeEraser(selectedItemId!);
                   setSelectedItem(null, null);
                 }}
               >

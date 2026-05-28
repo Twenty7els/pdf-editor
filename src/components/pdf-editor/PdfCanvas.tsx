@@ -190,6 +190,48 @@ export default function PdfCanvas() {
     return () => { window.removeEventListener("resize", handleResize); clearTimeout(timeout); };
   }, [pdfDoc, renderPage]);
 
+  // Scale stamps/texts when canvas size changes (due to zoom)
+  useEffect(() => {
+    if (!canvasSize.width || !canvasSize.height) return;
+
+    const state = usePdfEditorStore.getState();
+
+    // Scale stamps whose canvas dimensions don't match current
+    state.stamps.forEach((stamp) => {
+      if (Math.abs(stamp.canvasWidth - canvasSize.width) < 1 &&
+          Math.abs(stamp.canvasHeight - canvasSize.height) < 1) return;
+
+      const scaleX = canvasSize.width / (stamp.canvasWidth || canvasSize.width);
+      const scaleY = canvasSize.height / (stamp.canvasHeight || canvasSize.height);
+
+      state.updateStamp(stamp.id, {
+        x: stamp.x * scaleX,
+        y: stamp.y * scaleY,
+        width: stamp.width * scaleX,
+        height: stamp.height * scaleY,
+        canvasWidth: canvasSize.width,
+        canvasHeight: canvasSize.height,
+      });
+    });
+
+    // Scale texts whose canvas dimensions don't match current
+    state.texts.forEach((text) => {
+      if (Math.abs(text.canvasWidth - canvasSize.width) < 1 &&
+          Math.abs(text.canvasHeight - canvasSize.height) < 1) return;
+
+      const scaleX = canvasSize.width / (text.canvasWidth || canvasSize.width);
+      const scaleY = canvasSize.height / (text.canvasHeight || canvasSize.height);
+
+      state.updateText(text.id, {
+        x: text.x * scaleX,
+        y: text.y * scaleY,
+        fontSize: text.fontSize * Math.min(scaleX, scaleY),
+        canvasWidth: canvasSize.width,
+        canvasHeight: canvasSize.height,
+      });
+    });
+  }, [canvasSize.width, canvasSize.height]);
+
   // Mouse wheel zoom with Ctrl
   useEffect(() => {
     const container = containerRef.current;

@@ -342,9 +342,12 @@ export default function PdfCanvas() {
           canvasHeight: overlayH,
         };
         addText(newText);
-        setEditingTextId(newText.id);
-        setEditTextValue(textContent);
         setSelectedItem(newText.id, "text");
+        // Only open editing for non-preset text (let user type their own)
+        if (!presetText) {
+          setEditingTextId(newText.id);
+          setEditTextValue(textContent);
+        }
         // Auto-switch to select mode after placing text
         setActiveTool("select");
         setPresetText(null);

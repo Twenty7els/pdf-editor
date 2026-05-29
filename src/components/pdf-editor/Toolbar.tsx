@@ -17,6 +17,12 @@ import {
   Paintbrush,
 } from "lucide-react";
 
+// Preset texts for one-click placement
+const PRESET_TEXTS = [
+  { id: "preset-dover", text: "Представитель по доверенности" },
+  { id: "preset-litvinkin", text: "Литвинкин Андрей Владимирович" },
+] as const;
+
 interface ToolbarProps {
   onUploadClick: () => void;
   onDownloadClick: () => void;
@@ -31,6 +37,8 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
     customStamps,
     addCustomStamp,
     removeCustomStamp,
+    presetText,
+    setPresetText,
   } = usePdfEditorStore();
 
   const customStampInputRef = useRef<HTMLInputElement>(null);
@@ -230,11 +238,38 @@ export default function Toolbar({ onUploadClick, onDownloadClick, isDownloading 
         </>
       )}
 
-      {/* Text tool hint */}
+      {/* Text tool presets */}
       {activeTool === "text" && (
-        <p className="text-[11px] text-muted-foreground text-center px-2">
-          Настройки текста — вверху экрана. Кликните на PDF чтобы добавить текст.
-        </p>
+        <>
+          <Card>
+            <CardHeader className="p-3 pb-2">
+              <CardTitle className="text-sm font-medium">Готовые тексты</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-1 flex flex-col gap-1.5">
+              {PRESET_TEXTS.map((preset) => (
+                  <Button
+                    key={preset.id}
+                    variant={presetText === preset.text ? "default" : "outline"}
+                    className="w-full justify-start gap-2 text-xs h-auto py-2 px-3"
+                    onClick={() => {
+                      if (presetText === preset.text) {
+                        setPresetText(null);
+                      } else {
+                        setPresetText(preset.text);
+                      }
+                    }}
+                  >
+                    <Type className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate text-left">{preset.text}</span>
+                  </Button>
+              ))}
+            </CardContent>
+          </Card>
+
+          <p className="text-[11px] text-muted-foreground text-center px-2">
+            Выберите готовый текст или кликните на PDF чтобы добавить свой.
+          </p>
+        </>
       )}
 
       {/* Eraser tool hint */}

@@ -97,6 +97,8 @@ export default function PdfCanvas() {
     setTextSettings,
     eraserSettings,
     setEraserSettings,
+    presetText,
+    setPresetText,
   } = usePdfEditorStore();
 
   // Drag / resize / rotate state
@@ -324,9 +326,10 @@ export default function PdfCanvas() {
       } else if (activeTool === "text") {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
+        const textContent = presetText || "Текст";
         const newText: TextItem = {
           id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          text: "Текст",
+          text: textContent,
           x, y,
           fontSize: textSettings.fontSize,
           color: textSettings.color,
@@ -340,17 +343,18 @@ export default function PdfCanvas() {
         };
         addText(newText);
         setEditingTextId(newText.id);
-        setEditTextValue("Текст");
+        setEditTextValue(textContent);
         setSelectedItem(newText.id, "text");
-        // Auto-switch to select mode after placing text (same as stamps)
+        // Auto-switch to select mode after placing text
         setActiveTool("select");
+        setPresetText(null);
       } else if (activeTool === "select") {
         setSelectedItem(null, null);
         setEditingTextId(null);
       }
       // Note: eraser handles its own mousedown in handleOverlayMouseDown
     },
-    [activeTool, selectedStampType, selectedStampSrc, currentPage, textSettings, addStamp, addText, setSelectedItem, setActiveTool]
+    [activeTool, selectedStampType, selectedStampSrc, currentPage, textSettings, presetText, addStamp, addText, setSelectedItem, setActiveTool, setPresetText]
   );
 
   // Handle overlay mousedown for eraser brush drawing
@@ -976,7 +980,11 @@ export default function PdfCanvas() {
 
               <div className="w-px h-6 bg-border shrink-0" />
 
-              <span className="text-xs text-muted-foreground shrink-0">Кликните на PDF чтобы добавить текст</span>
+              {presetText ? (
+                <span className="text-xs text-primary font-medium shrink-0 truncate max-w-60">✦ {presetText}</span>
+              ) : (
+                <span className="text-xs text-muted-foreground shrink-0">Кликните на PDF чтобы добавить текст</span>
+              )}
             </>
           )}
 

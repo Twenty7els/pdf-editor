@@ -114,6 +114,9 @@ interface PdfEditorState {
     italic: boolean;
   };
 
+  // Preset text for one-click placement
+  presetText: string | null;
+
   // Eraser tool settings
   eraserSettings: {
     brushSize: number;
@@ -146,6 +149,7 @@ interface PdfEditorState {
   removeEraser: (id: string) => void;
   setSelectedItem: (id: string | null, type: "stamp" | "text" | "eraser" | null) => void;
   setTextSettings: (settings: Partial<PdfEditorState["textSettings"]>) => void;
+  setPresetText: (text: string | null) => void;
   setEraserSettings: (settings: Partial<PdfEditorState["eraserSettings"]>) => void;
   addCustomStamp: (stamp: CustomStamp) => void;
   removeCustomStamp: (id: string) => void;
@@ -179,6 +183,7 @@ const initialState = {
     bold: false,
     italic: false,
   },
+  presetText: null,
   eraserSettings: {
     brushSize: 20,
     color: "#FFFFFF",
@@ -214,7 +219,7 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
     set({ zoomLevel: Math.max(ZOOM_MIN, get().zoomLevel - ZOOM_STEP) }),
   zoomFit: () => set({ zoomLevel: 1.0 }),
 
-  setActiveTool: (tool) => set({ activeTool: tool }),
+  setActiveTool: (tool) => set({ activeTool: tool, presetText: tool !== "text" ? null : undefined }),
   setSelectedStamp: (type, src) =>
     set({ selectedStampType: type, selectedStampSrc: src, activeTool: "stamp" }),
 
@@ -279,6 +284,8 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
     set((state) => ({
       textSettings: { ...state.textSettings, ...settings },
     })),
+
+  setPresetText: (text) => set({ presetText: text }),
 
   setEraserSettings: (settings) =>
     set((state) => ({

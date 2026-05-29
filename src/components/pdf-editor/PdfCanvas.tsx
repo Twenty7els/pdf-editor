@@ -828,13 +828,13 @@ export default function PdfCanvas() {
               {pageTexts.map((textItem) => (
                 <div
                   key={textItem.id}
-                  className={`absolute ${selectedItemId === textItem.id ? "ring-1 ring-primary/70 p-0.5" : "hover:ring-1 hover:ring-primary/50"}`}
+                  className={`absolute ${selectedItemId === textItem.id && editingTextId !== textItem.id ? "ring-1 ring-primary/70 p-0.5" : editingTextId !== textItem.id ? "hover:ring-1 hover:ring-primary/50" : ""}`}
                   style={{
                     left: textItem.x,
                     top: textItem.y,
                     color: textItem.color,
                     transform: `rotate(${textItem.rotation}deg)`,
-                    cursor: dragState?.mode === "move" ? "grabbing" : "grab",
+                    cursor: editingTextId === textItem.id ? "text" : dragState?.mode === "move" ? "grabbing" : "grab",
                     userSelect: "none",
                   }}
                   onMouseDown={(e) => handleItemMouseDown(e, textItem.id, "text")}
@@ -848,7 +848,7 @@ export default function PdfCanvas() {
                       onChange={(e) => setEditTextValue(e.target.value)}
                       onBlur={handleTextEditComplete}
                       onKeyDown={handleTextKeyDown}
-                      className="bg-white/90 border border-primary/70 px-1 outline-none"
+                      className="bg-white/90 border border-primary/40 px-1 outline-none"
                       style={{
                         fontSize: textItem.fontSize,
                         color: textItem.color,

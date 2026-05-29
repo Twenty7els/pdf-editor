@@ -175,6 +175,10 @@ export default function Home() {
       // Load the original PDF from stored ArrayBuffer
       const pdfDoc = await PDFDocument.load(pdfArrayBuffer);
 
+      // Register fontkit — REQUIRED for embedding custom TTF fonts (Cyrillic support)
+      const fontkit = (await import("@pdf-lib/fontkit")).default;
+      pdfDoc.registerFontkit(fontkit);
+
       // Load NotoSans Unicode fonts (supports Cyrillic) — embedded as base64, lazy loaded
       let unicodeFonts: { regular: unknown; bold: unknown; italic: unknown; boldItalic: unknown } | null = null;
       const getUnicodeFonts = async () => {

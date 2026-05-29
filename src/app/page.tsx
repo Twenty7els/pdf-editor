@@ -175,11 +175,32 @@ export default function Home() {
       // Load the original PDF from stored ArrayBuffer
       const pdfDoc = await PDFDocument.load(pdfArrayBuffer);
 
-      // Embed all needed fonts (regular + bold + italic + bold-italic for each family)
-      const fontCache: Record<string, { regular: unknown; bold: unknown; italic: unknown; boldItalic: unknown }> = {};
+      // Helper: detect if text contains non-Latin characters (Cyrillic, etc.)
+      const hasNonLatin = (str: string): boolean => /[^\x00-\xFF]/.test(str);
 
-      const getFonts = async (pdfLibFont: string) => {
-        if (fontCache[pdfLibFont]) return fontCache[pdfLibFont];
+      // Pre-load DejaVuSans Unicode fonts (supports Cyrillic) — loaded lazily
+      let unicodeFonts: { regular: unknown; bold: unknown; italic: unknown; boldItalic: unknown } | null = null;
+      const getUnicodeFonts = async () => {
+        if (unicodeFonts) return unicodeFonts;
+        const [regBytes, boldBytes, italicBytes, biBytes] = await Promise.all([
+          fetch("/fonts/DejaVuSans.ttf").then(r => r.arrayBuffer()),
+          fetch("/fonts/DejaVuSans-Bold.ttf").then(r => r.arrayBuffer()),
+          fetch("/fonts/DejaVuSans-Oblique.ttf").then(r => r.arrayBuffer()),
+          fetch("/fonts/DejaVuSans-BoldOblique.ttf").then(r => r.arrayBuffer()),
+        ]);
+        unicodeFonts = {
+          regular: await pdfDoc.embedFont(new Uint8Array(regBytes)),
+          bold: await pdfDoc.embedFont(new Uint8Array(boldBytes)),
+          italic: await pdfDoc.embedFont(new Uint8Array(italicBytes)),
+          boldItalic: await pdfDoc.embedFont(new Uint8Array(biBytes)),
+        };
+        return unicodeFonts;
+      };
+
+      // Embed standard fonts (Latin-only) — loaded lazily per family
+      const standardFontCache: Record<string, { regular: unknown; bold: unknown; italic: unknown; boldItalic: unknown }> = {};
+      const getStandardFonts = async (pdfLibFont: string) => {
+        if (standardFontCache[pdfLibFont]) return standardFontCache[pdfLibFont];
         let regular: unknown, bold: unknown, italic: unknown, boldItalic: unknown;
         if (pdfLibFont === "TimesRoman") {
           regular = await pdfDoc.embedFont(StandardFonts.TimesRoman);
@@ -198,8 +219,8 @@ export default function Home() {
           italic = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
           boldItalic = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
         }
-        fontCache[pdfLibFont] = { regular, bold, italic, boldItalic };
-        return fontCache[pdfLibFont];
+        standardFontCache[pdfLibFont] = { regular, bold, italic, boldItalic };
+        return standardFontCache[pdfLibFont];
       };
 
       // Process stamps — embed images directly
@@ -265,14 +286,24 @@ export default function Home() {
 
           const scaledFontSize = (textItem.fontSize / ch) * pageHeight;
 
-          // Select proper font variant (regular/bold/italic/boldItalic)
-          const pdfLibFontName = getFontPdfLib(textItem.fontFamily);
-          const fonts = await getFonts(pdfLibFontName);
+          // Use Unicode font for Cyrillic/non-Latin text, standard font for Latin-only
           let font: unknown;
-          if (textItem.bold && textItem.italic) font = fonts.boldItalic;
-          else if (textItem.bold) font = fonts.bold;
-          else if (textItem.italic) font = fonts.italic;
-          else font = fonts.regular;
+          const useUnicode = hasNonLatin(textItem.text);
+
+          if (useUnicode) {
+            const uFonts = await getUnicodeFonts();
+            if (textItem.bold && textItem.italic) font = uFonts.boldItalic;
+            else if (textItem.bold) font = uFonts.bold;
+            else if (textItem.italic) font = uFonts.italic;
+            else font = uFonts.regular;
+          } else {
+            const pdfLibFontName = getFontPdfLib(textItem.fontFamily);
+            const sFonts = await getStandardFonts(pdfLibFontName);
+            if (textItem.bold && textItem.italic) font = sFonts.boldItalic;
+            else if (textItem.bold) font = sFonts.bold;
+            else if (textItem.italic) font = sFonts.italic;
+            else font = sFonts.regular;
+          }
 
           const color = hexToRgb(textItem.color);
 

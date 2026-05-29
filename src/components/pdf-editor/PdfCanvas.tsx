@@ -38,6 +38,9 @@ interface DragState {
   // for rotate
   startRotation: number;
   startAngle: number;
+  // stored canvas dims for coordinate conversion
+  itemCanvasWidth: number;
+  itemCanvasHeight: number;
 }
 
 const HANDLE_SIZE = 8;
@@ -210,62 +213,8 @@ export default function PdfCanvas() {
   }, [pdfDoc, renderPage]);
 
   // Scale stamps/texts when canvas size changes (due to zoom)
-  useEffect(() => {
-    if (!canvasSize.width || !canvasSize.height) return;
-
-    const state = usePdfEditorStore.getState();
-
-    // Scale stamps whose canvas dimensions don't match current
-    state.stamps.forEach((stamp) => {
-      if (Math.abs(stamp.canvasWidth - canvasSize.width) < 1 &&
-          Math.abs(stamp.canvasHeight - canvasSize.height) < 1) return;
-
-      const scaleX = canvasSize.width / (stamp.canvasWidth || canvasSize.width);
-      const scaleY = canvasSize.height / (stamp.canvasHeight || canvasSize.height);
-
-      state.updateStamp(stamp.id, {
-        x: stamp.x * scaleX,
-        y: stamp.y * scaleY,
-        width: stamp.width * scaleX,
-        height: stamp.height * scaleY,
-        canvasWidth: canvasSize.width,
-        canvasHeight: canvasSize.height,
-      });
-    });
-
-    // Scale texts whose canvas dimensions don't match current
-    state.texts.forEach((text) => {
-      if (Math.abs(text.canvasWidth - canvasSize.width) < 1 &&
-          Math.abs(text.canvasHeight - canvasSize.height) < 1) return;
-
-      const scaleX = canvasSize.width / (text.canvasWidth || canvasSize.width);
-      const scaleY = canvasSize.height / (text.canvasHeight || canvasSize.height);
-
-      state.updateText(text.id, {
-        x: text.x * scaleX,
-        y: text.y * scaleY,
-        fontSize: text.fontSize * Math.min(scaleX, scaleY),
-        canvasWidth: canvasSize.width,
-        canvasHeight: canvasSize.height,
-      });
-    });
-
-    // Scale erasers whose canvas dimensions don't match current
-    state.erasers.forEach((eraser) => {
-      if (Math.abs(eraser.canvasWidth - canvasSize.width) < 1 &&
-          Math.abs(eraser.canvasHeight - canvasSize.height) < 1) return;
-
-      const scaleX = canvasSize.width / (eraser.canvasWidth || canvasSize.width);
-      const scaleY = canvasSize.height / (eraser.canvasHeight || canvasSize.height);
-
-      state.updateEraser(eraser.id, {
-        points: eraser.points.map(p => ({ x: p.x * scaleX, y: p.y * scaleY })),
-        strokeWidth: eraser.strokeWidth * Math.min(scaleX, scaleY),
-        canvasWidth: canvasSize.width,
-        canvasHeight: canvasSize.height,
-      });
-    });
-  }, [canvasSize.width, canvasSize.height]);
+  // REMOVED: we now compute display positions on the fly via scaleToDisplay()
+  // This eliminates drift from repeated mutation of stored coordinates
 
   // Clear cursors when switching tools
   useEffect(() => {
@@ -425,6 +374,10 @@ export default function PdfCanvas() {
       e.stopPropagation();
       clickedOnElementRef.current = true;
       setSelectedItem(id, type);
+      const state = usePdfEditorStore.getState();
+      const item = type === "stamp" ? state.stamps.find(s => s.id === id) : state.texts.find(t => t.id === id);
+      const cw = item ? ("canvasWidth" in item ? item.canvasWidth : canvasSize.width) : canvasSize.width;
+      const ch = item ? ("canvasHeight" in item ? item.canvasHeight : canvasSize.height) : canvasSize.height;
       setDragState({
         mode: "move",
         id,
@@ -439,9 +392,11 @@ export default function PdfCanvas() {
         startHeight: 0,
         startRotation: 0,
         startAngle: 0,
+        itemCanvasWidth: cw,
+        itemCanvasHeight: ch,
       });
     },
-    [setSelectedItem]
+    [setSelectedItem, canvasSize.width, canvasSize.height]
   );
 
   // Resize handle mouse down
@@ -466,6 +421,8 @@ export default function PdfCanvas() {
         startHeight: stampItem.height,
         startRotation: stampItem.rotation,
         startAngle: 0,
+        itemCanvasWidth: stampItem.canvasWidth,
+        itemCanvasHeight: stampItem.canvasHeight,
       });
     },
     []
@@ -477,9 +434,13 @@ export default function PdfCanvas() {
       e.stopPropagation();
       e.preventDefault();
       clickedOnElementRef.current = true;
-      // Calculate center of the element
-      const cx = item.x + item.width / 2;
-      const cy = item.y + item.height / 2;
+      // Calculate center of the element in DISPLAY coords
+      const dispX = scaleToDisplay(item.x, item.canvasWidth);
+      const dispY = scaleToDisplayY(item.y, item.canvasHeight);
+      const dispW = scaleToDisplay(item.width, item.canvasWidth);
+      const dispH = scaleToDisplayY(item.height, item.canvasHeight);
+      const cx = dispX + dispW / 2;
+      const cy = dispY + dispH / 2;
       const rect = overlayRef.current!.getBoundingClientRect();
       const mouseLocalX = e.clientX - rect.left;
       const mouseLocalY = e.clientY - rect.top;
@@ -498,9 +459,11 @@ export default function PdfCanvas() {
         startHeight: item.height,
         startRotation: item.rotation,
         startAngle: angle,
+        itemCanvasWidth: item.canvasWidth,
+        itemCanvasHeight: item.canvasHeight,
       });
     },
-    []
+    [scaleToDisplay, scaleToDisplayY]
   );
 
   // Unified mouse move / up handler
@@ -509,15 +472,24 @@ export default function PdfCanvas() {
 
     const handleMouseMove = (e: MouseEvent) => {
       const rect = overlayRef.current!.getBoundingClientRect();
+      const icw = dragState.itemCanvasWidth;
+      const ich = dragState.itemCanvasHeight;
 
       if (dragState.mode === "move") {
-        const x = e.clientX - rect.left - dragState.offsetX;
-        const y = e.clientY - rect.top - dragState.offsetY;
-        if (dragState.type === "stamp") updateStamp(dragState.id, { x, y });
-        else updateText(dragState.id, { x, y });
+        // Display coords
+        const dispX = e.clientX - rect.left - dragState.offsetX;
+        const dispY = e.clientY - rect.top - dragState.offsetY;
+        // Convert to store coords
+        const storeX = dispX * (icw / (canvasSize.width || icw));
+        const storeY = dispY * (ich / (canvasSize.height || ich));
+        if (dragState.type === "stamp") updateStamp(dragState.id, { x: storeX, y: storeY });
+        else updateText(dragState.id, { x: storeX, y: storeY });
       } else if (dragState.mode === "resize" && dragState.type === "stamp") {
         const dx = e.clientX - dragState.startX;
         const dy = e.clientY - dragState.startY;
+        // Convert dx/dy from display pixels to store pixels
+        const sdx = dx * (icw / (canvasSize.width || icw));
+        const sdy = dy * (ich / (canvasSize.height || ich));
 
         let newLeft = dragState.startLeft;
         let newTop = dragState.startTop;
@@ -527,21 +499,21 @@ export default function PdfCanvas() {
         const corner = dragState.corner;
 
         if (corner === "br") {
-          newWidth = Math.max(30, dragState.startWidth + dx);
-          newHeight = Math.max(30, dragState.startHeight + dy);
+          newWidth = Math.max(30, dragState.startWidth + sdx);
+          newHeight = Math.max(30, dragState.startHeight + sdy);
         } else if (corner === "bl") {
-          newLeft = dragState.startLeft + dx;
-          newWidth = Math.max(30, dragState.startWidth - dx);
-          newHeight = Math.max(30, dragState.startHeight + dy);
+          newLeft = dragState.startLeft + sdx;
+          newWidth = Math.max(30, dragState.startWidth - sdx);
+          newHeight = Math.max(30, dragState.startHeight + sdy);
         } else if (corner === "tr") {
-          newTop = dragState.startTop + dy;
-          newWidth = Math.max(30, dragState.startWidth + dx);
-          newHeight = Math.max(30, dragState.startHeight - dy);
+          newTop = dragState.startTop + sdy;
+          newWidth = Math.max(30, dragState.startWidth + sdx);
+          newHeight = Math.max(30, dragState.startHeight - sdy);
         } else if (corner === "tl") {
-          newLeft = dragState.startLeft + dx;
-          newTop = dragState.startTop + dy;
-          newWidth = Math.max(30, dragState.startWidth - dx);
-          newHeight = Math.max(30, dragState.startHeight - dy);
+          newLeft = dragState.startLeft + sdx;
+          newTop = dragState.startTop + sdy;
+          newWidth = Math.max(30, dragState.startWidth - sdx);
+          newHeight = Math.max(30, dragState.startHeight - sdy);
         }
 
         updateStamp(dragState.id, {
@@ -553,8 +525,13 @@ export default function PdfCanvas() {
       } else if (dragState.mode === "rotate" && dragState.type === "stamp") {
         const stamp = usePdfEditorStore.getState().stamps.find(s => s.id === dragState.id);
         if (!stamp) return;
-        const cx = stamp.x + stamp.width / 2;
-        const cy = stamp.y + stamp.height / 2;
+        // Use display coords for rotation calculation
+        const dispX = scaleToDisplay(stamp.x, stamp.canvasWidth);
+        const dispY = scaleToDisplayY(stamp.y, stamp.canvasHeight);
+        const dispW = scaleToDisplay(stamp.width, stamp.canvasWidth);
+        const dispH = scaleToDisplayY(stamp.height, stamp.canvasHeight);
+        const cx = dispX + dispW / 2;
+        const cy = dispY + dispH / 2;
         const mouseLocalX = e.clientX - rect.left;
         const mouseLocalY = e.clientY - rect.top;
         const currentAngle = Math.atan2(mouseLocalY - cy, mouseLocalX - cx) * (180 / Math.PI);
@@ -579,7 +556,7 @@ export default function PdfCanvas() {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [dragState, updateStamp, updateText]);
+  }, [dragState, updateStamp, updateText, canvasSize.width, canvasSize.height, scaleToDisplay, scaleToDisplayY]);
 
   // Text editing
   const handleTextDoubleClick = useCallback((e: React.MouseEvent, t: TextItem) => {
@@ -629,6 +606,29 @@ export default function PdfCanvas() {
   const pageStamps = stamps.filter((s) => s.page === currentPage);
   const pageTexts = texts.filter((t) => t.page === currentPage);
   const pageErasers = erasers.filter((e) => e.page === currentPage);
+
+  // Scale stored overlay coordinates → current display coordinates
+  // This avoids drift from repeatedly mutating stored data on zoom change
+  const scaleToDisplay = useCallback((storedX: number, storedCanvasWidth: number) => {
+    if (!canvasSize.width || !storedCanvasWidth) return storedX;
+    return storedX * (canvasSize.width / storedCanvasWidth);
+  }, [canvasSize.width]);
+
+  const scaleToDisplayY = useCallback((storedY: number, storedCanvasHeight: number) => {
+    if (!canvasSize.height || !storedCanvasHeight) return storedY;
+    return storedY * (canvasSize.height / storedCanvasHeight);
+  }, [canvasSize.height]);
+
+  // Convert current overlay coords → store coords (for placement/drag)
+  const scaleToStore = useCallback((displayX: number, storedCanvasWidth: number) => {
+    if (!canvasSize.width || !storedCanvasWidth) return displayX;
+    return displayX * (storedCanvasWidth / canvasSize.width);
+  }, [canvasSize.width]);
+
+  const scaleToStoreY = useCallback((displayY: number, storedCanvasHeight: number) => {
+    if (!canvasSize.height || !storedCanvasHeight) return displayY;
+    return displayY * (storedCanvasHeight / canvasSize.height);
+  }, [canvasSize.height]);
 
   const cursorClass = activeTool === "stamp" && selectedStampSrc ? "cursor-none" : activeTool === "stamp" || activeTool === "text" ? "cursor-crosshair" : activeTool === "eraser" ? "cursor-none" : "cursor-default";
   const zoomPercent = Math.round(zoomLevel * 100);
@@ -770,12 +770,16 @@ export default function PdfCanvas() {
                 height={canvasSize.height}
                 style={{ zIndex: 5 }}
               >
-                {pageErasers.map((eraserItem) => (
+                {pageErasers.map((eraserItem) => {
+                  const sx = canvasSize.width / (eraserItem.canvasWidth || canvasSize.width);
+                  const sy = canvasSize.height / (eraserItem.canvasHeight || canvasSize.height);
+                  const scaledPoints = eraserItem.points.map(p => ({ x: p.x * sx, y: p.y * sy }));
+                  return (
                   <path
                     key={eraserItem.id}
-                    d={buildEraserPath(eraserItem.points)}
+                    d={buildEraserPath(scaledPoints)}
                     stroke={eraserItem.color}
-                    strokeWidth={eraserItem.strokeWidth}
+                    strokeWidth={eraserItem.strokeWidth * Math.min(sx, sy)}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     fill="none"
@@ -788,7 +792,8 @@ export default function PdfCanvas() {
                       }
                     }}
                   />
-                ))}
+                  );
+                })}
                 {/* Current drawing stroke */}
                 {isEraserDrawing && currentEraserPoints.length > 0 && (
                   <path
@@ -807,10 +812,10 @@ export default function PdfCanvas() {
                   key={stamp.id}
                   className={`absolute ${selectedItemId === stamp.id ? "" : "hover:ring-1 hover:ring-primary/50"}`}
                   style={{
-                    left: stamp.x,
-                    top: stamp.y,
-                    width: stamp.width,
-                    height: stamp.height,
+                    left: scaleToDisplay(stamp.x, stamp.canvasWidth),
+                    top: scaleToDisplayY(stamp.y, stamp.canvasHeight),
+                    width: scaleToDisplay(stamp.width, stamp.canvasWidth),
+                    height: scaleToDisplayY(stamp.height, stamp.canvasHeight),
                     transform: `rotate(${stamp.rotation}deg)`,
                     opacity: stamp.opacity,
                     cursor: dragState?.mode === "move" ? "grabbing" : "grab",
@@ -828,13 +833,17 @@ export default function PdfCanvas() {
                 </div>
               ))}
 
-              {pageTexts.map((textItem) => (
+              {pageTexts.map((textItem) => {
+                const dispX = scaleToDisplay(textItem.x, textItem.canvasWidth);
+                const dispY = scaleToDisplayY(textItem.y, textItem.canvasHeight);
+                const dispFontSize = scaleToDisplay(textItem.fontSize, textItem.canvasWidth);
+                return (
                 <div
                   key={textItem.id}
                   className={`absolute ${selectedItemId === textItem.id && editingTextId !== textItem.id ? "ring-1 ring-primary/70 p-0.5" : editingTextId !== textItem.id ? "hover:ring-1 hover:ring-primary/50" : ""}`}
                   style={{
-                    left: textItem.x,
-                    top: textItem.y,
+                    left: dispX,
+                    top: dispY,
                     color: textItem.color,
                     transform: `rotate(${textItem.rotation}deg)`,
                     cursor: editingTextId === textItem.id ? "text" : dragState?.mode === "move" ? "grabbing" : "grab",
@@ -856,7 +865,7 @@ export default function PdfCanvas() {
                       onKeyDown={handleTextKeyDown}
                       className="bg-white/90 border border-primary/40 px-1 outline-none"
                       style={{
-                        fontSize: textItem.fontSize,
+                        fontSize: dispFontSize,
                         color: textItem.color,
                         fontFamily: getFontCss(textItem.fontFamily),
                         fontWeight: textItem.bold ? "bold" : "normal",
@@ -867,7 +876,7 @@ export default function PdfCanvas() {
                   ) : (
                     <span
                       style={{
-                        fontSize: textItem.fontSize,
+                        fontSize: dispFontSize,
                         fontFamily: getFontCss(textItem.fontFamily),
                         fontWeight: textItem.bold ? "bold" : "normal",
                         fontStyle: textItem.italic ? "italic" : "normal",
@@ -875,7 +884,8 @@ export default function PdfCanvas() {
                     >{textItem.text}</span>
                   )}
                 </div>
-              ))}
+                );
+              })}
 
               {/* Stamp cursor preview — stamp image follows mouse */}
               {activeTool === "stamp" && selectedStampSrc && stampCursorPos && (

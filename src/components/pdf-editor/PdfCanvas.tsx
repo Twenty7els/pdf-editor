@@ -104,6 +104,28 @@ export default function PdfCanvas() {
     setPresetText,
   } = usePdfEditorStore();
 
+  // Scale stored overlay coordinates → current display coordinates
+  // Must be declared BEFORE handlers that use them
+  const scaleToDisplay = useCallback((storedX: number, storedCanvasWidth: number) => {
+    if (!canvasSize.width || !storedCanvasWidth) return storedX;
+    return storedX * (canvasSize.width / storedCanvasWidth);
+  }, [canvasSize.width]);
+
+  const scaleToDisplayY = useCallback((storedY: number, storedCanvasHeight: number) => {
+    if (!canvasSize.height || !storedCanvasHeight) return storedY;
+    return storedY * (canvasSize.height / storedCanvasHeight);
+  }, [canvasSize.height]);
+
+  const scaleToStore = useCallback((displayX: number, storedCanvasWidth: number) => {
+    if (!canvasSize.width || !storedCanvasWidth) return displayX;
+    return displayX * (storedCanvasWidth / canvasSize.width);
+  }, [canvasSize.width]);
+
+  const scaleToStoreY = useCallback((displayY: number, storedCanvasHeight: number) => {
+    if (!canvasSize.height || !storedCanvasHeight) return displayY;
+    return displayY * (storedCanvasHeight / canvasSize.height);
+  }, [canvasSize.height]);
+
   // Drag / resize / rotate state
   const [dragState, setDragState] = useState<DragState | null>(null);
 
@@ -606,29 +628,6 @@ export default function PdfCanvas() {
   const pageStamps = stamps.filter((s) => s.page === currentPage);
   const pageTexts = texts.filter((t) => t.page === currentPage);
   const pageErasers = erasers.filter((e) => e.page === currentPage);
-
-  // Scale stored overlay coordinates → current display coordinates
-  // This avoids drift from repeatedly mutating stored data on zoom change
-  const scaleToDisplay = useCallback((storedX: number, storedCanvasWidth: number) => {
-    if (!canvasSize.width || !storedCanvasWidth) return storedX;
-    return storedX * (canvasSize.width / storedCanvasWidth);
-  }, [canvasSize.width]);
-
-  const scaleToDisplayY = useCallback((storedY: number, storedCanvasHeight: number) => {
-    if (!canvasSize.height || !storedCanvasHeight) return storedY;
-    return storedY * (canvasSize.height / storedCanvasHeight);
-  }, [canvasSize.height]);
-
-  // Convert current overlay coords → store coords (for placement/drag)
-  const scaleToStore = useCallback((displayX: number, storedCanvasWidth: number) => {
-    if (!canvasSize.width || !storedCanvasWidth) return displayX;
-    return displayX * (storedCanvasWidth / canvasSize.width);
-  }, [canvasSize.width]);
-
-  const scaleToStoreY = useCallback((displayY: number, storedCanvasHeight: number) => {
-    if (!canvasSize.height || !storedCanvasHeight) return displayY;
-    return displayY * (storedCanvasHeight / canvasSize.height);
-  }, [canvasSize.height]);
 
   const cursorClass = activeTool === "stamp" && selectedStampSrc ? "cursor-none" : activeTool === "stamp" || activeTool === "text" ? "cursor-crosshair" : activeTool === "eraser" ? "cursor-none" : "cursor-default";
   const zoomPercent = Math.round(zoomLevel * 100);

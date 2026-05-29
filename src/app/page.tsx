@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { usePdfEditorStore, getFontPdfLib } from "@/store/pdf-editor-store";
+import { usePdfEditorStore } from "@/store/pdf-editor-store";
 import PdfCanvas from "@/components/pdf-editor/PdfCanvas";
 import Toolbar from "@/components/pdf-editor/Toolbar";
 import UploadZone from "@/components/pdf-editor/UploadZone";
@@ -170,54 +170,25 @@ export default function Home() {
 
     try {
       // Dynamic import of pdf-lib (client-side)
-      const { PDFDocument, rgb, degrees, StandardFonts } = await import("pdf-lib");
+      const { PDFDocument, rgb, degrees } = await import("pdf-lib");
 
       // Load the original PDF from stored ArrayBuffer
       const pdfDoc = await PDFDocument.load(pdfArrayBuffer);
 
-      // Helper: detect if text contains non-Latin characters (Cyrillic, etc.)
-      const hasNonLatin = (str: string): boolean => /[^\x00-\xFF]/.test(str);
-
-      // Load DejaVuSans Unicode fonts (supports Cyrillic) — embedded as base64, lazy loaded
+      // Load NotoSans Unicode fonts (supports Cyrillic) — embedded as base64, lazy loaded
       let unicodeFonts: { regular: unknown; bold: unknown; italic: unknown; boldItalic: unknown } | null = null;
       const getUnicodeFonts = async () => {
         if (unicodeFonts) return unicodeFonts;
         // Dynamic import — font data is in a separate chunk, not in the initial bundle
-        const { DEJAVU_SANS_REGULAR, DEJAVU_SANS_BOLD, DEJAVU_SANS_OBLIQUE, DEJAVU_SANS_BOLD_OBLIQUE } = await import("@/lib/font-base64");
+        const { NOTO_SANS_REGULAR, NOTO_SANS_BOLD, NOTO_SANS_ITALIC, NOTO_SANS_BOLD_ITALIC } = await import("@/lib/font-base64");
         const decode = (b64: string) => new Uint8Array(atob(b64).split("").map(c => c.charCodeAt(0)));
         unicodeFonts = {
-          regular: await pdfDoc.embedFont(decode(DEJAVU_SANS_REGULAR)),
-          bold: await pdfDoc.embedFont(decode(DEJAVU_SANS_BOLD)),
-          italic: await pdfDoc.embedFont(decode(DEJAVU_SANS_OBLIQUE)),
-          boldItalic: await pdfDoc.embedFont(decode(DEJAVU_SANS_BOLD_OBLIQUE)),
+          regular: await pdfDoc.embedFont(decode(NOTO_SANS_REGULAR)),
+          bold: await pdfDoc.embedFont(decode(NOTO_SANS_BOLD)),
+          italic: await pdfDoc.embedFont(decode(NOTO_SANS_ITALIC)),
+          boldItalic: await pdfDoc.embedFont(decode(NOTO_SANS_BOLD_ITALIC)),
         };
         return unicodeFonts;
-      };
-
-      // Embed standard fonts (Latin-only) — loaded lazily per family
-      const standardFontCache: Record<string, { regular: unknown; bold: unknown; italic: unknown; boldItalic: unknown }> = {};
-      const getStandardFonts = async (pdfLibFont: string) => {
-        if (standardFontCache[pdfLibFont]) return standardFontCache[pdfLibFont];
-        let regular: unknown, bold: unknown, italic: unknown, boldItalic: unknown;
-        if (pdfLibFont === "TimesRoman") {
-          regular = await pdfDoc.embedFont(StandardFonts.TimesRoman);
-          bold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
-          italic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
-          boldItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
-        } else if (pdfLibFont === "Courier") {
-          regular = await pdfDoc.embedFont(StandardFonts.Courier);
-          bold = await pdfDoc.embedFont(StandardFonts.CourierBold);
-          italic = await pdfDoc.embedFont(StandardFonts.CourierOblique);
-          boldItalic = await pdfDoc.embedFont(StandardFonts.CourierBoldOblique);
-        } else {
-          // Helvetica (default for Arial, Verdana, Tahoma, etc.)
-          regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-          bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-          italic = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
-          boldItalic = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
-        }
-        standardFontCache[pdfLibFont] = { regular, bold, italic, boldItalic };
-        return standardFontCache[pdfLibFont];
       };
 
       // Process stamps — embed images directly
@@ -266,7 +237,6 @@ export default function Home() {
       }
 
       // Process texts
-      console.log("[PDF Download] Processing texts:", texts.length, texts.map(t => ({ id: t.id, text: t.text, page: t.page, x: t.x, y: t.y, fontSize: t.fontSize, cw: t.canvasWidth, ch: t.canvasHeight })));
       for (const textItem of texts) {
         if (!textItem.text.trim()) continue;
 
@@ -284,25 +254,13 @@ export default function Home() {
 
           const scaledFontSize = (textItem.fontSize / ch) * pageHeight;
 
-          // Use Unicode font for Cyrillic/non-Latin text, standard font for Latin-only
+          // Always use Unicode font (supports both Cyrillic and Latin)
           let font: unknown;
-          const useUnicode = hasNonLatin(textItem.text);
-          console.log(`[PDF Download] Text "${textItem.text}" useUnicode=${useUnicode}, scaledFontSize=${scaledFontSize}, pdfX=${pdfX}, pdfY=${pdfY}, pageW=${pageWidth}, pageH=${pageHeight}`);
-
-          if (useUnicode) {
-            const uFonts = await getUnicodeFonts();
-            if (textItem.bold && textItem.italic) font = uFonts.boldItalic;
-            else if (textItem.bold) font = uFonts.bold;
-            else if (textItem.italic) font = uFonts.italic;
-            else font = uFonts.regular;
-          } else {
-            const pdfLibFontName = getFontPdfLib(textItem.fontFamily);
-            const sFonts = await getStandardFonts(pdfLibFontName);
-            if (textItem.bold && textItem.italic) font = sFonts.boldItalic;
-            else if (textItem.bold) font = sFonts.bold;
-            else if (textItem.italic) font = sFonts.italic;
-            else font = sFonts.regular;
-          }
+          const uFonts = await getUnicodeFonts();
+          if (textItem.bold && textItem.italic) font = uFonts.boldItalic;
+          else if (textItem.bold) font = uFonts.bold;
+          else if (textItem.italic) font = uFonts.italic;
+          else font = uFonts.regular;
 
           const color = hexToRgb(textItem.color);
 
@@ -314,10 +272,8 @@ export default function Home() {
             color: color ? rgb(color.r, color.g, color.b) : rgb(0, 0, 0),
             rotate: degrees(textItem.rotation),
           });
-          console.log(`[PDF Download] Successfully drew text "${textItem.text}"`);
         } catch (err) {
-          console.error("[PDF Download] Error drawing text:", err);
-          toast.error(`Ошибка текста "${textItem.text}": ${String(err)}`);
+          console.error("Error drawing text:", err);
         }
       }
 

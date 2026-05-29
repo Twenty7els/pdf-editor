@@ -1233,8 +1233,8 @@ export default function PdfCanvas() {
             </>
           )}
 
-          {/* Eraser selected element properties */}
-          {selectedItemId && selectedItemType === "eraser" && !activeTool.startsWith("eraser") && (
+          {/* Eraser selected element properties (when in select mode) */}
+          {selectedItemId && selectedItemType === "eraser" && activeTool === "select" && (
             <Button
               variant="destructive" size="sm"
               className="h-7 gap-1.5 shrink-0"

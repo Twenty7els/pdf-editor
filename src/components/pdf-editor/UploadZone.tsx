@@ -61,7 +61,7 @@ export default function UploadZone() {
             isDragOver ? "bg-primary/20" : "bg-primary/10"
           }`}>
             <FileUp className={`h-10 w-10 transition-colors ${
-              isDragOver ? "text-primary" : "text-primary"
+              isDragOver ? "text-primary" : "text-muted-foreground"
             }`} />
           </div>
           <h2 className="text-xl font-semibold mb-2">Загрузите PDF документ</h2>

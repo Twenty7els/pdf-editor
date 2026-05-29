@@ -839,6 +839,9 @@ export default function PdfCanvas() {
                     transform: `rotate(${textItem.rotation}deg)`,
                     cursor: editingTextId === textItem.id ? "text" : dragState?.mode === "move" ? "grabbing" : "grab",
                     userSelect: "none",
+                    whiteSpace: "nowrap",
+                    lineHeight: 1.2,
+                    width: "fit-content",
                   }}
                   onMouseDown={(e) => handleItemMouseDown(e, textItem.id, "text")}
                   onClick={(e) => e.stopPropagation()}
@@ -858,20 +861,16 @@ export default function PdfCanvas() {
                         fontFamily: getFontCss(textItem.fontFamily),
                         fontWeight: textItem.bold ? "bold" : "normal",
                         fontStyle: textItem.italic ? "italic" : "normal",
-                        minWidth: 50,
                       }}
                       autoFocus
                     />
                   ) : (
                     <span
-                      className="px-0.5"
                       style={{
                         fontSize: textItem.fontSize,
                         fontFamily: getFontCss(textItem.fontFamily),
                         fontWeight: textItem.bold ? "bold" : "normal",
                         fontStyle: textItem.italic ? "italic" : "normal",
-                        whiteSpace: "nowrap",
-                        lineHeight: 1.2,
                       }}
                     >{textItem.text}</span>
                   )}

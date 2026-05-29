@@ -342,6 +342,8 @@ export default function PdfCanvas() {
         setEditingTextId(newText.id);
         setEditTextValue("Текст");
         setSelectedItem(newText.id, "text");
+        // Auto-switch to select mode after placing text (same as stamps)
+        setActiveTool("select");
       } else if (activeTool === "select") {
         setSelectedItem(null, null);
         setEditingTextId(null);
@@ -822,7 +824,7 @@ export default function PdfCanvas() {
               {pageTexts.map((textItem) => (
                 <div
                   key={textItem.id}
-                  className={`absolute ${selectedItemId === textItem.id ? "ring-2 ring-primary ring-offset-1" : "hover:ring-1 hover:ring-primary/50"}`}
+                  className={`absolute ${selectedItemId === textItem.id ? "ring-1 ring-primary/70" : "hover:ring-1 hover:ring-primary/50"}`}
                   style={{
                     left: textItem.x,
                     top: textItem.y,
@@ -847,7 +849,7 @@ export default function PdfCanvas() {
                       onChange={(e) => setEditTextValue(e.target.value)}
                       onBlur={handleTextEditComplete}
                       onKeyDown={handleTextKeyDown}
-                      className="bg-white/90 border border-primary px-1 outline-none"
+                      className="bg-white/90 border border-primary/70 px-1 outline-none"
                       style={{
                         fontSize: textItem.fontSize,
                         color: textItem.color,

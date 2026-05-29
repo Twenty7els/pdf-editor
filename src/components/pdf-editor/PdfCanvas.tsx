@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { usePdfEditorStore, StampItem, TextItem, EraserPoint, getFontCss, AVAILABLE_FONTS } from "@/store/pdf-editor-store";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   ChevronLeft,
   ChevronRight,
@@ -168,6 +169,35 @@ export default function PdfCanvas() {
         }).promise;
         setPdfDoc(pdf);
         setTotalPages(pdf.numPages);
+
+        // Check page sizes against A4 standard
+        const A4_WIDTH = 595.28;  // 210mm in points
+        const A4_HEIGHT = 841.89; // 297mm in points
+        const TOLERANCE = 5; // ~1.76mm tolerance for rounding differences
+
+        const nonA4Pages: number[] = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const vp = page.getViewport({ scale: 1 });
+          const w = vp.width;
+          const h = vp.height;
+
+          const isPortraitA4 = Math.abs(w - A4_WIDTH) <= TOLERANCE && Math.abs(h - A4_HEIGHT) <= TOLERANCE;
+          const isLandscapeA4 = Math.abs(w - A4_HEIGHT) <= TOLERANCE && Math.abs(h - A4_WIDTH) <= TOLERANCE;
+
+          if (!isPortraitA4 && !isLandscapeA4) {
+            nonA4Pages.push(i);
+          }
+        }
+
+        if (nonA4Pages.length > 0) {
+          const pageList = nonA4Pages.length <= 5
+            ? nonA4Pages.join(", ")
+            : nonA4Pages.slice(0, 5).join(", ") + "...";
+          toast.warning(`Формат страниц не А4: стр. ${pageList}. Размер может отличаться от стандартного.`, {
+            duration: 6000,
+          });
+        }
       } catch (err) {
         console.error("Error loading PDF:", err);
         setError("Ошибка загрузки PDF файла");

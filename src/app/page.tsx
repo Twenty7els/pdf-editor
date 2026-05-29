@@ -269,6 +269,7 @@ export default function Home() {
       }
 
       // Process texts
+      console.log("[PDF Download] Processing texts:", texts.length, texts.map(t => ({ id: t.id, text: t.text, page: t.page, x: t.x, y: t.y, fontSize: t.fontSize, cw: t.canvasWidth, ch: t.canvasHeight })));
       for (const textItem of texts) {
         if (!textItem.text.trim()) continue;
 
@@ -289,6 +290,7 @@ export default function Home() {
           // Use Unicode font for Cyrillic/non-Latin text, standard font for Latin-only
           let font: unknown;
           const useUnicode = hasNonLatin(textItem.text);
+          console.log(`[PDF Download] Text "${textItem.text}" useUnicode=${useUnicode}, scaledFontSize=${scaledFontSize}, pdfX=${pdfX}, pdfY=${pdfY}, pageW=${pageWidth}, pageH=${pageHeight}`);
 
           if (useUnicode) {
             const uFonts = await getUnicodeFonts();
@@ -315,8 +317,10 @@ export default function Home() {
             color: color ? rgb(color.r, color.g, color.b) : rgb(0, 0, 0),
             rotate: degrees(textItem.rotation),
           });
+          console.log(`[PDF Download] Successfully drew text "${textItem.text}"`);
         } catch (err) {
-          console.error("Error drawing text:", err);
+          console.error("[PDF Download] Error drawing text:", err);
+          toast.error(`Ошибка текста "${textItem.text}": ${String(err)}`);
         }
       }
 

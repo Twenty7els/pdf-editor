@@ -177,7 +177,7 @@ const initialState = {
   selectedItemId: null,
   selectedItemType: null as "stamp" | "text" | "eraser" | null,
   textSettings: {
-    fontSize: 28,
+    fontSize: 8,
     color: "#000000",
     fontFamily: "Arial",
     bold: false,

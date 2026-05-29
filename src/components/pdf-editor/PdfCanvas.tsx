@@ -828,19 +828,14 @@ export default function PdfCanvas() {
               {pageTexts.map((textItem) => (
                 <div
                   key={textItem.id}
-                  className={`absolute ${selectedItemId === textItem.id ? "ring-1 ring-primary/70" : "hover:ring-1 hover:ring-primary/50"}`}
+                  className={`absolute ${selectedItemId === textItem.id ? "ring-1 ring-primary/70 p-0.5" : "hover:ring-1 hover:ring-primary/50"}`}
                   style={{
                     left: textItem.x,
                     top: textItem.y,
-                    fontSize: textItem.fontSize,
                     color: textItem.color,
-                    fontFamily: getFontCss(textItem.fontFamily),
-                    fontWeight: textItem.bold ? "bold" : "normal",
-                    fontStyle: textItem.italic ? "italic" : "normal",
                     transform: `rotate(${textItem.rotation}deg)`,
                     cursor: dragState?.mode === "move" ? "grabbing" : "grab",
                     userSelect: "none",
-                    whiteSpace: "nowrap",
                   }}
                   onMouseDown={(e) => handleItemMouseDown(e, textItem.id, "text")}
                   onClick={(e) => e.stopPropagation()}
@@ -865,7 +860,17 @@ export default function PdfCanvas() {
                       autoFocus
                     />
                   ) : (
-                    <span className="bg-white/20 px-0.5">{textItem.text}</span>
+                    <span
+                      className="px-0.5"
+                      style={{
+                        fontSize: textItem.fontSize,
+                        fontFamily: getFontCss(textItem.fontFamily),
+                        fontWeight: textItem.bold ? "bold" : "normal",
+                        fontStyle: textItem.italic ? "italic" : "normal",
+                        whiteSpace: "nowrap",
+                        lineHeight: 1.2,
+                      }}
+                    >{textItem.text}</span>
                   )}
                 </div>
               ))}

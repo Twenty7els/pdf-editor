@@ -178,21 +178,18 @@ export default function Home() {
       // Helper: detect if text contains non-Latin characters (Cyrillic, etc.)
       const hasNonLatin = (str: string): boolean => /[^\x00-\xFF]/.test(str);
 
-      // Pre-load DejaVuSans Unicode fonts (supports Cyrillic) — loaded lazily
+      // Load DejaVuSans Unicode fonts (supports Cyrillic) — embedded as base64, lazy loaded
       let unicodeFonts: { regular: unknown; bold: unknown; italic: unknown; boldItalic: unknown } | null = null;
       const getUnicodeFonts = async () => {
         if (unicodeFonts) return unicodeFonts;
-        const [regBytes, boldBytes, italicBytes, biBytes] = await Promise.all([
-          fetch("/fonts/DejaVuSans.ttf").then(r => r.arrayBuffer()),
-          fetch("/fonts/DejaVuSans-Bold.ttf").then(r => r.arrayBuffer()),
-          fetch("/fonts/DejaVuSans-Oblique.ttf").then(r => r.arrayBuffer()),
-          fetch("/fonts/DejaVuSans-BoldOblique.ttf").then(r => r.arrayBuffer()),
-        ]);
+        // Dynamic import — font data is in a separate chunk, not in the initial bundle
+        const { DEJAVU_SANS_REGULAR, DEJAVU_SANS_BOLD, DEJAVU_SANS_OBLIQUE, DEJAVU_SANS_BOLD_OBLIQUE } = await import("@/lib/font-base64");
+        const decode = (b64: string) => new Uint8Array(atob(b64).split("").map(c => c.charCodeAt(0)));
         unicodeFonts = {
-          regular: await pdfDoc.embedFont(new Uint8Array(regBytes)),
-          bold: await pdfDoc.embedFont(new Uint8Array(boldBytes)),
-          italic: await pdfDoc.embedFont(new Uint8Array(italicBytes)),
-          boldItalic: await pdfDoc.embedFont(new Uint8Array(biBytes)),
+          regular: await pdfDoc.embedFont(decode(DEJAVU_SANS_REGULAR)),
+          bold: await pdfDoc.embedFont(decode(DEJAVU_SANS_BOLD)),
+          italic: await pdfDoc.embedFont(decode(DEJAVU_SANS_OBLIQUE)),
+          boldItalic: await pdfDoc.embedFont(decode(DEJAVU_SANS_BOLD_OBLIQUE)),
         };
         return unicodeFonts;
       };

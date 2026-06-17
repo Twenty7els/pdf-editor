@@ -7,7 +7,6 @@ import {
   type TextItem,
   type EraserPoint,
   getFontCss,
-  AVAILABLE_FONTS,
 } from "@/store/pdf-editor-store";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -22,12 +21,19 @@ import {
   Trash2,
   Bold,
   Italic,
+  Underline,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
   Eraser,
   Loader2,
   AlertCircle,
   FileText,
+  PencilLine,
+  Type,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import TextEditModal, { type TextModalData } from "./TextEditModal";
 
 type DragMode = "move" | "resize" | "rotate" | null;
 
@@ -103,19 +109,15 @@ export default function PdfCanvas() {
     selectedItemId,
     selectedItemType,
     addStamp,
-    addText,
     addEraser,
     updateStamp,
     updateText,
     setSelectedItem,
     setCurrentPage,
     setActiveTool,
-    textSettings,
-    setTextSettings,
     eraserSettings,
     setEraserSettings,
     presetText,
-    setPresetText,
   } = usePdfEditorStore();
 
   // Scale stored overlay coordinates → current display coordinates
@@ -138,9 +140,120 @@ export default function PdfCanvas() {
   // Drag / resize / rotate state
   const [dragState, setDragState] = useState<DragState | null>(null);
 
-  // Text editing
-  const [editingTextId, setEditingTextId] = useState<string | null>(null);
-  const [editTextValue, setEditTextValue] = useState("");
+  // Text editing — modal-based
+  const [textModal, setTextModal] = useState<{
+    open: boolean;
+    mode: "create" | "edit";
+    targetId: string | null;
+    pendingPos: { x: number; y: number; canvasWidth: number; canvasHeight: number } | null;
+    initialData: TextModalData | null;
+  }>({
+    open: false,
+    mode: "create",
+    targetId: null,
+    pendingPos: null,
+    initialData: null,
+  });
+
+  const openTextModalForCreate = useCallback(
+    (pos: { x: number; y: number; canvasWidth: number; canvasHeight: number }) => {
+      const s = usePdfEditorStore.getState();
+      setTextModal({
+        open: true,
+        mode: "create",
+        targetId: null,
+        pendingPos: pos,
+        initialData: {
+          text: s.presetText ?? "",
+          fontSize: s.textSettings.fontSize,
+          color: s.textSettings.color,
+          fontFamily: s.textSettings.fontFamily,
+          bold: s.textSettings.bold,
+          italic: s.textSettings.italic,
+          underline: s.textSettings.underline,
+          align: s.textSettings.align,
+          letterSpacing: s.textSettings.letterSpacing,
+        },
+      });
+    },
+    []
+  );
+
+  const openTextModalForEdit = useCallback((t: TextItem) => {
+    setTextModal({
+      open: true,
+      mode: "edit",
+      targetId: t.id,
+      pendingPos: null,
+      initialData: {
+        text: t.text,
+        fontSize: t.fontSize,
+        color: t.color,
+        fontFamily: t.fontFamily,
+        bold: t.bold,
+        italic: t.italic,
+        underline: t.underline,
+        align: t.align,
+        letterSpacing: t.letterSpacing,
+      },
+    });
+  }, []);
+
+  const handleTextModalSave = useCallback(
+    (data: TextModalData) => {
+      const state = usePdfEditorStore.getState();
+      // Update default text settings so next text inherits
+      state.setTextSettings({
+        fontSize: data.fontSize,
+        color: data.color,
+        fontFamily: data.fontFamily,
+        bold: data.bold,
+        italic: data.italic,
+        underline: data.underline,
+        align: data.align,
+        letterSpacing: data.letterSpacing,
+      });
+
+      if (textModal.mode === "edit" && textModal.targetId) {
+        state.updateText(textModal.targetId, {
+          text: data.text,
+          fontSize: data.fontSize,
+          color: data.color,
+          fontFamily: data.fontFamily,
+          bold: data.bold,
+          italic: data.italic,
+          underline: data.underline,
+          align: data.align,
+          letterSpacing: data.letterSpacing,
+        });
+      } else if (textModal.mode === "create" && textModal.pendingPos) {
+        const pos = textModal.pendingPos;
+        const newText: TextItem = {
+          id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          text: data.text,
+          x: pos.x,
+          y: pos.y,
+          fontSize: data.fontSize,
+          color: data.color,
+          page: state.currentPage,
+          fontFamily: data.fontFamily,
+          bold: data.bold,
+          italic: data.italic,
+          underline: data.underline,
+          align: data.align,
+          letterSpacing: data.letterSpacing,
+          rotation: 0,
+          canvasWidth: pos.canvasWidth,
+          canvasHeight: pos.canvasHeight,
+        };
+        state.addText(newText);
+        state.setSelectedItem(newText.id, "text");
+        state.setActiveTool("select");
+        state.setPresetText(null);
+      }
+    },
+    [textModal]
+  );
 
   // Load pdfjs-dist dynamically on mount
   useEffect(() => {
@@ -363,33 +476,15 @@ export default function PdfCanvas() {
       } else if (activeTool === "text") {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        const textContent = presetText || "Текст";
-        const newText: TextItem = {
-          id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          text: textContent,
+        // Open the text editor modal instead of inline editing
+        openTextModalForCreate({
           x,
           y,
-          fontSize: textSettings.fontSize,
-          color: textSettings.color,
-          page: currentPage,
-          fontFamily: textSettings.fontFamily,
-          bold: textSettings.bold,
-          italic: textSettings.italic,
-          rotation: 0,
           canvasWidth: overlayW,
           canvasHeight: overlayH,
-        };
-        addText(newText);
-        setSelectedItem(newText.id, "text");
-        if (!presetText) {
-          setEditingTextId(newText.id);
-          setEditTextValue(textContent);
-        }
-        setActiveTool("select");
-        setPresetText(null);
+        });
       } else if (activeTool === "select") {
         setSelectedItem(null, null);
-        setEditingTextId(null);
       }
     },
     [
@@ -397,13 +492,10 @@ export default function PdfCanvas() {
       selectedStampType,
       selectedStampSrc,
       currentPage,
-      textSettings,
-      presetText,
       addStamp,
-      addText,
       setSelectedItem,
       setActiveTool,
-      setPresetText,
+      openTextModalForCreate,
     ]
   );
 
@@ -692,41 +784,23 @@ export default function PdfCanvas() {
     scaleToDisplayY,
   ]);
 
-  // Text editing
+  // Text double-click → open modal in edit mode
   const handleTextDoubleClick = useCallback(
     (e: React.MouseEvent, t: TextItem) => {
       e.stopPropagation();
-      setEditingTextId(t.id);
-      setEditTextValue(t.text);
+      openTextModalForEdit(t);
     },
-    []
-  );
-
-  const handleTextEditComplete = useCallback(() => {
-    if (editingTextId && editTextValue.trim())
-      updateText(editingTextId, { text: editTextValue.trim() });
-    setEditingTextId(null);
-    setEditTextValue("");
-  }, [editingTextId, editTextValue, updateText]);
-
-  const handleTextKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") handleTextEditComplete();
-      else if (e.key === "Escape") {
-        setEditingTextId(null);
-        setEditTextValue("");
-      }
-    },
-    [handleTextEditComplete]
+    [openTextModalForEdit]
   );
 
   // Keyboard delete
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (editingTextId) return;
+      if (textModal.open) return;
       if ((e.key === "Delete" || e.key === "Backspace") && selectedItemId) {
         if (e.key === "Backspace" && !(e.target instanceof HTMLInputElement))
           e.preventDefault();
+        if (e.target instanceof HTMLTextAreaElement) return;
         if (selectedItemType === "stamp")
           usePdfEditorStore.getState().removeStamp(selectedItemId);
         else if (selectedItemType === "text")
@@ -738,12 +812,12 @@ export default function PdfCanvas() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedItemId, selectedItemType, editingTextId, setSelectedItem]);
+  }, [selectedItemId, selectedItemType, textModal.open, setSelectedItem]);
 
   // Keyboard arrow for pages
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (editingTextId || e.target instanceof HTMLInputElement) return;
+      if (textModal.open || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === "ArrowLeft")
         setCurrentPage(Math.max(1, currentPage - 1));
       if (e.key === "ArrowRight")
@@ -751,7 +825,7 @@ export default function PdfCanvas() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentPage, totalPages, editingTextId, setCurrentPage]);
+  }, [currentPage, totalPages, textModal.open, setCurrentPage]);
 
   const pageStamps = stamps.filter((s) => s.page === currentPage);
   const pageTexts = texts.filter((t) => t.page === currentPage);
@@ -1021,16 +1095,19 @@ export default function PdfCanvas() {
                   textItem.fontSize,
                   textItem.canvasWidth
                 );
+                const dispLetterSpacing = scaleToDisplay(
+                  textItem.letterSpacing,
+                  textItem.canvasWidth
+                );
+                const textLines = textItem.text.split("\n");
+                const isSelected = selectedItemId === textItem.id;
                 return (
                   <div
                     key={textItem.id}
                     className={`absolute ${
-                      selectedItemId === textItem.id &&
-                      editingTextId !== textItem.id
+                      isSelected
                         ? "ring-1 ring-primary/70 ring-offset-2 ring-offset-background rounded-sm p-0.5"
-                        : editingTextId !== textItem.id
-                        ? "hover:ring-1 hover:ring-primary/50 rounded-sm"
-                        : ""
+                        : "hover:ring-1 hover:ring-primary/50 rounded-sm"
                     }`}
                     style={{
                       left: dispX,
@@ -1038,15 +1115,11 @@ export default function PdfCanvas() {
                       color: textItem.color,
                       transform: `rotate(${textItem.rotation}deg)`,
                       cursor:
-                        editingTextId === textItem.id
-                          ? "text"
-                          : dragState?.mode === "move"
-                          ? "grabbing"
-                          : "grab",
+                        dragState?.mode === "move" ? "grabbing" : "grab",
                       userSelect: "none",
-                      whiteSpace: "nowrap",
                       lineHeight: 1.2,
                       width: "fit-content",
+                      textAlign: textItem.align,
                     }}
                     onMouseDown={(e) =>
                       handleItemMouseDown(e, textItem.id, "text")
@@ -1054,35 +1127,25 @@ export default function PdfCanvas() {
                     onClick={(e) => e.stopPropagation()}
                     onDoubleClick={(e) => handleTextDoubleClick(e, textItem)}
                   >
-                    {editingTextId === textItem.id ? (
-                      <input
-                        type="text"
-                        value={editTextValue}
-                        onChange={(e) => setEditTextValue(e.target.value)}
-                        onBlur={handleTextEditComplete}
-                        onKeyDown={handleTextKeyDown}
-                        className="bg-background/95 border border-primary rounded px-1 outline-none focus:ring-2 focus:ring-primary/30"
-                        style={{
-                          fontSize: dispFontSize,
-                          color: textItem.color,
-                          fontFamily: getFontCss(textItem.fontFamily),
-                          fontWeight: textItem.bold ? "bold" : "normal",
-                          fontStyle: textItem.italic ? "italic" : "normal",
-                        }}
-                        autoFocus
-                      />
-                    ) : (
-                      <span
+                    {textLines.map((line, i) => (
+                      <div
+                        key={i}
                         style={{
                           fontSize: dispFontSize,
                           fontFamily: getFontCss(textItem.fontFamily),
                           fontWeight: textItem.bold ? "bold" : "normal",
                           fontStyle: textItem.italic ? "italic" : "normal",
+                          textDecoration: textItem.underline
+                            ? "underline"
+                            : "none",
+                          letterSpacing: `${dispLetterSpacing}px`,
+                          whiteSpace: "pre",
+                          textAlign: textItem.align,
                         }}
                       >
-                        {textItem.text}
-                      </span>
-                    )}
+                        {line || "\u00A0"}
+                      </div>
+                    ))}
                   </div>
                 );
               })}
@@ -1131,91 +1194,22 @@ export default function PdfCanvas() {
       {showTopBar && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 max-w-[calc(100%-1.5rem)] animate-slide-up">
           <div className="glass-strong rounded-xl shadow-elevated border border-border/60 px-3 py-2 flex items-center gap-2 overflow-x-auto max-w-full">
-            {/* Text tool settings (no element selected) */}
+            {/* Text tool hint (no element selected) */}
             {activeTool === "text" && !selectedItemId && (
               <>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-xs text-muted-foreground">Шрифт</span>
-                  <select
-                    value={textSettings.fontFamily}
-                    onChange={(e) =>
-                      setTextSettings({ fontFamily: e.target.value })
-                    }
-                    className="h-7 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    {AVAILABLE_FONTS.map((font) => (
-                      <option key={font.id} value={font.id}>
-                        {font.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="h-7 w-7 rounded-md gradient-bg flex items-center justify-center shrink-0">
+                    <Type className="h-3.5 w-3.5 text-primary-foreground" />
+                  </div>
                 </div>
-
                 <Divider />
-
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-xs text-muted-foreground">Размер</span>
-                  <Input
-                    type="number"
-                    min={6}
-                    max={96}
-                    value={textSettings.fontSize}
-                    onChange={(e) =>
-                      setTextSettings({
-                        fontSize: parseInt(e.target.value) || 14,
-                      })
-                    }
-                    className="h-7 text-xs w-14 text-center"
-                  />
-                </div>
-
-                <Divider />
-
-                <Button
-                  variant={textSettings.bold ? "default" : "outline"}
-                  size="icon"
-                  className="h-7 w-7 shrink-0"
-                  onClick={() => setTextSettings({ bold: !textSettings.bold })}
-                  title="Жирный"
-                >
-                  <Bold className="h-3 w-3" />
-                </Button>
-
-                <Button
-                  variant={textSettings.italic ? "default" : "outline"}
-                  size="icon"
-                  className="h-7 w-7 shrink-0"
-                  onClick={() =>
-                    setTextSettings({ italic: !textSettings.italic })
-                  }
-                  title="Курсив"
-                >
-                  <Italic className="h-3 w-3" />
-                </Button>
-
-                <Divider />
-
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-xs text-muted-foreground">Цвет</span>
-                  <Input
-                    type="color"
-                    value={textSettings.color}
-                    onChange={(e) =>
-                      setTextSettings({ color: e.target.value })
-                    }
-                    className="h-7 w-8 cursor-pointer p-0"
-                  />
-                </div>
-
-                <Divider />
-
                 {presetText ? (
                   <span className="text-xs text-primary font-medium shrink-0 truncate max-w-60">
                     ✦ {presetText}
                   </span>
                 ) : (
                   <span className="text-xs text-muted-foreground shrink-0">
-                    Кликните на PDF чтобы добавить текст
+                    Кликните на PDF — откроется редактор текста
                   </span>
                 )}
               </>
@@ -1432,50 +1426,26 @@ export default function PdfCanvas() {
                 </>
               )}
 
-            {/* Text selected element properties */}
+            {/* Text selected element properties — compact quick controls + Edit button */}
             {selectedItemId &&
               selectedItemType === "text" &&
               selectedText && (
                 <>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-xs text-muted-foreground">Шрифт</span>
-                    <select
-                      value={selectedText.fontFamily}
-                      onChange={(e) =>
-                        updateText(selectedItemId!, {
-                          fontFamily: e.target.value,
-                        })
-                      }
-                      className="h-7 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      {AVAILABLE_FONTS.map((font) => (
-                        <option key={font.id} value={font.id}>
-                          {font.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {/* Edit text button — opens modal */}
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="h-7 gap-1.5 shrink-0 shadow-soft"
+                    onClick={() => openTextModalForEdit(selectedText)}
+                    title="Редактировать текст"
+                  >
+                    <PencilLine className="h-3.5 w-3.5" />
+                    Изменить текст
+                  </Button>
 
                   <Divider />
 
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-xs text-muted-foreground">Размер</span>
-                    <Input
-                      type="number"
-                      min={6}
-                      max={96}
-                      value={selectedText.fontSize}
-                      onChange={(e) =>
-                        updateText(selectedItemId!, {
-                          fontSize: parseInt(e.target.value) || 14,
-                        })
-                      }
-                      className="h-7 text-xs w-14 text-center"
-                    />
-                  </div>
-
-                  <Divider />
-
+                  {/* Quick B/I/U */}
                   <Button
                     variant={selectedText.bold ? "default" : "outline"}
                     size="icon"
@@ -1489,7 +1459,6 @@ export default function PdfCanvas() {
                   >
                     <Bold className="h-3 w-3" />
                   </Button>
-
                   <Button
                     variant={selectedText.italic ? "default" : "outline"}
                     size="icon"
@@ -1503,9 +1472,54 @@ export default function PdfCanvas() {
                   >
                     <Italic className="h-3 w-3" />
                   </Button>
+                  <Button
+                    variant={selectedText.underline ? "default" : "outline"}
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() =>
+                      updateText(selectedItemId!, {
+                        underline: !selectedText.underline,
+                      })
+                    }
+                    title="Подчёркнутый"
+                  >
+                    <Underline className="h-3 w-3" />
+                  </Button>
 
                   <Divider />
 
+                  {/* Alignment */}
+                  <Button
+                    variant={selectedText.align === "left" ? "default" : "outline"}
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => updateText(selectedItemId!, { align: "left" })}
+                    title="По левому краю"
+                  >
+                    <AlignLeft className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant={selectedText.align === "center" ? "default" : "outline"}
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => updateText(selectedItemId!, { align: "center" })}
+                    title="По центру"
+                  >
+                    <AlignCenter className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant={selectedText.align === "right" ? "default" : "outline"}
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => updateText(selectedItemId!, { align: "right" })}
+                    title="По правому краю"
+                  >
+                    <AlignRight className="h-3 w-3" />
+                  </Button>
+
+                  <Divider />
+
+                  {/* Color */}
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className="text-xs text-muted-foreground">Цвет</span>
                     <Input
@@ -1520,10 +1534,8 @@ export default function PdfCanvas() {
 
                   <Divider />
 
+                  {/* Rotation */}
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-xs text-muted-foreground">
-                      Поворот
-                    </span>
                     <Button
                       variant="outline"
                       size="icon"
@@ -1601,6 +1613,15 @@ export default function PdfCanvas() {
           </div>
         </div>
       )}
+
+      {/* Text edit modal */}
+      <TextEditModal
+        open={textModal.open}
+        mode={textModal.mode}
+        initialData={textModal.initialData}
+        onOpenChange={(open) => setTextModal((prev) => ({ ...prev, open }))}
+        onSave={handleTextModalSave}
+      />
 
       {/* Bottom center controls */}
       {pdfDoc && !error && !isLoading && (

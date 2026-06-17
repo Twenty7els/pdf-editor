@@ -15,6 +15,8 @@ export interface StampItem {
   canvasHeight: number; // overlay height at time of placement
 }
 
+export type TextAlign = "left" | "center" | "right";
+
 export interface TextItem {
   id: string;
   text: string;
@@ -26,6 +28,9 @@ export interface TextItem {
   fontFamily: string;
   bold: boolean;
   italic: boolean;
+  underline: boolean;
+  align: TextAlign;
+  letterSpacing: number; // in pixels (canvas space)
   rotation: number;
   canvasWidth: number;  // overlay width at time of placement
   canvasHeight: number; // overlay height at time of placement
@@ -105,13 +110,16 @@ interface PdfEditorState {
   selectedItemId: string | null;
   selectedItemType: "stamp" | "text" | "eraser" | null;
 
-  // Text tool settings
+  // Text tool settings (defaults for new text)
   textSettings: {
     fontSize: number;
     color: string;
     fontFamily: string;
     bold: boolean;
     italic: boolean;
+    underline: boolean;
+    align: TextAlign;
+    letterSpacing: number;
   };
 
   // Preset text for one-click placement
@@ -177,11 +185,14 @@ const initialState = {
   selectedItemId: null,
   selectedItemType: null as "stamp" | "text" | "eraser" | null,
   textSettings: {
-    fontSize: 8,
+    fontSize: 14,
     color: "#000000",
     fontFamily: "Arial",
     bold: false,
     italic: false,
+    underline: false,
+    align: "left" as TextAlign,
+    letterSpacing: 0,
   },
   presetText: null,
   eraserSettings: {

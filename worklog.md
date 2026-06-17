@@ -99,3 +99,69 @@ Stage Summary:
 - Sticky footer verified on both upload zone and editor pages
 - Light + dark theme both look polished
 - Cross-origin dev warning suppressed via allowedDevOrigins
+
+---
+Task ID: 3
+Agent: main
+Task: Redesign text editor — modal-based with live preview, multiline, alignment, underline, letter spacing
+
+Work Log:
+- User feedback: "текстовый редактор убого выглядит" (text editor looks shabby)
+- Diagnosed: inline `<input>` was single-line only, cramped top bar with minimal controls
+- Extended `TextItem` interface in store: added `underline`, `align` (left/center/right), `letterSpacing` fields
+- Extended `textSettings` defaults with same fields (fontSize default bumped from 8 → 14)
+- Created new component `src/components/pdf-editor/TextEditModal.tsx`:
+  * Beautiful dialog with gradient header (Type icon in gradient-bg square)
+  * Two-column layout: left = preview + textarea, right = styling controls
+  * Live preview area showing multiline text with current styling (auto-scales large fonts)
+  * Large textarea (multiline support via Enter key) with mono font
+  * Character counter + Ctrl+Enter shortcut hint
+  * Visual font picker: 8 fonts in 2-col grid, each showing name + "Аа Бб 123" sample in that font
+  * Size: slider (6-72px) + 8 preset buttons (8,10,12,14,18,24,32,48)
+  * B/I/U toggle button group
+  * Alignment button group (left/center/right)
+  * Letter spacing slider (-2 to 10px) with live value
+  * Color: 12-swatch grid (black, white, grays, red, orange, amber, green, cyan, blue, violet, pink) + custom color input
+  * Footer: Cancel + Save/Add buttons with icons
+  * Ctrl+Enter = save, Escape = cancel (keyboard shortcuts)
+  * DialogDescription added for accessibility (fixes radix warning)
+- Updated `src/components/pdf-editor/PdfCanvas.tsx`:
+  * Removed inline editing (editingTextId, editTextValue, handleTextEditComplete, handleTextKeyDown)
+  * Added textModal state with mode (create/edit), targetId, pendingPos, initialData
+  * `openTextModalForCreate(pos)` — opens modal when text tool + click on PDF
+  * `openTextModalForEdit(textItem)` — opens modal on double-click of existing text
+  * `handleTextModalSave(data)` — creates new text or updates existing, also updates textSettings defaults
+  * Keyboard handlers updated: Delete/Backspace ignored when modal open or textarea focused; arrows ignored when modal open
+  * Text rendering on canvas: now splits by \n and renders each line as separate div with whiteSpace:pre
+  * Canvas text supports: textDecoration (underline), textAlign (align), letterSpacing
+  * Top bar redesigned for selected text: "Изменить текст" button (opens modal) + quick B/I/U + alignment + color + rotation + delete
+  * Top bar for text tool (no selection): just a hint "Кликните на PDF — откроется редактор текста"
+  * Added TextEditModal at end of component
+  * Cleaned up unused store destructures (addText, textSettings, setTextSettings, setPresetText, TextAlign)
+- Updated `src/app/page.tsx` handleDownload for PDF export:
+  * Multiline: splits text by \n, draws each line at decreasing Y
+  * Alignment: uses `font.widthOfTextAtSize()` to measure line width, offsets X for center/right
+  * Underline: draws thin rectangle below baseline using `page.drawRectangle()` with measured width
+  * Letter spacing: converts canvas px → PDF text space units via `charSpacing` option (units = 1/1000 of font size)
+  * Removed invalid options (charWidth, xPercentage) that don't exist in pdf-lib API
+- Updated `src/components/pdf-editor/Toolbar.tsx`: preset text hint now mentions "редактор с предпросмотром, шрифтами, цветами и выравниванием"
+- Lint: exit 0 (clean)
+- Browser verified via Agent Browser:
+  * Text modal opens on canvas click with text tool active
+  * Modal shows: 8 font buttons, size slider + 8 presets, B/I/U, 3 alignment, letter spacing slider, 12 color swatches, textarea, live preview
+  * Multiline text (3 lines) entered and previewed correctly
+  * Selected Times New Roman + red color + center align + bold → text added to canvas with all styles
+  * "Изменить текст" button in top bar opens modal in edit mode with existing text + styles loaded
+  * Underline + right align toggled via top bar quick controls → reflected on canvas
+  * PDF download succeeded: "PDF сохранён! 0 печатей · 1 текстов · 0 масок" toast appeared
+  * Mobile view (375x812) responsive and usable
+
+Stage Summary:
+- Text editor completely redesigned from shabby inline input → professional modal editor
+- New features: multiline text, underline, alignment (left/center/right), letter spacing
+- Live preview shows exactly how text will appear on PDF
+- Visual font picker with samples per font
+- 12 preset colors + custom color picker
+- PDF export supports all new features (multiline, alignment via width measurement, underline via rectangle, letter spacing via charSpacing)
+- Top bar simplified: hint when no selection, quick controls + "Изменить текст" button when text selected
+- All existing functionality preserved (stamps, eraser, download)

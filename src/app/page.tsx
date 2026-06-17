@@ -328,29 +328,80 @@ export default function Home() {
           const cw = textItem.canvasWidth || 800;
           const ch = textItem.canvasHeight || 1100;
 
-          const pdfX = (textItem.x / cw) * pageWidth;
-          const pdfY =
-            pageHeight - ((textItem.y + textItem.fontSize) / ch) * pageHeight;
-
           const scaledFontSize = (textItem.fontSize / ch) * pageHeight;
+          // letterSpacing in canvas px → PDF points (text space)
+          const scaledLetterSpacing =
+            (textItem.letterSpacing / ch) * pageHeight;
 
-          let font: unknown;
+          let font: import("pdf-lib").PDFFont;
           const uFonts = await getUnicodeFonts();
-          if (textItem.bold && textItem.italic) font = uFonts.boldItalic;
-          else if (textItem.bold) font = uFonts.bold;
-          else if (textItem.italic) font = uFonts.italic;
-          else font = uFonts.regular;
+          if (textItem.bold && textItem.italic) font = uFonts.boldItalic as import("pdf-lib").PDFFont;
+          else if (textItem.bold) font = uFonts.bold as import("pdf-lib").PDFFont;
+          else if (textItem.italic) font = uFonts.italic as import("pdf-lib").PDFFont;
+          else font = uFonts.regular as import("pdf-lib").PDFFont;
 
           const color = hexToRgb(textItem.color);
+          const pdfColor = color
+            ? rgb(color.r, color.g, color.b)
+            : rgb(0, 0, 0);
 
-          page.drawText(textItem.text, {
-            x: pdfX,
-            y: pdfY,
-            size: scaledFontSize,
-            font: font as import("pdf-lib").PDFFont,
-            color: color ? rgb(color.r, color.g, color.b) : rgb(0, 0, 0),
-            rotate: degrees(textItem.rotation),
-          });
+          // Multiline support
+          const lines = textItem.text.split("\n");
+
+          for (let li = 0; li < lines.length; li++) {
+            const line = lines[li];
+            if (!line) {
+              continue;
+            }
+
+            // Base Y for this line (top-down from textItem.y which is the top)
+            const lineCanvasTop = textItem.y + li * textItem.fontSize * 1.2;
+            const lineBaselinePdfY =
+              pageHeight -
+              ((lineCanvasTop + textItem.fontSize) / ch) * pageHeight;
+
+            // Measure line width for alignment
+            const lineWidth = font.widthOfTextAtSize(line, scaledFontSize);
+
+            // Compute X based on alignment
+            let linePdfX: number;
+            const basePdfX = (textItem.x / cw) * pageWidth;
+            if (textItem.align === "center") {
+              linePdfX = basePdfX - lineWidth / 2;
+            } else if (textItem.align === "right") {
+              linePdfX = basePdfX - lineWidth;
+            } else {
+              linePdfX = basePdfX;
+            }
+
+            page.drawText(line, {
+              x: linePdfX,
+              y: lineBaselinePdfY,
+              size: scaledFontSize,
+              font,
+              color: pdfColor,
+              rotate: degrees(textItem.rotation),
+              // charSpacing is in text space units (1/1000 of font size)
+              charSpacing: (scaledLetterSpacing / scaledFontSize) * 1000,
+            });
+
+            // Underline: draw a thin rectangle below the baseline
+            if (textItem.underline) {
+              const underlineThickness = Math.max(
+                0.5,
+                scaledFontSize / 18
+              );
+              const underlineY = lineBaselinePdfY - scaledFontSize * 0.12;
+              page.drawRectangle({
+                x: linePdfX,
+                y: underlineY,
+                width: lineWidth,
+                height: underlineThickness,
+                color: pdfColor,
+                rotate: degrees(textItem.rotation),
+              });
+            }
+          }
         } catch (err) {
           console.error("Error drawing text:", err);
         }

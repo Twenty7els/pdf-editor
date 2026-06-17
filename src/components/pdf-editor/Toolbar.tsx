@@ -313,8 +313,8 @@ export default function Toolbar({
           <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
             <ChevronRight className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Выберите готовый текст или кликните на PDF чтобы добавить свой.
-              Настройки шрифта — вверху экрана.
+              Выберите готовый текст или кликните на PDF — откроется редактор с
+              предпросмотром, шрифтами, цветами и выравниванием.
             </p>
           </div>
         </div>

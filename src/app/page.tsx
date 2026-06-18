@@ -366,17 +366,24 @@ export default function Home() {
           // Multiline support
           const lines = textItem.text.split("\n");
 
+          // Font ascent — distance from baseline to top of font.
+          // Used to correctly position baseline (CSS top = top of font, pdf-lib y = baseline).
+          const fontAscent = font.heightAtSize(scaledFontSize, {
+            descender: false,
+          });
+
           for (let li = 0; li < lines.length; li++) {
             const line = lines[li];
             if (!line) {
               continue;
             }
 
-            // Base Y for this line (top-down from textItem.y which is the top)
+            // Canvas: top of line = textItem.y + li * (fontSize * 1.2)
+            // PDF baseline = canvas top + ascent (descent excluded — that's how CSS renders)
             const lineCanvasTop = textItem.y + li * textItem.fontSize * 1.2;
             const lineBaselinePdfY =
               pageHeight -
-              ((lineCanvasTop + textItem.fontSize) / ch) * pageHeight;
+              ((lineCanvasTop + fontAscent) / ch) * pageHeight;
 
             // Measure line width for alignment
             const lineWidth = font.widthOfTextAtSize(line, scaledFontSize);

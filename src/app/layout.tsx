@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
-import { ThemeProvider } from "@/components/theme-provider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -27,10 +26,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0e1a" },
-  ],
+  themeColor: "#fafafa",
   width: "device-width",
   initialScale: 1,
 };
@@ -45,27 +41,20 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased bg-background text-foreground`}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster
-            position="bottom-right"
-            theme="system"
-            richColors
-            closeButton
-            toastOptions={{
-              style: {
-                borderRadius: "12px",
-                fontSize: "13px",
-                fontWeight: 500,
-              },
-            }}
-          />
-        </ThemeProvider>
+        {children}
+        <Toaster
+          position="bottom-right"
+          theme="light"
+          richColors
+          closeButton
+          toastOptions={{
+            style: {
+              borderRadius: "12px",
+              fontSize: "13px",
+              fontWeight: 500,
+            },
+          }}
+        />
       </body>
     </html>
   );

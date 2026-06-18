@@ -32,7 +32,7 @@ import {
   Type,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import TextEditModal, { type TextModalData } from "./TextEditModal";
+import TextEditSidebar, { type TextSidebarData } from "./TextEditSidebar";
 
 type DragMode = "move" | "resize" | "rotate" | null;
 
@@ -137,13 +137,13 @@ export default function PdfCanvas() {
   // Drag / resize / rotate state
   const [dragState, setDragState] = useState<DragState | null>(null);
 
-  // Text editing — modal-based
-  const [textModal, setTextModal] = useState<{
+  // Text editing — sidebar panel
+  const [textSidebar, setTextSidebar] = useState<{
     open: boolean;
     mode: "create" | "edit";
     targetId: string | null;
     pendingPos: { x: number; y: number; canvasWidth: number; canvasHeight: number } | null;
-    initialData: TextModalData | null;
+    initialData: TextSidebarData | null;
   }>({
     open: false,
     mode: "create",
@@ -152,10 +152,10 @@ export default function PdfCanvas() {
     initialData: null,
   });
 
-  const openTextModalForCreate = useCallback(
+  const openTextSidebarForCreate = useCallback(
     (pos: { x: number; y: number; canvasWidth: number; canvasHeight: number }) => {
       const s = usePdfEditorStore.getState();
-      setTextModal({
+      setTextSidebar({
         open: true,
         mode: "create",
         targetId: null,
@@ -176,8 +176,8 @@ export default function PdfCanvas() {
     []
   );
 
-  const openTextModalForEdit = useCallback((t: TextItem) => {
-    setTextModal({
+  const openTextSidebarForEdit = useCallback((t: TextItem) => {
+    setTextSidebar({
       open: true,
       mode: "edit",
       targetId: t.id,
@@ -196,8 +196,8 @@ export default function PdfCanvas() {
     });
   }, []);
 
-  const handleTextModalSave = useCallback(
-    (data: TextModalData) => {
+  const handleTextSidebarSave = useCallback(
+    (data: TextSidebarData) => {
       const state = usePdfEditorStore.getState();
       // Update default text settings so next text inherits
       state.setTextSettings({
@@ -211,8 +211,8 @@ export default function PdfCanvas() {
         letterSpacing: data.letterSpacing,
       });
 
-      if (textModal.mode === "edit" && textModal.targetId) {
-        state.updateText(textModal.targetId, {
+      if (textSidebar.mode === "edit" && textSidebar.targetId) {
+        state.updateText(textSidebar.targetId, {
           text: data.text,
           fontSize: data.fontSize,
           color: data.color,
@@ -223,8 +223,8 @@ export default function PdfCanvas() {
           align: data.align,
           letterSpacing: data.letterSpacing,
         });
-      } else if (textModal.mode === "create" && textModal.pendingPos) {
-        const pos = textModal.pendingPos;
+      } else if (textSidebar.mode === "create" && textSidebar.pendingPos) {
+        const pos = textSidebar.pendingPos;
         const newText: TextItem = {
           id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           text: data.text,
@@ -249,7 +249,7 @@ export default function PdfCanvas() {
         state.setPresetText(null);
       }
     },
-    [textModal]
+    [textSidebar]
   );
 
   // Load pdfjs-dist dynamically on mount
@@ -467,7 +467,7 @@ export default function PdfCanvas() {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         // Open the text editor modal instead of inline editing
-        openTextModalForCreate({
+        openTextSidebarForCreate({
           x,
           y,
           canvasWidth: overlayW,
@@ -485,7 +485,7 @@ export default function PdfCanvas() {
       addStamp,
       setSelectedItem,
       setActiveTool,
-      openTextModalForCreate,
+      openTextSidebarForCreate,
     ]
   );
 
@@ -774,19 +774,19 @@ export default function PdfCanvas() {
     scaleToDisplayY,
   ]);
 
-  // Text double-click → open modal in edit mode
+  // Text double-click → open sidebar in edit mode
   const handleTextDoubleClick = useCallback(
     (e: React.MouseEvent, t: TextItem) => {
       e.stopPropagation();
-      openTextModalForEdit(t);
+      openTextSidebarForEdit(t);
     },
-    [openTextModalForEdit]
+    [openTextSidebarForEdit]
   );
 
   // Keyboard delete
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (textModal.open) return;
+      if (textSidebar.open) return;
       // Don't trigger delete when typing in any input/textarea/select
       const target = e.target as HTMLElement;
       if (
@@ -808,12 +808,12 @@ export default function PdfCanvas() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedItemId, selectedItemType, textModal.open, setSelectedItem]);
+  }, [selectedItemId, selectedItemType, textSidebar.open, setSelectedItem]);
 
   // Keyboard arrow for pages
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (textModal.open || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (textSidebar.open || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === "ArrowLeft")
         setCurrentPage(Math.max(1, currentPage - 1));
       if (e.key === "ArrowRight")
@@ -821,7 +821,7 @@ export default function PdfCanvas() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentPage, totalPages, textModal.open, setCurrentPage]);
+  }, [currentPage, totalPages, textSidebar.open, setCurrentPage]);
 
   const pageStamps = stamps.filter((s) => s.page === currentPage);
   const pageTexts = texts.filter((t) => t.page === currentPage);
@@ -1435,7 +1435,7 @@ export default function PdfCanvas() {
                     variant="default"
                     size="sm"
                     className="h-7 gap-1.5 shrink-0 shadow-soft"
-                    onClick={() => openTextModalForEdit(selectedText)}
+                    onClick={() => openTextSidebarForEdit(selectedText)}
                     title="Редактировать текст"
                   >
                     <PencilLine className="h-3.5 w-3.5" />
@@ -1613,13 +1613,13 @@ export default function PdfCanvas() {
         </div>
       )}
 
-      {/* Text edit modal */}
-      <TextEditModal
-        open={textModal.open}
-        mode={textModal.mode}
-        initialData={textModal.initialData}
-        onOpenChange={(open) => setTextModal((prev) => ({ ...prev, open }))}
-        onSave={handleTextModalSave}
+      {/* Text edit sidebar */}
+      <TextEditSidebar
+        open={textSidebar.open}
+        mode={textSidebar.mode}
+        initialData={textSidebar.initialData}
+        onClose={() => setTextSidebar((prev) => ({ ...prev, open: false }))}
+        onSave={handleTextSidebarSave}
       />
 
       {/* Bottom center controls */}

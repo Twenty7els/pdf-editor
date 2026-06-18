@@ -16,8 +16,6 @@ import { toast } from "sonner";
 import {
   Menu,
   LogOut,
-  Moon,
-  Sun,
   FileText,
   Sparkles,
   ShieldCheck,
@@ -30,7 +28,6 @@ import {
   setAuthenticated,
   logout,
 } from "@/lib/auth";
-import { useTheme } from "next-themes";
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -41,39 +38,6 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
         b: parseInt(result[3], 16) / 255,
       }
     : null;
-}
-
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  if (!mounted) {
-    return (
-      <Button variant="ghost" size="icon" className="h-9 w-9">
-        <Sun className="h-4 w-4" />
-      </Button>
-    );
-  }
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="h-9 w-9 rounded-xl hover:bg-accent transition-all relative overflow-hidden group"
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      title={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
-    >
-      <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/10 transition-colors" />
-      <div className="relative">
-        {theme === "dark" ? (
-          <Sun className="h-4 w-4 transition-transform group-hover:rotate-45 duration-300" />
-        ) : (
-          <Moon className="h-4 w-4 transition-transform group-hover:-rotate-12 duration-300" />
-        )}
-      </div>
-    </Button>
-  );
 }
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
@@ -602,7 +566,6 @@ export default function Home() {
               </span>
             </div>
           )}
-          <ThemeToggle />
           <Button
             variant="ghost"
             size="sm"

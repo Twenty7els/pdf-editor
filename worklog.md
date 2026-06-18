@@ -228,3 +228,23 @@ Stage Summary:
 - Deleted 8 unused files/folders (use-toast, toaster, sonner wrapper, db.ts, api route, prisma, examples, db)
 - Store cleaned: removed pageScale, setPageScale, getFontPdfLib, FontId
 - Removed redundant "Вписать в экран" button (percentage click = reset to 100%)
+
+---
+Task ID: 5
+Agent: main
+Task: Deploy to GitHub
+
+Work Log:
+- Verified GitHub PAT: user = Twenty7els (12 public repos)
+- Existing repo found: Twenty7els/pdf-editor (public, last updated 2026-05-29, old version)
+- Added remote origin with token-embedded URL for auth
+- Force-pushed local main → remote main (histories were divergent)
+  * Remote old HEAD: 0e8d7d3 → New HEAD: 37b73da
+- Cleaned token from remote URL (replaced with plain HTTPS URL) so it's not stored in .git/config
+- Verified push via API: src/app/{globals.css,layout.tsx,page.tsx} + src/components/pdf-editor/{PdfCanvas,TextEditModal,Toolbar,UploadZone}.tsx all present on remote
+
+Stage Summary:
+- Project deployed to: https://github.com/Twenty7els/pdf-editor
+- Branch: main, HEAD = 37b73da
+- Force-push overwrote old version with current modernized codebase
+- Token removed from git config for security

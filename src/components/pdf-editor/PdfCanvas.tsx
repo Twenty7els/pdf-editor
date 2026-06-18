@@ -9,7 +9,6 @@ import {
   getFontCss,
 } from "@/store/pdf-editor-store";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import {
   ChevronLeft,
   ChevronRight,
@@ -27,6 +26,8 @@ import {
   Eraser,
   Loader2,
   AlertCircle,
+  AlertTriangle,
+  X,
   FileText,
   PencilLine,
   Type,
@@ -65,6 +66,8 @@ export default function PdfCanvas() {
   const [pdfDoc, setPdfDoc] = useState<unknown | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nonA4Pages, setNonA4Pages] = useState<number[]>([]);
+  const [a4BannerDismissed, setA4BannerDismissed] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [pdfjsReady, setPdfjsReady] = useState(false);
   const pdfjsRef = useRef<unknown>(null);
@@ -279,6 +282,8 @@ export default function PdfCanvas() {
     const loadPdf = async () => {
       setIsLoading(true);
       setError(null);
+      setNonA4Pages([]);
+      setA4BannerDismissed(false);
       try {
         const arrayBuffer = await pdfFile.arrayBuffer();
         setPdfArrayBuffer(arrayBuffer.slice(0));
@@ -315,14 +320,7 @@ export default function PdfCanvas() {
         }
 
         if (nonA4Pages.length > 0) {
-          const pageList =
-            nonA4Pages.length <= 5
-              ? nonA4Pages.join(", ")
-              : nonA4Pages.slice(0, 5).join(", ") + "...";
-          toast.warning(
-            `Формат страниц не А4: стр. ${pageList}. Размер может отличаться от стандартного.`,
-            { duration: 6000 }
-          );
+          setNonA4Pages(nonA4Pages);
         }
       } catch (err) {
         console.error("Error loading PDF:", err);
@@ -947,6 +945,33 @@ export default function PdfCanvas() {
       ref={containerRef}
       className="flex-1 flex flex-col overflow-hidden aurora-bg relative"
     >
+      {/* Non-A4 warning banner — persistent */}
+      {nonA4Pages.length > 0 && !a4BannerDismissed && (
+        <div className="shrink-0 px-4 py-2 bg-amber-500/10 border-b border-amber-500/30 flex items-center gap-2.5 animate-slide-down">
+          <div className="h-7 w-7 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
+            <AlertTriangle className="h-4 w-4 text-amber-600" strokeWidth={2.5} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="text-xs font-semibold text-amber-700">
+              Формат страниц не А4:{" "}
+            </span>
+            <span className="text-xs text-amber-700/80">
+              стр. {nonA4Pages.length <= 8
+                ? nonA4Pages.join(", ")
+                : nonA4Pages.slice(0, 8).join(", ") + "…"}{" "}
+              · размер может отличаться от стандартного
+            </span>
+          </div>
+          <button
+            onClick={() => setA4BannerDismissed(true)}
+            className="h-7 w-7 rounded-md flex items-center justify-center text-amber-700/60 hover:bg-amber-500/15 hover:text-amber-700 transition-colors shrink-0"
+            title="Скрыть"
+          >
+            <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </button>
+        </div>
+      )}
+
       {/* Canvas area */}
       <div className="flex-1 flex items-center justify-center p-5 overflow-auto">
         {error && (

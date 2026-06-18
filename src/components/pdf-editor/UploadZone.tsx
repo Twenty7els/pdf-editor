@@ -86,9 +86,6 @@ export default function UploadZone() {
     <div className="flex-1 flex items-center justify-center p-6 md:p-8 aurora-bg relative overflow-hidden">
       {/* Decorative dots overlay */}
       <div className="absolute inset-0 dot-bg opacity-50 pointer-events-none" />
-      {/* Floating orbs */}
-      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-primary/12 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: "0s" }} />
-      <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-primary/8 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: "3s" }} />
 
       <div className="relative w-full max-w-4xl grid lg:grid-cols-5 gap-6 animate-slide-up">
         {/* Hero dropzone */}
@@ -118,12 +115,6 @@ export default function UploadZone() {
               {isDragOver && (
                 <div className="absolute -inset-4 rounded-3xl gradient-bg opacity-30 animate-ping" />
               )}
-              {/* Outer glow */}
-              <div
-                className={`absolute inset-0 rounded-3xl blur-xl transition-all duration-300 ${
-                  isDragOver ? "gradient-bg opacity-60" : "bg-primary/20 opacity-50"
-                }`}
-              />
               {/* Icon container */}
               <div
                 className={`relative h-20 w-20 rounded-3xl flex items-center justify-center transition-all duration-300 ${

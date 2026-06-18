@@ -122,9 +122,9 @@ export default function TextEditSidebar({
 
   return (
     <>
-      {/* Backdrop — click to close (only on create mode, in edit mode changes apply live anyway) */}
+      {/* Backdrop — click to close */}
       <div
-        className="fixed inset-0 z-30 bg-foreground/10 backdrop-blur-[1px] animate-fade-in"
+        className="fixed inset-0 z-30 bg-foreground/10 animate-fade-in"
         onClick={handleCancel}
       />
 
@@ -135,7 +135,6 @@ export default function TextEditSidebar({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="relative">
-                <div className="absolute inset-0 gradient-bg blur-md rounded-lg opacity-50" />
                 <div className="relative h-9 w-9 rounded-xl gradient-bg-tri flex items-center justify-center shadow-soft">
                   <Type className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
                 </div>
@@ -240,42 +239,6 @@ export default function TextEditSidebar({
 
           <div className="h-px bg-gradient-to-r from-transparent via-border/60 to-transparent" />
 
-          {/* Font picker */}
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
-              Шрифт
-            </label>
-            <div className="grid grid-cols-2 gap-1.5">
-              {AVAILABLE_FONTS.map((font) => {
-                const active = data.fontFamily === font.id;
-                return (
-                  <button
-                    key={font.id}
-                    onClick={() => update("fontFamily", font.id)}
-                    className={`px-2 py-2 rounded-lg border text-center transition-all ${
-                      active
-                        ? "border-primary bg-primary/10 shadow-soft"
-                        : "border-border/60 hover:border-primary/40 hover:bg-accent/30"
-                    }`}
-                  >
-                    <div
-                      className="text-sm leading-tight truncate font-medium"
-                      style={{ fontFamily: font.css }}
-                    >
-                      {font.name}
-                    </div>
-                    <div
-                      className="text-[10px] text-muted-foreground mt-0.5"
-                      style={{ fontFamily: font.css }}
-                    >
-                      Аа Бб 123
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Size */}
           <div>
             <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 flex items-center justify-between">
@@ -314,6 +277,42 @@ export default function TextEditSidebar({
                   {size}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Font picker */}
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
+              Шрифт
+            </label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {AVAILABLE_FONTS.map((font) => {
+                const active = data.fontFamily === font.id;
+                return (
+                  <button
+                    key={font.id}
+                    onClick={() => update("fontFamily", font.id)}
+                    className={`px-2 py-2 rounded-lg border text-center transition-all ${
+                      active
+                        ? "border-primary bg-primary/10 shadow-soft"
+                        : "border-border/60 hover:border-primary/40 hover:bg-accent/30"
+                    }`}
+                  >
+                    <div
+                      className="text-sm leading-tight truncate font-medium"
+                      style={{ fontFamily: font.css }}
+                    >
+                      {font.name}
+                    </div>
+                    <div
+                      className="text-[10px] text-muted-foreground mt-0.5"
+                      style={{ fontFamily: font.css }}
+                    >
+                      Аа Бб 123
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

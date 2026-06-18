@@ -952,7 +952,6 @@ export default function PdfCanvas() {
         {error && (
           <div className="text-center p-8 animate-fade-in">
             <div className="relative h-16 w-16 mx-auto mb-5">
-              <div className="absolute inset-0 bg-destructive/20 blur-xl rounded-full" />
               <div className="relative h-16 w-16 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
                 <AlertCircle className="h-8 w-8 text-destructive" strokeWidth={2} />
               </div>
@@ -967,7 +966,6 @@ export default function PdfCanvas() {
         {isLoading && !error && (
           <div className="flex flex-col items-center justify-center gap-4 animate-fade-in">
             <div className="relative">
-              <div className="absolute inset-0 rounded-full gradient-bg blur-xl opacity-50 animate-pulse-glow" />
               <Loader2 className="relative h-12 w-12 animate-spin text-primary" strokeWidth={2.5} />
             </div>
             <span className="text-sm text-muted-foreground font-medium">Загрузка PDF...</span>

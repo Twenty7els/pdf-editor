@@ -71,17 +71,10 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center aurora-bg p-4 relative overflow-hidden">
-      {/* Floating orbs */}
-      <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-primary/15 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: "0s" }} />
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: "2s" }} />
-      <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-primary/8 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: "4s" }} />
-
       <div className="w-full max-w-md relative animate-slide-up">
         {/* Logo + title */}
         <div className="flex flex-col items-center gap-5 mb-10">
           <div className="relative">
-            {/* Outer glow */}
-            <div className="absolute inset-0 gradient-bg blur-2xl rounded-3xl opacity-50 animate-pulse-glow" />
             {/* Logo */}
             <div className="relative h-20 w-20 rounded-3xl gradient-bg-tri flex items-center justify-center shadow-glow-lg gradient-border-strong">
               <FileText className="h-10 w-10 text-primary-foreground" strokeWidth={2} />
@@ -521,7 +514,6 @@ export default function Home() {
 
           {/* Premium logo */}
           <div className="relative group">
-            <div className="absolute inset-0 gradient-bg blur-md rounded-xl opacity-50 group-hover:opacity-70 transition-opacity" />
             <div className="relative h-9 w-9 rounded-xl gradient-bg-tri flex items-center justify-center shadow-soft gradient-border-strong">
               <FileText className="h-5 w-5 text-primary-foreground" strokeWidth={2.2} />
             </div>

@@ -132,14 +132,17 @@ export default function TextEditModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-hidden p-0 gap-0">
+      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-hidden p-0 gap-0 gradient-border">
         {/* Header with gradient accent */}
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/60">
-          <DialogTitle className="flex items-center gap-2.5 text-lg">
-            <div className="h-8 w-8 rounded-lg gradient-bg flex items-center justify-center shadow-soft">
-              <Type className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/40 glass-strong">
+          <DialogTitle className="flex items-center gap-3 text-lg">
+            <div className="relative">
+              <div className="absolute inset-0 gradient-bg blur-md rounded-lg opacity-50" />
+              <div className="relative h-9 w-9 rounded-xl gradient-bg-tri flex items-center justify-center shadow-soft">
+                <Type className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
+              </div>
             </div>
-            <span>
+            <span className="font-display font-bold tracking-tight">
               {mode === "create" ? "Новый текст" : "Редактировать текст"}
             </span>
           </DialogTitle>
@@ -152,9 +155,12 @@ export default function TextEditModal({
 
         <div className="flex flex-col lg:flex-row max-h-[calc(90vh-180px)] overflow-hidden">
           {/* Left: Textarea + Preview */}
-          <div className="flex-1 flex flex-col p-6 gap-4 min-h-0 border-r border-border/60">
+          <div className="flex-1 flex flex-col p-6 gap-4 min-h-0 border-r border-border/40">
             {/* Live preview */}
-            <div className="rounded-xl border border-border/60 bg-muted/30 p-4 min-h-[80px] max-h-[140px] overflow-auto flex items-center justify-center">
+            <div className="rounded-xl border border-border/40 bg-muted/20 p-4 min-h-[80px] max-h-[140px] overflow-auto flex items-center justify-center relative">
+              <div className="absolute top-2 left-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                Предпросмотр
+              </div>
               {data.text.trim() ? (
                 <div
                   className="overflow-hidden w-full"
@@ -428,15 +434,15 @@ export default function TextEditModal({
         </div>
 
         {/* Footer */}
-        <DialogFooter className="px-6 py-4 border-t border-border/60 bg-muted/20 flex-row justify-between items-center sm:justify-between">
-          <span className="text-[11px] text-muted-foreground hidden sm:inline">
+        <DialogFooter className="px-6 py-4 border-t border-border/40 glass-strong flex-row justify-between items-center sm:justify-between">
+          <span className="text-[11px] text-muted-foreground hidden sm:inline font-medium">
             Изменения применятся к выбранному тексту на PDF
           </span>
           <div className="flex items-center gap-2 ml-auto">
             <Button
               variant="ghost"
               onClick={handleCancel}
-              className="gap-1.5"
+              className="gap-1.5 rounded-xl font-medium"
             >
               <X className="h-4 w-4" />
               Отмена
@@ -444,9 +450,9 @@ export default function TextEditModal({
             <Button
               onClick={handleSave}
               disabled={!data.text.trim()}
-              className="gap-1.5 shadow-soft hover:shadow-glow"
+              className="gap-1.5 shadow-soft btn-glow shimmer rounded-xl font-semibold"
             >
-              <Check className="h-4 w-4" />
+              <Check className="h-4 w-4" strokeWidth={2.5} />
               {mode === "create" ? "Добавить" : "Сохранить"}
             </Button>
           </div>

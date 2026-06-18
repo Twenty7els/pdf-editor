@@ -60,15 +60,18 @@ function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon"
-      className="h-9 w-9 hover:bg-accent"
+      className="h-9 w-9 rounded-xl hover:bg-accent transition-all relative overflow-hidden group"
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
       title={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
     >
-      {theme === "dark" ? (
-        <Sun className="h-4 w-4" />
-      ) : (
-        <Moon className="h-4 w-4" />
-      )}
+      <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/10 transition-colors" />
+      <div className="relative">
+        {theme === "dark" ? (
+          <Sun className="h-4 w-4 transition-transform group-hover:rotate-45 duration-300" />
+        ) : (
+          <Moon className="h-4 w-4 transition-transform group-hover:-rotate-12 duration-300" />
+        )}
+      </div>
     </Button>
   );
 }
@@ -103,59 +106,69 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center mesh-bg p-4 relative overflow-hidden">
-      {/* Decorative background */}
-      <div className="absolute inset-0 grid-bg opacity-40" />
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen flex items-center justify-center aurora-bg p-4 relative overflow-hidden">
+      {/* Floating orbs */}
+      <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-primary/15 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: "0s" }} />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: "2s" }} />
+      <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-primary/8 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: "4s" }} />
 
-      <div className="w-full max-w-sm relative animate-slide-up">
-        <div className="flex flex-col items-center gap-4 mb-8">
+      <div className="w-full max-w-md relative animate-slide-up">
+        {/* Logo + title */}
+        <div className="flex flex-col items-center gap-5 mb-10">
           <div className="relative">
-            <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-3xl" />
-            <div className="relative h-16 w-16 rounded-2xl gradient-bg flex items-center justify-center shadow-glow">
-              <FileText className="h-8 w-8 text-primary-foreground" strokeWidth={2.2} />
+            {/* Outer glow */}
+            <div className="absolute inset-0 gradient-bg blur-2xl rounded-3xl opacity-50 animate-pulse-glow" />
+            {/* Logo */}
+            <div className="relative h-20 w-20 rounded-3xl gradient-bg-tri flex items-center justify-center shadow-glow-lg gradient-border-strong">
+              <FileText className="h-10 w-10 text-primary-foreground" strokeWidth={2} />
             </div>
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-bold tracking-tight">
-              PDF <span className="gradient-text">Редактор</span>
+            <h1 className="font-display text-3xl font-bold tracking-tight text-balance">
+              PDF <span className="gradient-text-bright">Редактор</span>
             </h1>
-            <p className="text-sm text-muted-foreground mt-1.5">
-              Введите пароль для входа в систему
+            <p className="text-sm text-muted-foreground mt-2 max-w-xs text-balance">
+              Печати, подписи и текст на документах — прямо в браузере
             </p>
           </div>
         </div>
 
+        {/* Login card */}
         <form
           onSubmit={handleSubmit}
-          className="space-y-4 glass-strong rounded-2xl p-6 border border-border/50 shadow-elevated"
+          className="space-y-5 glass-strong rounded-2xl p-7 gradient-border shadow-elevated"
         >
-          <div className="relative">
-            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input
-              ref={inputRef}
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setError("");
-              }}
-              placeholder="Пароль"
-              className="w-full h-12 pl-11 pr-4 rounded-xl border border-input bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
-              disabled={isLoading}
-            />
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Пароль
+            </label>
+            <div className="relative group">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+              <input
+                ref={inputRef}
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError("");
+                }}
+                placeholder="Введите пароль"
+                className="w-full h-13 py-3.5 pl-11 pr-4 rounded-xl border border-input bg-background/60 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all placeholder:text-muted-foreground/60"
+                disabled={isLoading}
+              />
+            </div>
           </div>
 
           {error && (
-            <p className="text-sm text-destructive text-center animate-fade-in">
-              {error}
-            </p>
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-destructive/10 border border-destructive/20 animate-fade-in">
+              <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+              <p className="text-xs font-medium text-destructive">{error}</p>
+            </div>
           )}
 
           <Button
             type="submit"
-            className="w-full h-12 text-sm font-medium shadow-soft hover:shadow-glow transition-all group"
+            className="w-full h-12 text-sm font-semibold btn-glow shimmer shadow-soft"
             disabled={isLoading || !password.trim()}
           >
             {isLoading ? (
@@ -166,15 +179,21 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             ) : (
               <>
                 Войти
-                <ArrowRight className="h-4 w-4 ml-2 transition-transform group-hover:translate-x-0.5" />
+                <ArrowRight className="h-4 w-4 ml-2 transition-transform group-hover:translate-x-1" />
               </>
             )}
           </Button>
         </form>
 
+        {/* Trust badge */}
         <div className="flex items-center justify-center gap-2 mt-6 text-xs text-muted-foreground">
-          <ShieldCheck className="h-3.5 w-3.5" />
-          <span>Защищённый доступ · SHA-256</span>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass border border-border/40">
+            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+            <span className="font-medium">Защищённый доступ</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass border border-border/40">
+            <span className="font-mono text-[10px]">SHA-256</span>
+          </div>
         </div>
       </div>
     </div>
@@ -516,7 +535,7 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="border-b border-border/60 glass-strong px-4 py-3 flex items-center justify-between shrink-0 z-30">
+      <header className="border-b border-border/40 glass-strong px-4 py-2.5 flex items-center justify-between shrink-0 z-30">
         <div className="flex items-center gap-3">
           {pdfFile && (
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
@@ -524,7 +543,7 @@ export default function Home() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="md:hidden h-9 w-9"
+                  className="md:hidden h-9 w-9 rounded-xl"
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
@@ -536,22 +555,23 @@ export default function Home() {
             </Sheet>
           )}
 
-          <div className="relative">
-            <div className="absolute inset-0 bg-primary/20 blur-md rounded-lg" />
-            <div className="relative h-9 w-9 rounded-xl gradient-bg flex items-center justify-center shadow-soft">
+          {/* Premium logo */}
+          <div className="relative group">
+            <div className="absolute inset-0 gradient-bg blur-md rounded-xl opacity-50 group-hover:opacity-70 transition-opacity" />
+            <div className="relative h-9 w-9 rounded-xl gradient-bg-tri flex items-center justify-center shadow-soft gradient-border-strong">
               <FileText className="h-5 w-5 text-primary-foreground" strokeWidth={2.2} />
             </div>
           </div>
           <div>
-            <h1 className="text-base font-bold leading-tight tracking-tight">
-              PDF <span className="gradient-text">Редактор</span>
+            <h1 className="font-display text-base font-bold leading-tight tracking-tight">
+              PDF <span className="gradient-text-bright">Редактор</span>
             </h1>
-            <p className="text-[11px] text-muted-foreground hidden sm:block">
+            <p className="text-[11px] text-muted-foreground hidden sm:block font-medium">
               Печати и текст на документах
             </p>
           </div>
           {pdfFile && (
-            <div className="hidden lg:flex items-center gap-2 ml-6 text-[11px] text-muted-foreground">
+            <div className="hidden lg:flex items-center gap-1.5 ml-6">
               {[
                 { kbd: "Ctrl+Колесо", label: "масштаб" },
                 { kbd: "← →", label: "страницы" },
@@ -560,12 +580,12 @@ export default function Home() {
               ].map((h) => (
                 <span
                   key={h.kbd}
-                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/50 border border-border/50"
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-muted/40 border border-border/40 hover:border-primary/30 transition-colors"
                 >
-                  <kbd className="px-1 py-0.5 bg-background rounded text-[10px] font-mono border border-border">
+                  <kbd className="px-1.5 py-0.5 bg-background rounded text-[10px] font-mono border border-border/60 shadow-soft">
                     {h.kbd}
                   </kbd>
-                  {h.label}
+                  <span className="text-[11px] text-muted-foreground">{h.label}</span>
                 </span>
               ))}
             </div>
@@ -573,9 +593,11 @@ export default function Home() {
         </div>
         <div className="flex items-center gap-2">
           {pdfFile && (
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/50 border border-border/50 max-w-[200px]">
-              <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
-              <span className="text-xs text-muted-foreground truncate">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl glass border border-border/40 max-w-[220px]">
+              <div className="h-6 w-6 rounded-md bg-primary/15 flex items-center justify-center shrink-0">
+                <FileText className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <span className="text-xs text-muted-foreground truncate font-medium">
                 {pdfFileName}
               </span>
             </div>
@@ -584,7 +606,7 @@ export default function Home() {
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1.5 text-muted-foreground hover:text-foreground h-9"
+            className="gap-1.5 text-muted-foreground hover:text-foreground h-9 rounded-xl font-medium"
             onClick={handleLogout}
           >
             <LogOut className="h-4 w-4" />
@@ -596,7 +618,7 @@ export default function Home() {
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {pdfFile && (
-          <aside className="hidden md:block w-72 border-r border-border/60 bg-card/30 overflow-y-auto shrink-0">
+          <aside className="hidden md:block w-72 border-r border-border/40 bg-card/20 overflow-y-auto shrink-0">
             {toolbarContent}
           </aside>
         )}
@@ -605,10 +627,10 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-border/60 glass-strong px-4 py-2.5 text-center text-xs text-muted-foreground shrink-0 mt-auto">
+      <footer className="border-t border-border/40 glass-strong px-4 py-2.5 text-center text-xs text-muted-foreground shrink-0 mt-auto">
         <div className="flex items-center justify-center gap-2">
           <Sparkles className="h-3 w-3 text-primary" />
-          <span>PDF Редактор · добавляйте печати и текст на PDF документы</span>
+          <span className="font-medium">PDF Редактор · добавляйте печати и текст на PDF документы</span>
         </div>
       </footer>
 

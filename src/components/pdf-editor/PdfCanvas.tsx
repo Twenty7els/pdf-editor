@@ -945,16 +945,19 @@ export default function PdfCanvas() {
   return (
     <div
       ref={containerRef}
-      className="flex-1 flex flex-col overflow-hidden mesh-bg relative"
+      className="flex-1 flex flex-col overflow-hidden aurora-bg relative"
     >
       {/* Canvas area */}
       <div className="flex-1 flex items-center justify-center p-5 overflow-auto">
         {error && (
           <div className="text-center p-8 animate-fade-in">
-            <div className="h-14 w-14 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="h-7 w-7 text-destructive" />
+            <div className="relative h-16 w-16 mx-auto mb-5">
+              <div className="absolute inset-0 bg-destructive/20 blur-xl rounded-full" />
+              <div className="relative h-16 w-16 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
+                <AlertCircle className="h-8 w-8 text-destructive" strokeWidth={2} />
+              </div>
             </div>
-            <div className="text-lg font-semibold mb-2">{error}</div>
+            <div className="font-display text-lg font-semibold mb-2">{error}</div>
             <p className="text-muted-foreground text-sm">
               Попробуйте загрузить другой файл
             </p>
@@ -962,12 +965,12 @@ export default function PdfCanvas() {
         )}
 
         {isLoading && !error && (
-          <div className="flex flex-col items-center justify-center gap-3 animate-fade-in">
+          <div className="flex flex-col items-center justify-center gap-4 animate-fade-in">
             <div className="relative">
-              <div className="absolute inset-0 rounded-full bg-primary/20 blur-md" />
-              <Loader2 className="relative h-10 w-10 animate-spin text-primary" />
+              <div className="absolute inset-0 rounded-full gradient-bg blur-xl opacity-50 animate-pulse-glow" />
+              <Loader2 className="relative h-12 w-12 animate-spin text-primary" strokeWidth={2.5} />
             </div>
-            <span className="text-sm text-muted-foreground">Загрузка PDF...</span>
+            <span className="text-sm text-muted-foreground font-medium">Загрузка PDF...</span>
           </div>
         )}
 
@@ -1188,23 +1191,23 @@ export default function PdfCanvas() {
 
       {/* Floating properties bar */}
       {showTopBar && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 max-w-[calc(100%-1.5rem)] animate-slide-up">
-          <div className="glass-strong rounded-xl shadow-elevated border border-border/60 px-3 py-2 flex items-center gap-2 overflow-x-auto max-w-full">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 max-w-[calc(100%-1.5rem)] animate-slide-down">
+          <div className="glass-strong rounded-2xl shadow-elevated gradient-border px-3 py-2 flex items-center gap-2 overflow-x-auto max-w-full">
             {/* Text tool hint (no element selected) */}
             {activeTool === "text" && !selectedItemId && (
               <>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <div className="h-7 w-7 rounded-md gradient-bg flex items-center justify-center shrink-0">
-                    <Type className="h-3.5 w-3.5 text-primary-foreground" />
+                  <div className="h-7 w-7 rounded-lg gradient-bg flex items-center justify-center shrink-0 shadow-soft">
+                    <Type className="h-3.5 w-3.5 text-primary-foreground" strokeWidth={2.5} />
                   </div>
                 </div>
                 <Divider />
                 {presetText ? (
-                  <span className="text-xs text-primary font-medium shrink-0 truncate max-w-60">
+                  <span className="text-xs text-primary font-semibold shrink-0 truncate max-w-60">
                     ✦ {presetText}
                   </span>
                 ) : (
-                  <span className="text-xs text-muted-foreground shrink-0">
+                  <span className="text-xs text-muted-foreground shrink-0 font-medium">
                     Кликните на PDF — откроется редактор текста
                   </span>
                 )}
@@ -1622,7 +1625,7 @@ export default function PdfCanvas() {
       {/* Bottom center controls */}
       {pdfDoc && !error && !isLoading && (
         <div className="flex justify-center pb-3 px-4">
-          <div className="flex items-center gap-1 glass-strong border border-border/60 rounded-full shadow-elevated px-2 py-1">
+          <div className="flex items-center gap-1 glass-strong gradient-border rounded-full shadow-elevated px-2 py-1">
             <Button
               variant="ghost"
               size="icon"
@@ -1632,9 +1635,9 @@ export default function PdfCanvas() {
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div className="flex items-center gap-1 px-2">
+            <div className="flex items-center gap-1.5 px-2">
               <FileText className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs font-medium tabular-nums min-w-[60px] text-center select-none">
+              <span className="text-xs font-semibold tabular-nums min-w-[60px] text-center select-none">
                 {currentPage} / {totalPages}
               </span>
             </div>
@@ -1647,7 +1650,7 @@ export default function PdfCanvas() {
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
-            <div className="w-px h-5 bg-border mx-1" />
+            <div className="w-px h-5 bg-border/60 mx-1" />
             <Button
               variant="ghost"
               size="icon"
@@ -1658,7 +1661,7 @@ export default function PdfCanvas() {
               <ZoomOut className="h-4 w-4" />
             </Button>
             <button
-              className="text-xs font-medium tabular-nums min-w-[52px] text-center hover:bg-accent rounded-full py-1 px-2 transition-colors select-none"
+              className="text-xs font-semibold tabular-nums min-w-[52px] text-center hover:bg-accent rounded-full py-1 px-2 transition-colors select-none"
               onClick={zoomFit}
               title="Сбросить до 100%"
             >

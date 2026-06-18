@@ -327,3 +327,63 @@ Stage Summary:
 - Animated micro-interactions: shimmer on buttons, lift on cards, btn-glow on hover, float on orbs, pulse-glow on logo
 - VLM confirms visual improvement (7→8/10 on key screens)
 - Code pushed to GitHub
+
+---
+Task ID: 7
+Agent: main
+Task: Replace text modal with left sidebar editor + remove dark theme completely
+
+Work Log:
+- User requests: no modal, make left-side text editor menu instead; remove black/dark theme entirely
+
+REMOVE DARK THEME:
+- globals.css: deleted entire .dark{} block (~60 lines of dark color tokens), deleted @custom-variant dark declaration
+- layout.tsx: removed ThemeProvider wrapper, set Toaster theme="light", viewport themeColor="#fafafa"
+- page.tsx: removed ThemeToggle component (~30 lines), removed useTheme import, removed Moon/Sun icon imports
+- deleted src/components/theme-provider.tsx (next-themes wrapper, no longer needed)
+
+REPLACE MODAL WITH SIDEBAR:
+- Deleted src/components/pdf-editor/TextEditModal.tsx (dialog-based)
+- Created src/components/pdf-editor/TextEditSidebar.tsx:
+  * Fixed left-side panel (top:0, left:0, bottom:0, width: 24rem / 95vw on mobile)
+  * Backdrop overlay (bg-foreground/10 backdrop-blur, click to close)
+  * Header: gradient logo + title + mode subtitle + close button
+  * Scrollable content area:
+    - Live preview with "ПРЕДПРОСМОТР" label
+    - Multiline textarea with character count + Ctrl+Enter hint
+    - Gradient divider
+    - Font picker grid (8 fonts, 2 cols, each shows name + "Аа Бб 123" sample)
+    - Size slider with --range-progress CSS var + 8 preset buttons
+    - B/I/U toggle group (3 cols)
+    - Alignment group (3 cols: left/center/right)
+    - Letter spacing slider with --range-progress
+    - Color: 12 swatches (6 cols) + custom color input
+    - Hint card
+  * Footer: Cancel + Save/Add buttons (flex-1 each)
+  * animate-slide-down on panel, animate-fade-in on backdrop
+- Updated PdfCanvas.tsx:
+  * Renamed textModal → textSidebar state
+  * Renamed openTextModalForCreate → openTextSidebarForCreate
+  * Renamed openTextModalForEdit → openTextSidebarForEdit
+  * Renamed handleTextModalSave → handleTextSidebarSave
+  * TextModalData type → TextSidebarData
+  * Updated keyboard handlers to check textSidebar.open
+  * Replaced <TextEditModal onOpenChange> with <TextEditSidebar onClose>
+
+VERIFICATION:
+- Browser tested: login screen is light mode (pale mint bg, no dark toggle)
+- Upload zone: light mode
+- Text sidebar opens on canvas click with text tool active
+- Multiline text (3 lines) entered, Times New Roman + bold + center + red applied
+- Save → text appears on canvas with all styles
+- Double-click existing text → sidebar opens in edit mode with all styles loaded as active
+- Mobile (375px): sidebar is full-width, usable
+- Lint: exit 0 (clean)
+- Pushed to GitHub: commit 313f54b
+
+Stage Summary:
+- Dark theme completely removed (light only)
+- Text editor is now a left sidebar panel (not modal)
+- All text editing features preserved: multiline, fonts, size, B/I/U, align, letter spacing, colors
+- Mobile responsive (sidebar goes full-width on small screens)
+- Cleaner UX: sidebar doesn't block full screen, can see PDF while editing

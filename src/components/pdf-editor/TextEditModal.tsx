@@ -132,9 +132,9 @@ export default function TextEditModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-hidden p-0 gap-0 gradient-border">
+      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-hidden p-0 gap-0 border border-border/60 shadow-elevated">
         {/* Header with gradient accent */}
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/40 glass-strong">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/40 bg-card/50">
           <DialogTitle className="flex items-center gap-3 text-lg">
             <div className="relative">
               <div className="absolute inset-0 gradient-bg blur-md rounded-lg opacity-50" />
@@ -434,7 +434,7 @@ export default function TextEditModal({
         </div>
 
         {/* Footer */}
-        <DialogFooter className="px-6 py-4 border-t border-border/40 glass-strong flex-row justify-between items-center sm:justify-between">
+        <DialogFooter className="px-6 py-4 border-t border-border/40 bg-card/50 flex-row justify-between items-center sm:justify-between">
           <span className="text-[11px] text-muted-foreground hidden sm:inline font-medium">
             Изменения применятся к выбранному тексту на PDF
           </span>

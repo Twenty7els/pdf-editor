@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { usePdfEditorStore } from "@/store/pdf-editor-store";
 import PdfCanvas from "@/components/pdf-editor/PdfCanvas";
 import Toolbar from "@/components/pdf-editor/Toolbar";
+import LayersPanel from "@/components/pdf-editor/LayersPanel";
 import UploadZone from "@/components/pdf-editor/UploadZone";
 import { Button } from "@/components/ui/button";
 import {
@@ -165,6 +166,8 @@ export default function Home() {
     texts,
     erasers,
     pdfFileName,
+    currentPage,
+    totalPages,
     setPdfFile,
   } = usePdfEditorStore();
 
@@ -251,7 +254,7 @@ export default function Home() {
       };
 
       // Stamps
-      for (const stamp of stamps) {
+      for (const stamp of stamps.filter((s) => !s.hidden)) {
         try {
           const page = pdfDoc.getPage(stamp.page - 1);
           const { width: pageWidth, height: pageHeight } = page.getSize();
@@ -294,7 +297,7 @@ export default function Home() {
       }
 
       // Texts
-      for (const textItem of texts) {
+      for (const textItem of texts.filter((t) => !t.hidden)) {
         if (!textItem.text.trim()) continue;
 
         try {
@@ -384,7 +387,7 @@ export default function Home() {
       }
 
       // Erasers
-      for (const eraserItem of erasers) {
+      for (const eraserItem of erasers.filter((e) => !e.hidden)) {
         try {
           if (eraserItem.points.length === 0) continue;
 
@@ -505,9 +508,11 @@ export default function Home() {
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="p-0 w-72">
+              <SheetContent side="left" className="p-0 w-72 overflow-y-auto">
                 <SheetTitle className="sr-only">Панель инструментов</SheetTitle>
                 {toolbarContent}
+                <div className="h-px bg-gradient-to-r from-transparent via-border/40 to-transparent mx-4" />
+                <LayersPanel currentPage={currentPage} totalPages={totalPages} />
               </SheetContent>
             </Sheet>
           )}
@@ -575,6 +580,8 @@ export default function Home() {
         {pdfFile && (
           <aside className="hidden md:block w-72 border-r border-border/40 bg-card/20 overflow-y-auto shrink-0">
             {toolbarContent}
+            <div className="h-px bg-gradient-to-r from-transparent via-border/40 to-transparent mx-4" />
+            <LayersPanel currentPage={currentPage} totalPages={totalPages} />
           </aside>
         )}
 

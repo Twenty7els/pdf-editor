@@ -1005,7 +1005,7 @@ export default function PdfCanvas() {
                 height={canvasSize.height}
                 style={{ zIndex: 5 }}
               >
-                {pageErasers.map((eraserItem) => {
+                {pageErasers.filter((e) => !e.hidden).map((eraserItem) => {
                   const sx =
                     canvasSize.width /
                     (eraserItem.canvasWidth || canvasSize.width);
@@ -1052,7 +1052,7 @@ export default function PdfCanvas() {
                 )}
               </svg>
 
-              {pageStamps.map((stamp) => (
+              {pageStamps.filter((s) => !s.hidden).map((stamp) => (
                 <div
                   key={stamp.id}
                   className={`absolute ${
@@ -1082,7 +1082,7 @@ export default function PdfCanvas() {
                 </div>
               ))}
 
-              {pageTexts.map((textItem) => {
+              {pageTexts.filter((t) => !t.hidden).map((textItem) => {
                 const dispX = scaleToDisplay(textItem.x, textItem.canvasWidth);
                 const dispY = scaleToDisplayY(
                   textItem.y,

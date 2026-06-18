@@ -11,6 +11,7 @@ export interface StampItem {
   page: number;
   rotation: number;
   opacity: number;
+  hidden?: boolean;
   canvasWidth: number;  // overlay width at time of placement
   canvasHeight: number; // overlay height at time of placement
 }
@@ -32,6 +33,7 @@ export interface TextItem {
   align: TextAlign;
   letterSpacing: number; // in pixels (canvas space)
   rotation: number;
+  hidden?: boolean;
   canvasWidth: number;  // overlay width at time of placement
   canvasHeight: number; // overlay height at time of placement
 }
@@ -47,6 +49,7 @@ export interface EraserItem {
   strokeWidth: number;   // brush size
   color: string;         // usually white
   page: number;
+  hidden?: boolean;
   canvasWidth: number;
   canvasHeight: number;
 }
@@ -146,6 +149,7 @@ interface PdfEditorState {
   updateEraser: (id: string, updates: Partial<EraserItem>) => void;
   removeEraser: (id: string) => void;
   setSelectedItem: (id: string | null, type: "stamp" | "text" | "eraser" | null) => void;
+  toggleItemHidden: (id: string, type: "stamp" | "text" | "eraser") => void;
   setTextSettings: (settings: Partial<PdfEditorState["textSettings"]>) => void;
   setPresetText: (text: string | null) => void;
   setEraserSettings: (settings: Partial<PdfEditorState["eraserSettings"]>) => void;
@@ -279,6 +283,29 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
 
   setSelectedItem: (id, type) =>
     set({ selectedItemId: id, selectedItemType: type }),
+
+  toggleItemHidden: (id, type) =>
+    set((state) => {
+      if (type === "stamp") {
+        return {
+          stamps: state.stamps.map((s) =>
+            s.id === id ? { ...s, hidden: !s.hidden } : s
+          ),
+        };
+      }
+      if (type === "text") {
+        return {
+          texts: state.texts.map((t) =>
+            t.id === id ? { ...t, hidden: !t.hidden } : t
+          ),
+        };
+      }
+      return {
+        erasers: state.erasers.map((e) =>
+          e.id === id ? { ...e, hidden: !e.hidden } : e
+        ),
+      };
+    }),
 
   setTextSettings: (settings) =>
     set((state) => ({

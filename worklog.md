@@ -387,3 +387,106 @@ Stage Summary:
 - All text editing features preserved: multiline, fonts, size, B/I/U, align, letter spacing, colors
 - Mobile responsive (sidebar goes full-width on small screens)
 - Cleaner UX: sidebar doesn't block full screen, can see PDF while editing
+
+---
+Task ID: 8
+Agent: main
+Task: Add 6 features — undo/redo, duplicate, page thumbnails, page rotation, page deletion, export selection
+
+Work Log:
+- READ worklog + existing files: pdf-editor-store.ts, PdfCanvas.tsx, page.tsx, TextEditSidebar.tsx, LayersPanel.tsx, Toolbar.tsx, dialog.tsx, alert-dialog.tsx, radio-group.tsx, checkbox.tsx
+
+FEATURE 1 — Undo/Redo (Ctrl+Z / Ctrl+Y):
+- Store: added `HistorySnapshot` type { stamps, texts, erasers, pageRotations, deletedPages, selectedItemId, selectedItemType }
+- Store: added `past: HistorySnapshot[]` and `future: HistorySnapshot[]` (max 50 entries)
+- Store: added `snapshot()` helper that deep-copies stamps/texts/erasers (with eraser points), shallow-copies pageRotations/deletedPages
+- Store: modified mutations to push snapshot before changing state — addStamp, updateStamp, removeStamp, addText, updateText, removeText, addEraser, updateEraser, removeEraser, toggleItemHidden, rotatePage, deletePage, undeletePage, duplicateSelectedItem
+- Store: added `undo()` action — pops from past, pushes current to future, sets state to popped snapshot
+- Store: added `redo()` action — pops from future, pushes current to past, sets state to popped snapshot
+- Store: did NOT add history to UI state changes (setSelectedItem, setTextSettings, setPresetText, setEraserSettings, addCustomStamp, removeCustomStamp, setZoomLevel, setCurrentPage, setActiveTool, setExportPageSelection) — these are UI not document edits
+- PdfCanvas: added keyboard handler — Ctrl+Z = undo, Ctrl+Shift+Z or Ctrl+Y = redo. Skips if typing in input/textarea/select or if textSidebar is open
+- PdfCanvas: added Undo2/Redo2 buttons in bottom controls bar (between page nav and zoom), disabled state when past/future empty
+- Pulled `past` and `future` from store to drive button disabled state
+
+FEATURE 2 — Duplicate element (Ctrl+D):
+- Store: added `duplicateSelectedItem()` action — based on selectedItemType:
+  * stamp: copy with new id, x+20, y+20, same page
+  * text: copy with new id, x+20, y+20, same page
+  * eraser: copy with new id, all points shifted +20/+20, same page
+  * pushes history before duplicating, selects the new duplicate
+- PdfCanvas: extended undo/redo keyboard handler to also handle Ctrl+D — calls duplicateSelectedItem if there's a selection, skips if typing in input
+
+FEATURE 3 — Page thumbnails strip:
+- Created `src/components/pdf-editor/PageThumbnails.tsx`:
+  * Receives `pdfDoc` as prop from PdfCanvas (uses already-loaded PDF, doesn't reload)
+  * Vertical strip on LEFT side of canvas area, width 124px
+  * Renders thumbnail for each page via pdfjs getPage + getViewport at small scale (THUMB_WIDTH=96)
+  * Re-renders thumbnails when pageRotations change
+  * Current page highlighted with primary border + bg-primary/10 + shadow
+  * Deleted pages shown dimmed (opacity-50) + strikethrough diagonal line + "удалена" badge overlay
+  * Click thumbnail → setCurrentPage (or undeletePage if deleted)
+  * Rotation indicator (RotateCw icon + "{rotation}°") when page is rotated
+  * Hover actions per thumbnail: rotate page (RotateCw), delete page (Trash2); for deleted: restore (RotateCcw)
+  * Scrollable if many pages (overflow-y-auto)
+  * Loading spinner per thumbnail while rendering
+- Integrated into PdfCanvas layout — wrapped canvas area + bottom controls in:
+  `<div className="flex-1 flex min-h-0"><PageThumbnails pdfDoc={pdfDoc} /><div className="flex-1 flex flex-col min-h-0 min-w-0">...</div></div>`
+
+FEATURE 4 — Rotate PDF page:
+- Store: added `pageRotations: Record<number, number>` (page number → 0/90/180/270)
+- Store: added `rotatePage(pageNum)` action — increments rotation by 90, mod 360. Pushes history. If rotation returns to 0, removes the entry from the map
+- PdfCanvas renderPage: applies rotation via `page.getViewport({ scale, rotation: pageRotations[currentPage] || 0 })`
+- PdfCanvas bottom controls: added RotateCw button (rotates current page), disabled if page is deleted, title shows current rotation
+- page.tsx handleDownload: for each kept page, applies `page.setRotation(degrees((existing + userRotation) % 360))` before drawing items — adds user rotation on top of any existing intrinsic page rotation
+- Items on rotated pages: coordinate system stays the same (items positioned relative to canvas at time of placement); pdf-lib rotation flag handles visual rotation
+
+FEATURE 5 — Delete PDF page:
+- Store: added `deletedPages: number[]`
+- Store: added `deletePage(pageNum)` action — adds to deletedPages if not already there. Pushes history. If current page is deleted, moves to next non-deleted page (forward then backward search)
+- Store: added `undeletePage(pageNum)` action — removes from deletedPages. Pushes history.
+- PdfCanvas: if currentPage is in deletedPages, skips canvas rendering — shows "Страница {N} удалена" message with "Восстановить страницу" button
+- PdfCanvas bottom controls: added Trash2 button — opens AlertDialog confirmation "Удалить страницу {N}?" with Cancel/Delete actions
+- page.tsx handleDownload: removes deleted pages from PDF using `pdfDoc.removePage(idx)` — iterates indices from highest to lowest to avoid index shifting. Also skips items on deleted pages during draw.
+- PageThumbnails: deleted pages shown dimmed with strikethrough; click to undelete
+
+FEATURE 6 — Export page selection:
+- Store: added `exportPageSelection: number[] | null` (null = all pages, array = specific pages)
+- Store: added `setExportPageSelection(pages)` action
+- Created `src/components/pdf-editor/ExportDialog.tsx`:
+  * Dialog with gradient logo + Download icon
+  * RadioGroup: "Все страницы" vs "Выбранные страницы"
+  * If "selected": grid of page cards (3-5 cols responsive) with:
+    - Thumbnail preview (rendered via pdfjs with rotation applied)
+    - Page number with FileText icon
+    - Rotation indicator (RotateCw icon) if rotated
+    - Checkmark badge on selected pages
+    - Disabled state for deleted pages (opacity-40, "удалена" overlay)
+  * "Выбрать все" / "Очистить" quick actions
+  * Footer: active page count + Cancel/Export buttons
+  * On Export: saves selection to store, closes dialog, calls onExport (handleDownload) via setTimeout(0)
+  * Loads its own PDF instance from pdfArrayBuffer for thumbnail rendering (destroyed on close)
+- page.tsx: replaced direct handleDownload call with `setExportDialogOpen(true)` — Toolbar's onDownloadClick now opens the dialog
+- page.tsx handleDownload: if exportPageSelection !== null, only keeps those pages (in addition to skipping deleted pages). Builds keepSet, skips items on non-kept pages, removes non-kept pages from PDF
+- Toast shows exported page count + stamps/texts/erasers counts
+
+OTHER:
+- Cleaned up unused `setPageScale` action (was leftover from previous refactor)
+- Store: setPdfFile now resets pageRotations, deletedPages, exportPageSelection, past, future
+- Initial state includes new fields (pageRotations: {}, deletedPages: [], exportPageSelection: null, past: [], future: [])
+- AlertDialog shadcn component used for delete page confirmation
+- All new code is light theme only (no dark: classes)
+- Lint: exit 0 (clean, no warnings)
+- Dev log: clean, no errors
+- HTTP 200 on / verified
+
+Stage Summary:
+- All 6 features implemented: undo/redo, duplicate, page thumbnails, page rotation, page deletion, export selection
+- Store fully extended with history stack (max 50), pageRotations, deletedPages, exportPageSelection, and 5 new actions (undo, redo, duplicateSelectedItem, rotatePage, deletePage, undeletePage, setExportPageSelection)
+- All document-editing mutations now push history snapshots; UI state changes do not
+- 2 new components created: PageThumbnails, ExportDialog
+- PdfCanvas restructured to host thumbnails strip on left + canvas column on right
+- Bottom controls bar extended with Undo/Redo + Rotate Page + Delete Page buttons (between page nav and zoom)
+- handleDownload respects page rotations, deleted pages, and export selection
+- AlertDialog used for destructive delete-page confirmation
+- All keyboard shortcuts implemented: Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y, Ctrl+D, Delete, Backspace, Arrow keys
+- Light theme only, no dark: classes added

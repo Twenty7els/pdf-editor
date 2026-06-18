@@ -6,6 +6,7 @@ import PdfCanvas from "@/components/pdf-editor/PdfCanvas";
 import Toolbar from "@/components/pdf-editor/Toolbar";
 import LayersPanel from "@/components/pdf-editor/LayersPanel";
 import UploadZone from "@/components/pdf-editor/UploadZone";
+import ExportDialog from "@/components/pdf-editor/ExportDialog";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -175,6 +176,7 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated()) {
@@ -228,6 +230,31 @@ export default function Home() {
       const fontkit = (await import("@pdf-lib/fontkit")).default;
       pdfDoc.registerFontkit(fontkit);
 
+      // Read document-level state from store
+      const state = usePdfEditorStore.getState();
+      const { pageRotations, deletedPages, exportPageSelection } = state;
+
+      // Determine which pages (1-indexed) to keep in the export
+      const pageCount = pdfDoc.getPageCount();
+      const pagesToKeep: number[] = [];
+      for (let p = 1; p <= pageCount; p++) {
+        if (deletedPages.includes(p)) continue;
+        if (exportPageSelection !== null && !exportPageSelection.includes(p))
+          continue;
+        pagesToKeep.push(p);
+      }
+      const keepSet = new Set(pagesToKeep);
+
+      // Apply page rotations to kept pages BEFORE drawing items
+      for (const pageNum of pagesToKeep) {
+        const userRotation = pageRotations[pageNum] || 0;
+        if (userRotation !== 0) {
+          const page = pdfDoc.getPage(pageNum - 1);
+          const existing = page.getRotation().angle || 0;
+          page.setRotation(degrees((existing + userRotation) % 360));
+        }
+      }
+
       let unicodeFonts: {
         regular: unknown;
         bold: unknown;
@@ -253,8 +280,10 @@ export default function Home() {
         return unicodeFonts;
       };
 
-      // Stamps
-      for (const stamp of stamps.filter((s) => !s.hidden)) {
+      // Stamps — skip if page not in keepSet
+      for (const stamp of stamps.filter(
+        (s) => !s.hidden && keepSet.has(s.page)
+      )) {
         try {
           const page = pdfDoc.getPage(stamp.page - 1);
           const { width: pageWidth, height: pageHeight } = page.getSize();
@@ -304,8 +333,10 @@ export default function Home() {
         }
       }
 
-      // Texts
-      for (const textItem of texts.filter((t) => !t.hidden)) {
+      // Texts — skip if page not in keepSet
+      for (const textItem of texts.filter(
+        (t) => !t.hidden && keepSet.has(t.page)
+      )) {
         if (!textItem.text.trim()) continue;
 
         try {
@@ -408,8 +439,10 @@ export default function Home() {
         }
       }
 
-      // Erasers
-      for (const eraserItem of erasers.filter((e) => !e.hidden)) {
+      // Erasers — skip if page not in keepSet
+      for (const eraserItem of erasers.filter(
+        (e) => !e.hidden && keepSet.has(e.page)
+      )) {
         try {
           if (eraserItem.points.length === 0) continue;
 
@@ -459,6 +492,22 @@ export default function Home() {
         }
       }
 
+      // Remove pages that are not in keepSet (deleted or not selected for export)
+      // Iterate from the highest index to the lowest to avoid shifting issues.
+      const indicesToRemove: number[] = [];
+      for (let i = 0; i < pageCount; i++) {
+        if (!keepSet.has(i + 1)) indicesToRemove.push(i);
+      }
+      // Sort descending so removal doesn't shift subsequent indices
+      indicesToRemove.sort((a, b) => b - a);
+      for (const idx of indicesToRemove) {
+        try {
+          pdfDoc.removePage(idx);
+        } catch (err) {
+          console.error(`Error removing page ${idx + 1}:`, err);
+        }
+      }
+
       const modifiedPdfBytes = await pdfDoc.save();
       const blob = new Blob([modifiedPdfBytes], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
@@ -475,8 +524,9 @@ export default function Home() {
       setTimeout(() => URL.revokeObjectURL(url), 5000);
 
       toast.dismiss(loadingToast);
+      const exportedCount = pagesToKeep.length;
       toast.success("PDF сохранён!", {
-        description: `${stamps.length} печатей · ${texts.length} текстов · ${erasers.length} мазков`,
+        description: `${exportedCount} стр. · ${stamps.length} печатей · ${texts.length} текстов · ${erasers.length} мазков`,
       });
     } catch (error) {
       toast.dismiss(loadingToast);
@@ -503,7 +553,7 @@ export default function Home() {
         setSidebarOpen(false);
       }}
       onDownloadClick={() => {
-        handleDownload();
+        setExportDialogOpen(true);
         setSidebarOpen(false);
       }}
       isDownloading={isDownloading}
@@ -624,6 +674,13 @@ export default function Home() {
         accept=".pdf,application/pdf"
         onChange={handleFileChange}
         className="hidden"
+      />
+
+      {/* Export dialog */}
+      <ExportDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        onExport={handleDownload}
       />
     </div>
   );

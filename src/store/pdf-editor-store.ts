@@ -62,6 +62,17 @@ export interface CustomStamp {
   dataUrl: string; // base64 data URL of the uploaded image
 }
 
+// History snapshot — captures all document state for undo/redo
+export interface HistorySnapshot {
+  stamps: StampItem[];
+  texts: TextItem[];
+  erasers: EraserItem[];
+  pageRotations: Record<number, number>;
+  deletedPages: number[];
+  selectedItemId: string | null;
+  selectedItemType: "stamp" | "text" | "eraser" | null;
+}
+
 // Available fonts for text tool
 // Each font has: name (display), css (for canvas rendering), pdfLib (for StandardFonts mapping)
 export const AVAILABLE_FONTS = [
@@ -80,6 +91,21 @@ export function getFontCss(fontId: string): string {
   const font = AVAILABLE_FONTS.find((f) => f.id === fontId);
   return font ? font.css : "Arial, Helvetica, sans-serif";
 }
+
+// Helper to create a history snapshot from current state
+function snapshot(s: PdfEditorState): HistorySnapshot {
+  return {
+    stamps: s.stamps.map((st) => ({ ...st })),
+    texts: s.texts.map((t) => ({ ...t })),
+    erasers: s.erasers.map((e) => ({ ...e, points: e.points.map((p) => ({ ...p })) })),
+    pageRotations: { ...s.pageRotations },
+    deletedPages: [...s.deletedPages],
+    selectedItemId: s.selectedItemId,
+    selectedItemType: s.selectedItemType,
+  };
+}
+
+const MAX_HISTORY = 50;
 
 interface PdfEditorState {
   // PDF file
@@ -103,6 +129,17 @@ interface PdfEditorState {
   // Selected item for editing
   selectedItemId: string | null;
   selectedItemType: "stamp" | "text" | "eraser" | null;
+
+  // Page rotations (page number → 0/90/180/270)
+  pageRotations: Record<number, number>;
+  // Deleted page numbers
+  deletedPages: number[];
+  // Export selection — null = all pages, array = specific pages
+  exportPageSelection: number[] | null;
+
+  // History stacks
+  past: HistorySnapshot[];
+  future: HistorySnapshot[];
 
   // Text tool settings (defaults for new text)
   textSettings: {
@@ -155,6 +192,17 @@ interface PdfEditorState {
   setEraserSettings: (settings: Partial<PdfEditorState["eraserSettings"]>) => void;
   addCustomStamp: (stamp: CustomStamp) => void;
   removeCustomStamp: (id: string) => void;
+  // Page-level actions (history-tracked)
+  rotatePage: (pageNum: number) => void;
+  deletePage: (pageNum: number) => void;
+  undeletePage: (pageNum: number) => void;
+  // Selection-only actions (history-tracked)
+  duplicateSelectedItem: () => void;
+  // Undo/redo
+  undo: () => void;
+  redo: () => void;
+  // Export selection
+  setExportPageSelection: (pages: number[] | null) => void;
   reset: () => void;
 }
 
@@ -177,6 +225,11 @@ const initialState = {
   erasers: [],
   selectedItemId: null,
   selectedItemType: null as "stamp" | "text" | "eraser" | null,
+  pageRotations: {} as Record<number, number>,
+  deletedPages: [] as number[],
+  exportPageSelection: null as number[] | null,
+  past: [] as HistorySnapshot[],
+  future: [] as HistorySnapshot[],
   textSettings: {
     fontSize: 14,
     color: "#000000",
@@ -209,12 +262,16 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
       selectedItemType: null,
       currentPage: 1,
       zoomLevel: 1.0,
+      pageRotations: {},
+      deletedPages: [],
+      exportPageSelection: null,
+      past: [],
+      future: [],
     }),
 
   setPdfArrayBuffer: (buffer) => set({ pdfArrayBuffer: buffer }),
   setTotalPages: (pages) => set({ totalPages: pages }),
   setCurrentPage: (page) => set({ currentPage: page }),
-  setPageScale: (scale) => set({ pageScale: scale }),
   setZoomLevel: (zoom) =>
     set({ zoomLevel: Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom)) }),
   zoomIn: () =>
@@ -228,66 +285,127 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
     set({ selectedStampType: type, selectedStampSrc: src, activeTool: "stamp" }),
 
   addStamp: (stamp) =>
-    set((state) => ({ stamps: [...state.stamps, stamp] })),
+    set((state) => {
+      const snap = snapshot(state);
+      return {
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        stamps: [...state.stamps, stamp],
+      };
+    }),
 
   updateStamp: (id, updates) =>
-    set((state) => ({
-      stamps: state.stamps.map((s) =>
-        s.id === id ? { ...s, ...updates } : s
-      ),
-    })),
+    set((state) => {
+      // Only push history if any stamp actually changes
+      const target = state.stamps.find((s) => s.id === id);
+      if (!target) return state;
+      const snap = snapshot(state);
+      return {
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        stamps: state.stamps.map((s) =>
+          s.id === id ? { ...s, ...updates } : s
+        ),
+      };
+    }),
 
   removeStamp: (id) =>
-    set((state) => ({
-      stamps: state.stamps.filter((s) => s.id !== id),
-      selectedItemId: state.selectedItemId === id ? null : state.selectedItemId,
-      selectedItemType:
-        state.selectedItemId === id ? null : state.selectedItemType,
-    })),
+    set((state) => {
+      const snap = snapshot(state);
+      return {
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        stamps: state.stamps.filter((s) => s.id !== id),
+        selectedItemId: state.selectedItemId === id ? null : state.selectedItemId,
+        selectedItemType:
+          state.selectedItemId === id ? null : state.selectedItemType,
+      };
+    }),
 
   addText: (text) =>
-    set((state) => ({ texts: [...state.texts, text] })),
+    set((state) => {
+      const snap = snapshot(state);
+      return {
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        texts: [...state.texts, text],
+      };
+    }),
 
   updateText: (id, updates) =>
-    set((state) => ({
-      texts: state.texts.map((t) =>
-        t.id === id ? { ...t, ...updates } : t
-      ),
-    })),
+    set((state) => {
+      const target = state.texts.find((t) => t.id === id);
+      if (!target) return state;
+      const snap = snapshot(state);
+      return {
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        texts: state.texts.map((t) =>
+          t.id === id ? { ...t, ...updates } : t
+        ),
+      };
+    }),
 
   removeText: (id) =>
-    set((state) => ({
-      texts: state.texts.filter((t) => t.id !== id),
-      selectedItemId: state.selectedItemId === id ? null : state.selectedItemId,
-      selectedItemType:
-        state.selectedItemId === id ? null : state.selectedItemType,
-    })),
+    set((state) => {
+      const snap = snapshot(state);
+      return {
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        texts: state.texts.filter((t) => t.id !== id),
+        selectedItemId: state.selectedItemId === id ? null : state.selectedItemId,
+        selectedItemType:
+          state.selectedItemId === id ? null : state.selectedItemType,
+      };
+    }),
 
   addEraser: (eraser) =>
-    set((state) => ({ erasers: [...state.erasers, eraser] })),
+    set((state) => {
+      const snap = snapshot(state);
+      return {
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        erasers: [...state.erasers, eraser],
+      };
+    }),
 
   updateEraser: (id, updates) =>
-    set((state) => ({
-      erasers: state.erasers.map((e) =>
-        e.id === id ? { ...e, ...updates } : e
-      ),
-    })),
+    set((state) => {
+      const target = state.erasers.find((e) => e.id === id);
+      if (!target) return state;
+      const snap = snapshot(state);
+      return {
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        erasers: state.erasers.map((e) =>
+          e.id === id ? { ...e, ...updates } : e
+        ),
+      };
+    }),
 
   removeEraser: (id) =>
-    set((state) => ({
-      erasers: state.erasers.filter((e) => e.id !== id),
-      selectedItemId: state.selectedItemId === id ? null : state.selectedItemId,
-      selectedItemType:
-        state.selectedItemId === id ? null : state.selectedItemType,
-    })),
+    set((state) => {
+      const snap = snapshot(state);
+      return {
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        erasers: state.erasers.filter((e) => e.id !== id),
+        selectedItemId: state.selectedItemId === id ? null : state.selectedItemId,
+        selectedItemType:
+          state.selectedItemId === id ? null : state.selectedItemType,
+      };
+    }),
 
   setSelectedItem: (id, type) =>
     set({ selectedItemId: id, selectedItemType: type }),
 
   toggleItemHidden: (id, type) =>
     set((state) => {
+      const snap = snapshot(state);
       if (type === "stamp") {
         return {
+          past: [...state.past, snap].slice(-MAX_HISTORY),
+          future: [],
           stamps: state.stamps.map((s) =>
             s.id === id ? { ...s, hidden: !s.hidden } : s
           ),
@@ -295,12 +413,16 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
       }
       if (type === "text") {
         return {
+          past: [...state.past, snap].slice(-MAX_HISTORY),
+          future: [],
           texts: state.texts.map((t) =>
             t.id === id ? { ...t, hidden: !t.hidden } : t
           ),
         };
       }
       return {
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
         erasers: state.erasers.map((e) =>
           e.id === id ? { ...e, hidden: !e.hidden } : e
         ),
@@ -326,6 +448,142 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
     set((state) => ({
       customStamps: state.customStamps.filter((s) => s.id !== id),
     })),
+
+  rotatePage: (pageNum) =>
+    set((state) => {
+      const snap = snapshot(state);
+      const current = state.pageRotations[pageNum] || 0;
+      const next = (current + 90) % 360;
+      const newRotations = { ...state.pageRotations };
+      if (next === 0) {
+        delete newRotations[pageNum];
+      } else {
+        newRotations[pageNum] = next;
+      }
+      return {
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        pageRotations: newRotations,
+      };
+    }),
+
+  deletePage: (pageNum) =>
+    set((state) => {
+      if (state.deletedPages.includes(pageNum)) return state;
+      const snap = snapshot(state);
+      const newDeleted = [...state.deletedPages, pageNum];
+      // If current page is deleted, move to next non-deleted page
+      let newCurrent = state.currentPage;
+      if (state.currentPage === pageNum) {
+        const totalPages = state.totalPages;
+        let next = state.currentPage + 1;
+        while (next <= totalPages && newDeleted.includes(next)) next++;
+        if (next > totalPages) {
+          // try previous
+          next = state.currentPage - 1;
+          while (next >= 1 && newDeleted.includes(next)) next--;
+          if (next < 1) next = 1;
+        }
+        newCurrent = Math.max(1, next);
+      }
+      return {
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        deletedPages: newDeleted,
+        currentPage: newCurrent,
+      };
+    }),
+
+  undeletePage: (pageNum) =>
+    set((state) => {
+      if (!state.deletedPages.includes(pageNum)) return state;
+      const snap = snapshot(state);
+      return {
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        deletedPages: state.deletedPages.filter((p) => p !== pageNum),
+      };
+    }),
+
+  duplicateSelectedItem: () => {
+    const state = get();
+    if (!state.selectedItemId || !state.selectedItemType) return;
+    const snap = snapshot(state);
+    const newId = (prefix: string) =>
+      `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    if (state.selectedItemType === "stamp") {
+      const orig = state.stamps.find((s) => s.id === state.selectedItemId);
+      if (!orig) return;
+      const copy: StampItem = {
+        ...orig,
+        id: newId("stamp"),
+        x: orig.x + 20,
+        y: orig.y + 20,
+      };
+      set({
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        stamps: [...state.stamps, copy],
+        selectedItemId: copy.id,
+      });
+    } else if (state.selectedItemType === "text") {
+      const orig = state.texts.find((t) => t.id === state.selectedItemId);
+      if (!orig) return;
+      const copy: TextItem = {
+        ...orig,
+        id: newId("text"),
+        x: orig.x + 20,
+        y: orig.y + 20,
+      };
+      set({
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        texts: [...state.texts, copy],
+        selectedItemId: copy.id,
+      });
+    } else if (state.selectedItemType === "eraser") {
+      const orig = state.erasers.find((e) => e.id === state.selectedItemId);
+      if (!orig) return;
+      const copy: EraserItem = {
+        ...orig,
+        id: newId("eraser"),
+        points: orig.points.map((p) => ({ x: p.x + 20, y: p.y + 20 })),
+      };
+      set({
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        erasers: [...state.erasers, copy],
+        selectedItemId: copy.id,
+      });
+    }
+  },
+
+  undo: () =>
+    set((state) => {
+      if (state.past.length === 0) return state;
+      const previous = state.past[state.past.length - 1];
+      const current = snapshot(state);
+      return {
+        ...previous,
+        past: state.past.slice(0, -1),
+        future: [...state.future, current],
+      };
+    }),
+
+  redo: () =>
+    set((state) => {
+      if (state.future.length === 0) return state;
+      const next = state.future[state.future.length - 1];
+      const current = snapshot(state);
+      return {
+        ...next,
+        past: [...state.past, current],
+        future: state.future.slice(0, -1),
+      };
+    }),
+
+  setExportPageSelection: (pages) => set({ exportPageSelection: pages }),
 
   reset: () => set(initialState),
 }));

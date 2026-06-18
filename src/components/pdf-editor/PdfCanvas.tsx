@@ -31,9 +31,22 @@ import {
   FileText,
   PencilLine,
   Type,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import TextEditSidebar, { type TextSidebarData } from "./TextEditSidebar";
+import PageThumbnails from "./PageThumbnails";
 
 type DragMode = "move" | "resize" | "rotate" | null;
 
@@ -118,6 +131,15 @@ export default function PdfCanvas() {
     eraserSettings,
     setEraserSettings,
     presetText,
+    pageRotations,
+    deletedPages,
+    undo,
+    redo,
+    duplicateSelectedItem,
+    rotatePage,
+    deletePage,
+    past,
+    future,
   } = usePdfEditorStore();
 
   // Scale stored overlay coordinates → current display coordinates
@@ -154,6 +176,11 @@ export default function PdfCanvas() {
     pendingPos: null,
     initialData: null,
   });
+
+  // Delete page confirmation dialog
+  const [deletePageDialogOpen, setDeletePageDialogOpen] = useState(false);
+
+  const isCurrentPageDeleted = deletedPages.includes(currentPage);
 
   const openTextSidebarForCreate = useCallback(
     (pos: { x: number; y: number; canvasWidth: number; canvasHeight: number }) => {
@@ -347,7 +374,8 @@ export default function PdfCanvas() {
       }
       // Real PDF scale: 1.0 = 100% (1pt → 1px). No fit-to-container scaling.
       const scale = zoomLevel;
-      const scaledViewport = page.getViewport({ scale });
+      const rotation = pageRotations[currentPage] || 0;
+      const scaledViewport = page.getViewport({ scale, rotation });
       const canvas = canvasRef.current;
       const context = canvas.getContext("2d");
       if (!context) {
@@ -375,7 +403,7 @@ export default function PdfCanvas() {
     } finally {
       renderingRef.current = false;
     }
-  }, [pdfDoc, currentPage, zoomLevel]);
+  }, [pdfDoc, currentPage, zoomLevel, pageRotations]);
 
   // Initial render + delayed re-render
   useEffect(() => {
@@ -808,6 +836,40 @@ export default function PdfCanvas() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedItemId, selectedItemType, textSidebar.open, setSelectedItem]);
 
+  // Undo / Redo / Duplicate keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (textSidebar.open) return;
+      const target = e.target as HTMLElement;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement
+      )
+        return;
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl) return;
+      const key = e.key.toLowerCase();
+      // Ctrl+Z = undo, Ctrl+Shift+Z or Ctrl+Y = redo
+      if (key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        usePdfEditorStore.getState().undo();
+      } else if ((key === "z" && e.shiftKey) || key === "y") {
+        e.preventDefault();
+        usePdfEditorStore.getState().redo();
+      } else if (key === "d") {
+        // Duplicate selected
+        const st = usePdfEditorStore.getState();
+        if (st.selectedItemId && st.selectedItemType) {
+          e.preventDefault();
+          st.duplicateSelectedItem();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [textSidebar.open]);
+
   // Keyboard arrow for pages
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -972,8 +1034,17 @@ export default function PdfCanvas() {
         </div>
       )}
 
-      {/* Canvas area */}
-      <div className="flex-1 flex items-center justify-center p-5 overflow-auto">
+      {/* Main content row: thumbnails + canvas */}
+      <div className="flex-1 flex min-h-0">
+        {/* Page thumbnails strip */}
+        {pdfDoc && !error && !isLoading && (
+          <PageThumbnails pdfDoc={pdfDoc} />
+        )}
+
+        {/* Canvas + bottom controls column */}
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">
+          {/* Canvas area */}
+          <div className="flex-1 flex items-center justify-center p-5 overflow-auto">
         {error && (
           <div className="text-center p-8 animate-fade-in">
             <div className="relative h-16 w-16 mx-auto mb-5">
@@ -997,7 +1068,32 @@ export default function PdfCanvas() {
           </div>
         )}
 
-        {pdfDoc && !error && !isLoading && (
+        {pdfDoc && !error && !isLoading && isCurrentPageDeleted && (
+          <div className="text-center p-8 animate-fade-in">
+            <div className="relative h-16 w-16 mx-auto mb-5">
+              <div className="relative h-16 w-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                <AlertTriangle className="h-8 w-8 text-amber-600" strokeWidth={2} />
+              </div>
+            </div>
+            <div className="font-display text-lg font-semibold mb-2">
+              Страница {currentPage} удалена
+            </div>
+            <p className="text-muted-foreground text-sm mb-4">
+              Она будет исключена из экспортируемого PDF
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => usePdfEditorStore.getState().undeletePage(currentPage)}
+              className="gap-1.5 rounded-xl"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Восстановить страницу
+            </Button>
+          </div>
+        )}
+
+        {pdfDoc && !error && !isLoading && !isCurrentPageDeleted && (
           <div className="relative shadow-elevated border border-border/60 rounded-xl overflow-hidden bg-background">
             <canvas ref={canvasRef} className="block" />
 
@@ -1210,6 +1306,111 @@ export default function PdfCanvas() {
             </div>
           </div>
         )}
+          </div>
+
+          {/* Bottom center controls */}
+          {pdfDoc && !error && !isLoading && (
+            <div className="flex justify-center pb-3 px-4 pt-1">
+              <div className="flex items-center gap-1 glass-strong gradient-border rounded-full shadow-elevated px-2 py-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full hover:bg-accent"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage <= 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex items-center gap-1.5 px-2">
+                  <FileText className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs font-semibold tabular-nums min-w-[60px] text-center select-none">
+                    {currentPage} / {totalPages}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full hover:bg-accent"
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage >= totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <div className="w-px h-5 bg-border/60 mx-1" />
+                {/* Undo / Redo */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full hover:bg-accent"
+                  onClick={undo}
+                  disabled={past.length === 0}
+                  title="Отменить (Ctrl+Z)"
+                >
+                  <Undo2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full hover:bg-accent"
+                  onClick={redo}
+                  disabled={future.length === 0}
+                  title="Повторить (Ctrl+Y)"
+                >
+                  <Redo2 className="h-4 w-4" />
+                </Button>
+                <div className="w-px h-5 bg-border/60 mx-1" />
+                {/* Rotate page */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full hover:bg-accent"
+                  onClick={() => rotatePage(currentPage)}
+                  disabled={isCurrentPageDeleted}
+                  title={`Повернуть страницу (текущий: ${pageRotations[currentPage] || 0}°)`}
+                >
+                  <RotateCw className="h-4 w-4" />
+                </Button>
+                {/* Delete page */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
+                  onClick={() => setDeletePageDialogOpen(true)}
+                  disabled={isCurrentPageDeleted}
+                  title="Удалить страницу"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+                <div className="w-px h-5 bg-border/60 mx-1" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full hover:bg-accent"
+                  onClick={zoomOut}
+                  disabled={zoomLevel <= 0.25}
+                >
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <button
+                  className="text-xs font-semibold tabular-nums min-w-[52px] text-center hover:bg-accent rounded-full py-1 px-2 transition-colors select-none"
+                  onClick={zoomFit}
+                  title="Сбросить до 100%"
+                >
+                  {zoomPercent}%
+                </button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full hover:bg-accent"
+                  onClick={zoomIn}
+                  disabled={zoomLevel >= 5.0}
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Floating properties bar */}
@@ -1645,63 +1846,34 @@ export default function PdfCanvas() {
         onSave={handleTextSidebarSave}
       />
 
-      {/* Bottom center controls */}
-      {pdfDoc && !error && !isLoading && (
-        <div className="flex justify-center pb-3 px-4">
-          <div className="flex items-center gap-1 glass-strong gradient-border rounded-full shadow-elevated px-2 py-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-full hover:bg-accent"
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage <= 1}
+      {/* Delete page confirmation dialog */}
+      <AlertDialog
+        open={deletePageDialogOpen}
+        onOpenChange={setDeletePageDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить страницу {currentPage}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Страница будет исключена из экспортируемого PDF. Вы можете
+              восстановить её позже из панели миниатюр или отменить действие
+              (Ctrl+Z).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                deletePage(currentPage);
+                setDeletePageDialogOpen(false);
+              }}
             >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="flex items-center gap-1.5 px-2">
-              <FileText className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs font-semibold tabular-nums min-w-[60px] text-center select-none">
-                {currentPage} / {totalPages}
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-full hover:bg-accent"
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage >= totalPages}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <div className="w-px h-5 bg-border/60 mx-1" />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-full hover:bg-accent"
-              onClick={zoomOut}
-              disabled={zoomLevel <= 0.25}
-            >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-            <button
-              className="text-xs font-semibold tabular-nums min-w-[52px] text-center hover:bg-accent rounded-full py-1 px-2 transition-colors select-none"
-              onClick={zoomFit}
-              title="Сбросить до 100%"
-            >
-              {zoomPercent}%
-            </button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-full hover:bg-accent"
-              onClick={zoomIn}
-              disabled={zoomLevel >= 5.0}
-            >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

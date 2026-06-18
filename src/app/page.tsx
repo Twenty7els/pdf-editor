@@ -267,6 +267,14 @@ export default function Home() {
           const pdfWidth = (stamp.width / cw) * pageWidth;
           const pdfHeight = (stamp.height / ch) * pageHeight;
 
+          // Compensate rotation: pdf-lib rotates around (x, y) = bottom-left corner,
+          // but canvas rotates around center. Adjust (x, y) so center stays in place.
+          const rad = (stamp.rotation * Math.PI) / 180;
+          const cx = pdfX + pdfWidth / 2;
+          const cy = pdfY + pdfHeight / 2;
+          const adjX = cx - (pdfWidth / 2) * Math.cos(rad) + (pdfHeight / 2) * Math.sin(rad);
+          const adjY = cy - (pdfWidth / 2) * Math.sin(rad) - (pdfHeight / 2) * Math.cos(rad);
+
           const response = await fetch(stamp.src);
           const imageArrayBuffer = await response.arrayBuffer();
           const imageBytes = new Uint8Array(imageArrayBuffer);
@@ -284,8 +292,8 @@ export default function Home() {
           }
 
           page.drawImage(image, {
-            x: pdfX,
-            y: pdfY,
+            x: adjX,
+            y: adjY,
             width: pdfWidth,
             height: pdfHeight,
             rotate: degrees(stamp.rotation),
@@ -353,9 +361,23 @@ export default function Home() {
               linePdfX = basePdfX;
             }
 
+            // Compensate rotation for text (pdf-lib rotates around baseline-left,
+            // canvas rotates around center). Adjust (x, y) so center stays in place.
+            const textRad = (textItem.rotation * Math.PI) / 180;
+            const lineCenterX = linePdfX + lineWidth / 2;
+            const lineCenterY = lineBaselinePdfY + scaledFontSize / 2;
+            const textAdjX =
+              lineCenterX -
+              (lineWidth / 2) * Math.cos(textRad) +
+              (scaledFontSize / 2) * Math.sin(textRad);
+            const textAdjY =
+              lineCenterY -
+              (lineWidth / 2) * Math.sin(textRad) -
+              (scaledFontSize / 2) * Math.cos(textRad);
+
             page.drawText(line, {
-              x: linePdfX,
-              y: lineBaselinePdfY,
+              x: textAdjX,
+              y: textAdjY,
               size: scaledFontSize,
               font,
               color: pdfColor,
@@ -370,9 +392,9 @@ export default function Home() {
                 0.5,
                 scaledFontSize / 18
               );
-              const underlineY = lineBaselinePdfY - scaledFontSize * 0.12;
+              const underlineY = textAdjY - scaledFontSize * 0.12;
               page.drawRectangle({
-                x: linePdfX,
+                x: textAdjX,
                 y: underlineY,
                 width: lineWidth,
                 height: underlineThickness,

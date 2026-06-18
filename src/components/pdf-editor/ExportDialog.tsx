@@ -190,13 +190,15 @@ export default function ExportDialog({
             className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4"
           >
             <label
-              className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
-                mode === "all"
+              onClick={() => setMode("all")}
+              className={
+                "flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all " +
+                (mode === "all"
                   ? "border-primary bg-primary/10 shadow-soft"
-                  : "border-border/60 hover:border-primary/40 hover:bg-accent/30"
-              }`}
+                  : "border-border/60 hover:border-primary/40 hover:bg-accent/30")
+              }
             >
-              <RadioGroupItem value="all" className="mt-0.5" />
+              <RadioGroupItem value="all" checked={mode === "all"} className="mt-0.5" />
               <div>
                 <div className="text-sm font-semibold">Все страницы</div>
                 <div className="text-[11px] text-muted-foreground mt-0.5">
@@ -205,13 +207,15 @@ export default function ExportDialog({
               </div>
             </label>
             <label
-              className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
-                mode === "selected"
+              onClick={() => setMode("selected")}
+              className={
+                "flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all " +
+                (mode === "selected"
                   ? "border-primary bg-primary/10 shadow-soft"
-                  : "border-border/60 hover:border-primary/40 hover:bg-accent/30"
-              }`}
+                  : "border-border/60 hover:border-primary/40 hover:bg-accent/30")
+              }
             >
-              <RadioGroupItem value="selected" className="mt-0.5" />
+              <RadioGroupItem value="selected" checked={mode === "selected"} className="mt-0.5" />
               <div>
                 <div className="text-sm font-semibold">Выбранные страницы</div>
                 <div className="text-[11px] text-muted-foreground mt-0.5">

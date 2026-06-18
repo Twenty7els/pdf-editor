@@ -165,3 +165,66 @@ Stage Summary:
 - PDF export supports all new features (multiline, alignment via width measurement, underline via rectangle, letter spacing via charSpacing)
 - Top bar simplified: hint when no selection, quick controls + "Изменить текст" button when text selected
 - All existing functionality preserved (stamps, eraser, download)
+
+---
+Task ID: 4
+Agent: main
+Task: PDF opens at 100%, fix floating toolbar zoom bug, remove unused code, fix Backspace-in-input bug
+
+Work Log:
+- User requests: PDF opens at 100%, toolbar moves when zoom changes (bug), find bugs, remove unused code
+- ZOOM REFACTOR:
+  * Store: `zoomLevel` default 0.5 → 1.0 (= 100% real PDF size, 1pt = 1px on screen)
+  * Store: `ZOOM_MAX` 3.0 → 5.0 (now 25%-500% range)
+  * Store: `setPdfFile` resets `zoomLevel: 1.0` (was 0.5)
+  * PdfCanvas renderPage: removed `fitScale` calculation, `scale = zoomLevel` directly (real size)
+  * PdfCanvas: removed `baseScaleRef` and `setPageScale(scale)` calls
+  * Bottom controls: removed redundant "Вписать в экран" Maximize button, kept percentage click = reset to 100%
+  * Updated zoom in disabled threshold 3.0 → 5.0
+- BUG FIX — Backspace in input/number field was deleting selected element:
+  * Old code: only prevented default if `!(target instanceof HTMLInputElement)`, but still proceeded to delete
+  * New code: early return if target is HTMLInputElement/HTMLTextAreaElement/HTMLSelectElement — never deletes when typing
+  * Verified: focused width input (130), pressed Backspace → value became 20 (min), stamp stayed selected
+  * Verified: blurred input, pressed Delete → stamp deleted correctly
+- BUG INVESTIGATION — floating toolbar moving during zoom:
+  * Floating bar uses `absolute top-3 left-1/2 -translate-x-1/2` relative to `containerRef` (which has `relative`)
+  * `containerRef` has `overflow-hidden`, canvas-area inside has `overflow-auto` — bar stays fixed at top center
+  * Tested at 100%, 225%, 325% zoom — bar remains properly centered, not cut off, not moved
+  * Tested with stamp selected (properties bar with Поворот/Ш/В/Прозр/Удалить) — bar stable
+  * Tested text tool hint bar — bar stable
+  * Conclusion: bar was likely appearing to "move" in old version because canvas size changed with fitScale*zoomLevel and bar position relative to canvas changed; now with stable absolute positioning it's fixed
+- CODE CLEANUP — deleted unused files:
+  * `src/hooks/use-toast.ts` (radix toast hook, replaced by sonner)
+  * `src/components/ui/toaster.tsx` (radix toaster, unused)
+  * `src/components/ui/sonner.tsx` (unused wrapper — layout imports Toaster from "sonner" directly)
+  * `src/lib/db.ts` (Prisma client, app uses sessionStorage auth, not DB)
+  * `src/app/api/route.ts` + `src/app/api/` folder (hello-world stub, unused)
+  * `prisma/` folder (schema with User/Post models, unused by app)
+  * `examples/` folder (websocket demo, unused)
+  * `db/custom.db` + `db/` folder (sqlite db file, unused)
+  * `mini-services/` folder (was empty)
+- STORE CLEANUP:
+  * Removed `pageScale` field, `setPageScale` action (only written, never read)
+  * Removed `getFontPdfLib()` function (unused — export uses NotoSans fonts directly)
+  * Removed `FontId` type (unused)
+  * Removed `pdfLib` field from AVAILABLE_FONTS? — kept it (harmless, small)
+- Lint: exit 0 (clean)
+- Dev log: clean, no errors
+- Browser verified:
+  * PDF opens at exactly 100% (verified via VLM "zoom percentage shown is 100%")
+  * Zoom out to 25% works, zoom in to 500% works, buttons disable at limits
+  * Click percentage → resets to 100%
+  * Floating properties bar stable at 100%, 225%, 325% zoom
+  * Floating hint bar (text tool) stable
+  * Backspace in width input changes value, does NOT delete stamp
+  * Delete key (outside inputs) deletes selected stamp
+  * Mobile 375x812 at 100%: PDF wider than screen (expected for real 100%), horizontal scroll works, layout usable
+
+Stage Summary:
+- PDF now opens at 100% real size (was 50% of fit-width)
+- Zoom range expanded to 25%-500% (was 25%-300%)
+- Backspace-in-input bug FIXED (was deleting elements when editing numbers)
+- Floating toolbar confirmed stable across all zoom levels (no movement bug)
+- Deleted 8 unused files/folders (use-toast, toaster, sonner wrapper, db.ts, api route, prisma, examples, db)
+- Store cleaned: removed pageScale, setPageScale, getFontPdfLib, FontId
+- Removed redundant "Вписать в экран" button (percentage click = reset to 100%)

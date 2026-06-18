@@ -72,18 +72,10 @@ export const AVAILABLE_FONTS = [
   { id: "Impact", name: "Impact", css: "Impact, Charcoal, sans-serif", pdfLib: "Helvetica" },
 ] as const;
 
-export type FontId = (typeof AVAILABLE_FONTS)[number]["id"];
-
 // Map font ID to css font-family string
 export function getFontCss(fontId: string): string {
   const font = AVAILABLE_FONTS.find((f) => f.id === fontId);
   return font ? font.css : "Arial, Helvetica, sans-serif";
-}
-
-// Map font ID to pdf-lib StandardFonts font name
-export function getFontPdfLib(fontId: string): string {
-  const font = AVAILABLE_FONTS.find((f) => f.id === fontId);
-  return font ? font.pdfLib : "Helvetica";
 }
 
 interface PdfEditorState {
@@ -93,8 +85,7 @@ interface PdfEditorState {
   pdfFileName: string;
   totalPages: number;
   currentPage: number;
-  pageScale: number; // auto-calculated scale from zoom
-  zoomLevel: number; // user zoom: 0.5 = 50%, 1 = fit, 1.5 = 150%, etc.
+  zoomLevel: number; // 1.0 = 100% (real PDF size, 1pt = 1px)
 
   // Tool state
   activeTool: ToolMode;
@@ -139,7 +130,6 @@ interface PdfEditorState {
   setPdfArrayBuffer: (buffer: ArrayBuffer | null) => void;
   setTotalPages: (pages: number) => void;
   setCurrentPage: (page: number) => void;
-  setPageScale: (scale: number) => void;
   setZoomLevel: (zoom: number) => void;
   zoomIn: () => void;
   zoomOut: () => void;
@@ -166,7 +156,7 @@ interface PdfEditorState {
 
 const ZOOM_STEP = 0.25;
 const ZOOM_MIN = 0.25;
-const ZOOM_MAX = 3.0;
+const ZOOM_MAX = 5.0;
 
 const initialState = {
   pdfFile: null,
@@ -174,8 +164,7 @@ const initialState = {
   pdfFileName: "",
   totalPages: 0,
   currentPage: 1,
-  pageScale: 1.0,
-  zoomLevel: 0.5,
+  zoomLevel: 1.0,
   activeTool: "select" as ToolMode,
   selectedStampType: null,
   selectedStampSrc: null,
@@ -215,7 +204,7 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
       selectedItemId: null,
       selectedItemType: null,
       currentPage: 1,
-      zoomLevel: 0.5,
+      zoomLevel: 1.0,
     }),
 
   setPdfArrayBuffer: (buffer) => set({ pdfArrayBuffer: buffer }),

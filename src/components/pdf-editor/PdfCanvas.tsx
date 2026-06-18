@@ -15,7 +15,6 @@ import {
   ChevronRight,
   ZoomIn,
   ZoomOut,
-  Maximize,
   RotateCcw,
   RotateCw,
   Trash2,
@@ -70,7 +69,6 @@ export default function PdfCanvas() {
   const [pdfjsReady, setPdfjsReady] = useState(false);
   const pdfjsRef = useRef<unknown>(null);
   const renderingRef = useRef(false);
-  const baseScaleRef = useRef(1.0);
   const clickedOnElementRef = useRef(false);
 
   // Eraser drawing state
@@ -96,7 +94,6 @@ export default function PdfCanvas() {
     zoomLevel,
     setTotalPages,
     setPdfArrayBuffer,
-    setPageScale,
     zoomIn,
     zoomOut,
     zoomFit,
@@ -338,6 +335,7 @@ export default function PdfCanvas() {
   }, [pdfFile, pdfjsReady, setTotalPages, setPdfArrayBuffer]);
 
   // Render current page with zoom
+  // zoomLevel = 1.0 means 100% (real PDF size, 1pt = 1px on screen)
   const renderPage = useCallback(async () => {
     if (!pdfDoc || !canvasRef.current || renderingRef.current) return;
     renderingRef.current = true;
@@ -349,16 +347,8 @@ export default function PdfCanvas() {
         renderingRef.current = false;
         return;
       }
-      const containerWidth = container.clientWidth - 40;
-      if (containerWidth < 100) {
-        renderingRef.current = false;
-        return;
-      }
-      const viewport = page.getViewport({ scale: 1 });
-      const fitScale = containerWidth / viewport.width;
-      baseScaleRef.current = fitScale;
-      const scale = fitScale * zoomLevel;
-      setPageScale(scale);
+      // Real PDF scale: 1.0 = 100% (1pt → 1px). No fit-to-container scaling.
+      const scale = zoomLevel;
       const scaledViewport = page.getViewport({ scale });
       const canvas = canvasRef.current;
       const context = canvas.getContext("2d");
@@ -387,7 +377,7 @@ export default function PdfCanvas() {
     } finally {
       renderingRef.current = false;
     }
-  }, [pdfDoc, currentPage, zoomLevel, setPageScale]);
+  }, [pdfDoc, currentPage, zoomLevel]);
 
   // Initial render + delayed re-render
   useEffect(() => {
@@ -797,10 +787,16 @@ export default function PdfCanvas() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (textModal.open) return;
+      // Don't trigger delete when typing in any input/textarea/select
+      const target = e.target as HTMLElement;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement
+      )
+        return;
       if ((e.key === "Delete" || e.key === "Backspace") && selectedItemId) {
-        if (e.key === "Backspace" && !(e.target instanceof HTMLInputElement))
-          e.preventDefault();
-        if (e.target instanceof HTMLTextAreaElement) return;
+        e.preventDefault();
         if (selectedItemType === "stamp")
           usePdfEditorStore.getState().removeStamp(selectedItemId);
         else if (selectedItemType === "text")
@@ -1662,9 +1658,9 @@ export default function PdfCanvas() {
               <ZoomOut className="h-4 w-4" />
             </Button>
             <button
-              className="text-xs font-medium tabular-nums min-w-[48px] text-center hover:bg-accent rounded-full py-1 px-2 transition-colors select-none"
+              className="text-xs font-medium tabular-nums min-w-[52px] text-center hover:bg-accent rounded-full py-1 px-2 transition-colors select-none"
               onClick={zoomFit}
-              title="Сбросить масштаб"
+              title="Сбросить до 100%"
             >
               {zoomPercent}%
             </button>
@@ -1673,18 +1669,9 @@ export default function PdfCanvas() {
               size="icon"
               className="h-8 w-8 rounded-full hover:bg-accent"
               onClick={zoomIn}
-              disabled={zoomLevel >= 3.0}
+              disabled={zoomLevel >= 5.0}
             >
               <ZoomIn className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-full hover:bg-accent"
-              onClick={zoomFit}
-              title="Вписать в экран"
-            >
-              <Maximize className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>

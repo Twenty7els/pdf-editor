@@ -366,11 +366,16 @@ export default function Home() {
           // Multiline support
           const lines = textItem.text.split("\n");
 
-          // Font ascent — distance from baseline to top of font.
-          // Used to correctly position baseline (CSS top = top of font, pdf-lib y = baseline).
+          // Font ascent — distance from baseline to top of glyph.
+          // CSS positions text by top of line-box; glyph is centered within line-height.
+          // PDF positions text by baseline. So: baseline = top + leading/2 + ascent.
           const fontAscent = font.heightAtSize(scaledFontSize, {
             descender: false,
           });
+          // Line height = 1.2 * fontSize (matches canvas CSS lineHeight: 1.2)
+          const scaledLineHeight = scaledFontSize * 1.2;
+          // Leading is distributed equally above and below the glyph in CSS
+          const leadingHalf = (scaledLineHeight - scaledFontSize) / 2;
 
           for (let li = 0; li < lines.length; li++) {
             const line = lines[li];
@@ -378,12 +383,13 @@ export default function Home() {
               continue;
             }
 
-            // Canvas: top of line = textItem.y + li * (fontSize * 1.2)
-            // PDF baseline = canvas top + ascent (descent excluded — that's how CSS renders)
+            // Canvas: top of line-box = textItem.y + li * (fontSize * 1.2)
+            // Glyph top = top of line-box + leading/2
+            // PDF baseline = glyph top + ascent
             const lineCanvasTop = textItem.y + li * textItem.fontSize * 1.2;
             const lineBaselinePdfY =
               pageHeight -
-              ((lineCanvasTop + fontAscent) / ch) * pageHeight;
+              ((lineCanvasTop + leadingHalf + fontAscent) / ch) * pageHeight;
 
             // Measure line width for alignment
             const lineWidth = font.widthOfTextAtSize(line, scaledFontSize);

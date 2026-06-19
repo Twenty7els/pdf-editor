@@ -110,13 +110,12 @@ export default function ExportDialog({
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      const outputScale = window.devicePixelRatio || 1;
+      const outputScale = Math.max(window.devicePixelRatio || 1, 2);
       canvas.width = Math.floor(viewport.width * outputScale);
       canvas.height = Math.floor(viewport.height * outputScale);
       canvas.style.width = `${Math.floor(viewport.width)}px`;
       canvas.style.height = `${Math.floor(viewport.height)}px`;
-      const transform =
-        outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined;
+      const transform = [outputScale, 0, 0, outputScale, 0, 0];
       await page.render({
         canvasContext: ctx,
         viewport,

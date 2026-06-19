@@ -317,7 +317,6 @@ export default function PdfCanvas() {
         const pdfjs = pdfjsRef.current as typeof import("pdfjs-dist");
         const pdf = await pdfjs.getDocument({
           data: new Uint8Array(arrayBuffer),
-          useSystemFonts: true,
         }).promise;
         setPdfDoc(pdf);
         setTotalPages(pdf.numPages);
@@ -382,13 +381,14 @@ export default function PdfCanvas() {
         renderingRef.current = false;
         return;
       }
-      const outputScale = window.devicePixelRatio || 1;
+      // Render at higher resolution for crisp text, especially on scanned PDFs.
+      // Use max(devicePixelRatio, 2) so even non-retina screens get sharp rendering.
+      const outputScale = Math.max(window.devicePixelRatio || 1, 2);
       canvas.width = Math.floor(scaledViewport.width * outputScale);
       canvas.height = Math.floor(scaledViewport.height * outputScale);
       canvas.style.width = Math.floor(scaledViewport.width) + "px";
       canvas.style.height = Math.floor(scaledViewport.height) + "px";
-      const transform =
-        outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined;
+      const transform = [outputScale, 0, 0, outputScale, 0, 0];
       setCanvasSize({
         width: Math.floor(scaledViewport.width),
         height: Math.floor(scaledViewport.height),

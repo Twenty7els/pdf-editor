@@ -30,6 +30,9 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
   const [pdfjsReady, setPdfjsReady] = useState(false);
   const pdfjsRef = useRef<unknown>(null);
   const canvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
+  const renderTasksRef = useRef<
+    Record<number, import("pdfjs-dist").RenderTask | undefined>
+  >({});
   const [thumbState, setThumbState] = useState<Record<number, ThumbState>>({});
 
   // Load pdfjs-dist dynamically
@@ -61,7 +64,10 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
     const renderThumb = async (pageNum: number) => {
       try {
         const page = await pdf.getPage(pageNum);
-        const rotation = pageRotations[pageNum] || 0;
+        // Total rotation = intrinsic page rotation + user rotation
+        const rotation =
+          ((((page.rotate || 0) + (pageRotations[pageNum] || 0)) % 360) + 360) %
+          360;
         const baseVp = page.getViewport({ scale: 1 });
         const baseW = baseVp.width;
         const scale = THUMB_WIDTH / baseW;
@@ -70,17 +76,36 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
         if (!canvas || cancelled) return;
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
+        // Cancel any in-flight render on this canvas — pdf.js forbids
+        // multiple concurrent render() calls on the same canvas.
+        const prevTask = renderTasksRef.current[pageNum];
+        if (prevTask) {
+          try {
+            prevTask.cancel();
+          } catch {
+            // ignore
+          }
+          try {
+            await prevTask.promise;
+          } catch {
+            // cancellation rejection — expected
+          }
+        }
+        if (cancelled) return;
         const outputScale = Math.max(window.devicePixelRatio || 1, 2);
         canvas.width = Math.floor(viewport.width * outputScale);
         canvas.height = Math.floor(viewport.height * outputScale);
         canvas.style.width = `${Math.floor(viewport.width)}px`;
         canvas.style.height = `${Math.floor(viewport.height)}px`;
         const transform = [outputScale, 0, 0, outputScale, 0, 0];
-        await page.render({
+        const task = page.render({
+          canvas,
           canvasContext: ctx,
           viewport,
           transform,
-        }).promise;
+        });
+        renderTasksRef.current[pageNum] = task;
+        await task.promise;
         if (!cancelled) {
           setThumbState((prev) => ({
             ...prev,
@@ -88,6 +113,14 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
           }));
         }
       } catch (err) {
+        // Ignore intentional cancellations
+        if (
+          err &&
+          typeof err === "object" &&
+          (err as { name?: string }).name === "RenderingCancelledException"
+        ) {
+          return;
+        }
         console.error(`Error rendering thumbnail for page ${pageNum}:`, err);
         if (!cancelled) {
           setThumbState((prev) => ({
@@ -113,7 +146,7 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
 
   return (
-    <div className="w-[124px] shrink-0 border-r border-border/40 bg-card/20 overflow-y-auto py-3 px-2 flex flex-col gap-2.5">
+    <div className="hidden md:flex w-[124px] shrink-0 border-r border-border/70 bg-card/30 overflow-y-auto py-3 px-2 flex-col gap-2.5">
       <div className="flex items-center justify-between gap-1 px-1 mb-1">
         <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
           Страницы
@@ -136,8 +169,8 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
               isCurrent
                 ? "border-primary bg-primary/10 shadow-soft"
                 : isDeleted
-                ? "border-border/30 bg-muted/10 opacity-50 hover:opacity-90"
-                : "border-border/40 hover:border-primary/40 hover:bg-accent/30"
+                ? "border-border/50 bg-muted/20 opacity-50 hover:opacity-90"
+                : "border-border/70 hover:border-primary/40 hover:bg-accent"
             }`}
             onClick={() => {
               if (isDeleted) {

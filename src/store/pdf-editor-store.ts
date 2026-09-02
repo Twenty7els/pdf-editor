@@ -280,7 +280,12 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
     set({ zoomLevel: Math.max(ZOOM_MIN, get().zoomLevel - ZOOM_STEP) }),
   zoomFit: () => set({ zoomLevel: 1.0 }),
 
-  setActiveTool: (tool) => set({ activeTool: tool, presetText: tool !== "text" ? null : undefined }),
+  setActiveTool: (tool) =>
+    set((state) => ({
+      activeTool: tool,
+      // Reset preset when leaving the text tool (spread avoids setting undefined)
+      ...(tool !== "text" && state.presetText !== null ? { presetText: null } : {}),
+    })),
   setSelectedStamp: (type, src) =>
     set({ selectedStampType: type, selectedStampSrc: src, activeTool: "stamp" }),
 
@@ -510,7 +515,7 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
     if (!state.selectedItemId || !state.selectedItemType) return;
     const snap = snapshot(state);
     const newId = (prefix: string) =>
-      `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
     if (state.selectedItemType === "stamp") {
       const orig = state.stamps.find((s) => s.id === state.selectedItemId);

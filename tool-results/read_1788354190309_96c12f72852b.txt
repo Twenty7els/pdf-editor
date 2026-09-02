@@ -1,0 +1,702 @@
+   501→        });
+   502→      } else if (activeTool === "select") {
+   503→        setSelectedItem(null, null);
+   504→      }
+   505→    },
+   506→    [
+   507→      activeTool,
+   508→      selectedStampType,
+   509→      selectedStampSrc,
+   510→      currentPage,
+   511→      addStamp,
+   512→      setSelectedItem,
+   513→      setActiveTool,
+   514→      openTextSidebarForCreate,
+   515→    ]
+   516→  );
+   517→
+   518→  // Handle overlay mousedown for eraser brush drawing
+   519→  const handleOverlayMouseDown = useCallback(
+   520→    (e: React.MouseEvent) => {
+   521→      if (activeTool !== "eraser") return;
+   522→      if (!overlayRef.current) return;
+   523→      const target = e.target as HTMLElement;
+   524→      if (target !== overlayRef.current) return;
+   525→
+   526→      const rect = overlayRef.current.getBoundingClientRect();
+   527→      const x = e.clientX - rect.left;
+   528→      const y = e.clientY - rect.top;
+   529→
+   530→      setIsEraserDrawing(true);
+   531→      setCurrentEraserPoints([{ x, y }]);
+   532→    },
+   533→    [activeTool]
+   534→  );
+   535→
+   536→  // Eraser drawing mouse move and mouseup
+   537→  useEffect(() => {
+   538→    if (!isEraserDrawing || !overlayRef.current) return;
+   539→
+   540→    const handleMouseMove = (e: MouseEvent) => {
+   541→      const rect = overlayRef.current!.getBoundingClientRect();
+   542→      const x = e.clientX - rect.left;
+   543→      const y = e.clientY - rect.top;
+   544→      setCurrentEraserPoints((prev) => [...prev, { x, y }]);
+   545→      setEraserCursorPos({ x, y });
+   546→    };
+   547→
+   548→    const handleMouseUp = () => {
+   549→      const currentPoints = usePdfEditorStore.getState().erasers;
+   550→      // Use latest currentEraserPoints via ref-style closure
+   551→      setCurrentEraserPoints((prev) => {
+   552→        if (prev.length > 0) {
+   553→          const overlayW = overlayRef.current!.offsetWidth;
+   554→          const overlayH = overlayRef.current!.offsetHeight;
+   555→          const newId = `eraser-${Date.now()}-${Math.random()
+   556→            .toString(36)
+   557→            .substr(2, 9)}`;
+   558→          addEraser({
+   559→            id: newId,
+   560→            points: prev,
+   561→            strokeWidth: eraserSettings.brushSize,
+   562→            color: eraserSettings.color,
+   563→            page: currentPage,
+   564→            canvasWidth: overlayW,
+   565→            canvasHeight: overlayH,
+   566→          });
+   567→          setSelectedItem(newId, "eraser");
+   568→        }
+   569→        return [];
+   570→      });
+   571→      void currentPoints;
+   572→      setIsEraserDrawing(false);
+   573→    };
+   574→
+   575→    window.addEventListener("mousemove", handleMouseMove);
+   576→    window.addEventListener("mouseup", handleMouseUp);
+   577→    return () => {
+   578→      window.removeEventListener("mousemove", handleMouseMove);
+   579→      window.removeEventListener("mouseup", handleMouseUp);
+   580→    };
+   581→  }, [
+   582→    isEraserDrawing,
+   583→    eraserSettings,
+   584→    currentPage,
+   585→    addEraser,
+   586→    setSelectedItem,
+   587→  ]);
+   588→
+   589→  // Unified mouse down handler
+   590→  const handleItemMouseDown = useCallback(
+   591→    (e: React.MouseEvent, id: string, type: "stamp" | "text") => {
+   592→      e.stopPropagation();
+   593→      clickedOnElementRef.current = true;
+   594→      setSelectedItem(id, type);
+   595→      const state = usePdfEditorStore.getState();
+   596→      const item =
+   597→        type === "stamp"
+   598→          ? state.stamps.find((s) => s.id === id)
+   599→          : state.texts.find((t) => t.id === id);
+   600→      const cw = item
+   601→        ? "canvasWidth" in item
+   602→          ? item.canvasWidth
+   603→          : canvasSize.width
+   604→        : canvasSize.width;
+   605→      const ch = item
+   606→        ? "canvasHeight" in item
+   607→          ? item.canvasHeight
+   608→          : canvasSize.height
+   609→        : canvasSize.height;
+   610→      setDragState({
+   611→        mode: "move",
+   612→        id,
+   613→        type,
+   614→        offsetX: e.nativeEvent.offsetX,
+   615→        offsetY: e.nativeEvent.offsetY,
+   616→        startX: e.clientX,
+   617→        startY: e.clientY,
+   618→        startLeft: 0,
+   619→        startTop: 0,
+   620→        startWidth: 0,
+   621→        startHeight: 0,
+   622→        startRotation: 0,
+   623→        startAngle: 0,
+   624→        itemCanvasWidth: cw,
+   625→        itemCanvasHeight: ch,
+   626→      });
+   627→    },
+   628→    [setSelectedItem, canvasSize.width, canvasSize.height]
+   629→  );
+   630→
+   631→  // Resize handle mouse down
+   632→  const handleResizeMouseDown = useCallback(
+   633→    (
+   634→      e: React.MouseEvent,
+   635→      id: string,
+   636→      corner: string,
+   637→      item: StampItem | TextItem
+   638→    ) => {
+   639→      e.stopPropagation();
+   640→      e.preventDefault();
+   641→      clickedOnElementRef.current = true;
+   642→      const stampItem = item as StampItem;
+   643→      setDragState({
+   644→        mode: "resize",
+   645→        id,
+   646→        type: "stamp",
+   647→        corner,
+   648→        offsetX: 0,
+   649→        offsetY: 0,
+   650→        startX: e.clientX,
+   651→        startY: e.clientY,
+   652→        startLeft: stampItem.x,
+   653→        startTop: stampItem.y,
+   654→        startWidth: stampItem.width,
+   655→        startHeight: stampItem.height,
+   656→        startRotation: stampItem.rotation,
+   657→        startAngle: 0,
+   658→        itemCanvasWidth: stampItem.canvasWidth,
+   659→        itemCanvasHeight: stampItem.canvasHeight,
+   660→      });
+   661→    },
+   662→    []
+   663→  );
+   664→
+   665→  // Rotation handle mouse down
+   666→  const handleRotateMouseDown = useCallback(
+   667→    (e: React.MouseEvent, id: string, item: StampItem) => {
+   668→      e.stopPropagation();
+   669→      e.preventDefault();
+   670→      clickedOnElementRef.current = true;
+   671→      const dispX = scaleToDisplay(item.x, item.canvasWidth);
+   672→      const dispY = scaleToDisplayY(item.y, item.canvasHeight);
+   673→      const dispW = scaleToDisplay(item.width, item.canvasWidth);
+   674→      const dispH = scaleToDisplayY(item.height, item.canvasHeight);
+   675→      const cx = dispX + dispW / 2;
+   676→      const cy = dispY + dispH / 2;
+   677→      const rect = overlayRef.current!.getBoundingClientRect();
+   678→      const mouseLocalX = e.clientX - rect.left;
+   679→      const mouseLocalY = e.clientY - rect.top;
+   680→      const angle =
+   681→        Math.atan2(mouseLocalY - cy, mouseLocalX - cx) * (180 / Math.PI);
+   682→      setDragState({
+   683→        mode: "rotate",
+   684→        id,
+   685→        type: "stamp",
+   686→        offsetX: 0,
+   687→        offsetY: 0,
+   688→        startX: e.clientX,
+   689→        startY: e.clientY,
+   690→        startLeft: item.x,
+   691→        startTop: item.y,
+   692→        startWidth: item.width,
+   693→        startHeight: item.height,
+   694→        startRotation: item.rotation,
+   695→        startAngle: angle,
+   696→        itemCanvasWidth: item.canvasWidth,
+   697→        itemCanvasHeight: item.canvasHeight,
+   698→      });
+   699→    },
+   700→    [scaleToDisplay, scaleToDisplayY]
+   701→  );
+   702→
+   703→  // Unified mouse move / up handler
+   704→  useEffect(() => {
+   705→    if (!dragState || !overlayRef.current) return;
+   706→
+   707→    const handleMouseMove = (e: MouseEvent) => {
+   708→      const rect = overlayRef.current!.getBoundingClientRect();
+   709→      const icw = dragState.itemCanvasWidth;
+   710→      const ich = dragState.itemCanvasHeight;
+   711→
+   712→      if (dragState.mode === "move") {
+   713→        const dispX = e.clientX - rect.left - dragState.offsetX;
+   714→        const dispY = e.clientY - rect.top - dragState.offsetY;
+   715→        const storeX = dispX * (icw / (canvasSize.width || icw));
+   716→        const storeY = dispY * (ich / (canvasSize.height || ich));
+   717→        if (dragState.type === "stamp")
+   718→          updateStamp(dragState.id, { x: storeX, y: storeY });
+   719→        else updateText(dragState.id, { x: storeX, y: storeY });
+   720→      } else if (dragState.mode === "resize" && dragState.type === "stamp") {
+   721→        const dx = e.clientX - dragState.startX;
+   722→        const dy = e.clientY - dragState.startY;
+   723→        const sdx = dx * (icw / (canvasSize.width || icw));
+   724→        const sdy = dy * (ich / (canvasSize.height || ich));
+   725→
+   726→        let newLeft = dragState.startLeft;
+   727→        let newTop = dragState.startTop;
+   728→        let newWidth = dragState.startWidth;
+   729→        let newHeight = dragState.startHeight;
+   730→
+   731→        const corner = dragState.corner;
+   732→
+   733→        if (corner === "br") {
+   734→          newWidth = Math.max(30, dragState.startWidth + sdx);
+   735→          newHeight = Math.max(30, dragState.startHeight + sdy);
+   736→        } else if (corner === "bl") {
+   737→          newLeft = dragState.startLeft + sdx;
+   738→          newWidth = Math.max(30, dragState.startWidth - sdx);
+   739→          newHeight = Math.max(30, dragState.startHeight + sdy);
+   740→        } else if (corner === "tr") {
+   741→          newTop = dragState.startTop + sdy;
+   742→          newWidth = Math.max(30, dragState.startWidth + sdx);
+   743→          newHeight = Math.max(30, dragState.startHeight - sdy);
+   744→        } else if (corner === "tl") {
+   745→          newLeft = dragState.startLeft + sdx;
+   746→          newTop = dragState.startTop + sdy;
+   747→          newWidth = Math.max(30, dragState.startWidth - sdx);
+   748→          newHeight = Math.max(30, dragState.startHeight - sdy);
+   749→        }
+   750→
+   751→        updateStamp(dragState.id, {
+   752→          x: newLeft,
+   753→          y: newTop,
+   754→          width: newWidth,
+   755→          height: newHeight,
+   756→        });
+   757→      } else if (dragState.mode === "rotate" && dragState.type === "stamp") {
+   758→        const stamp = usePdfEditorStore
+   759→          .getState()
+   760→          .stamps.find((s) => s.id === dragState.id);
+   761→        if (!stamp) return;
+   762→        const dispX = scaleToDisplay(stamp.x, stamp.canvasWidth);
+   763→        const dispY = scaleToDisplayY(stamp.y, stamp.canvasHeight);
+   764→        const dispW = scaleToDisplay(stamp.width, stamp.canvasWidth);
+   765→        const dispH = scaleToDisplayY(stamp.height, stamp.canvasHeight);
+   766→        const cx = dispX + dispW / 2;
+   767→        const cy = dispY + dispH / 2;
+   768→        const mouseLocalX = e.clientX - rect.left;
+   769→        const mouseLocalY = e.clientY - rect.top;
+   770→        const currentAngle =
+   771→          Math.atan2(mouseLocalY - cy, mouseLocalX - cx) * (180 / Math.PI);
+   772→        const deltaAngle = currentAngle - dragState.startAngle;
+   773→        let newRotation = dragState.startRotation + deltaAngle;
+   774→        while (newRotation > 180) newRotation -= 360;
+   775→        while (newRotation < -180) newRotation += 360;
+   776→        if (e.shiftKey) {
+   777→          newRotation = Math.round(newRotation / 15) * 15;
+   778→        }
+   779→        updateStamp(dragState.id, { rotation: newRotation });
+   780→      }
+   781→    };
+   782→
+   783→    const handleMouseUp = () => {
+   784→      setDragState(null);
+   785→    };
+   786→
+   787→    window.addEventListener("mousemove", handleMouseMove);
+   788→    window.addEventListener("mouseup", handleMouseUp);
+   789→    return () => {
+   790→      window.removeEventListener("mousemove", handleMouseMove);
+   791→      window.removeEventListener("mouseup", handleMouseUp);
+   792→    };
+   793→  }, [
+   794→    dragState,
+   795→    updateStamp,
+   796→    updateText,
+   797→    canvasSize.width,
+   798→    canvasSize.height,
+   799→    scaleToDisplay,
+   800→    scaleToDisplayY,
+   801→  ]);
+   802→
+   803→  // Text double-click → open sidebar in edit mode
+   804→  const handleTextDoubleClick = useCallback(
+   805→    (e: React.MouseEvent, t: TextItem) => {
+   806→      e.stopPropagation();
+   807→      openTextSidebarForEdit(t);
+   808→    },
+   809→    [openTextSidebarForEdit]
+   810→  );
+   811→
+   812→  // Keyboard delete
+   813→  useEffect(() => {
+   814→    const handleKeyDown = (e: KeyboardEvent) => {
+   815→      if (textSidebar.open) return;
+   816→      // Don't trigger delete when typing in any input/textarea/select
+   817→      const target = e.target as HTMLElement;
+   818→      if (
+   819→        target instanceof HTMLInputElement ||
+   820→        target instanceof HTMLTextAreaElement ||
+   821→        target instanceof HTMLSelectElement
+   822→      )
+   823→        return;
+   824→      if ((e.key === "Delete" || e.key === "Backspace") && selectedItemId) {
+   825→        e.preventDefault();
+   826→        if (selectedItemType === "stamp")
+   827→          usePdfEditorStore.getState().removeStamp(selectedItemId);
+   828→        else if (selectedItemType === "text")
+   829→          usePdfEditorStore.getState().removeText(selectedItemId);
+   830→        else if (selectedItemType === "eraser")
+   831→          usePdfEditorStore.getState().removeEraser(selectedItemId);
+   832→        setSelectedItem(null, null);
+   833→      }
+   834→    };
+   835→    window.addEventListener("keydown", handleKeyDown);
+   836→    return () => window.removeEventListener("keydown", handleKeyDown);
+   837→  }, [selectedItemId, selectedItemType, textSidebar.open, setSelectedItem]);
+   838→
+   839→  // Undo / Redo / Duplicate keyboard shortcuts
+   840→  useEffect(() => {
+   841→    const handleKeyDown = (e: KeyboardEvent) => {
+   842→      if (textSidebar.open) return;
+   843→      const target = e.target as HTMLElement;
+   844→      if (
+   845→        target instanceof HTMLInputElement ||
+   846→        target instanceof HTMLTextAreaElement ||
+   847→        target instanceof HTMLSelectElement
+   848→      )
+   849→        return;
+   850→      const ctrl = e.ctrlKey || e.metaKey;
+   851→      if (!ctrl) return;
+   852→      const key = e.key.toLowerCase();
+   853→      // Ctrl+Z = undo, Ctrl+Shift+Z or Ctrl+Y = redo
+   854→      if (key === "z" && !e.shiftKey) {
+   855→        e.preventDefault();
+   856→        usePdfEditorStore.getState().undo();
+   857→      } else if ((key === "z" && e.shiftKey) || key === "y") {
+   858→        e.preventDefault();
+   859→        usePdfEditorStore.getState().redo();
+   860→      } else if (key === "d") {
+   861→        // Duplicate selected
+   862→        const st = usePdfEditorStore.getState();
+   863→        if (st.selectedItemId && st.selectedItemType) {
+   864→          e.preventDefault();
+   865→          st.duplicateSelectedItem();
+   866→        }
+   867→      }
+   868→    };
+   869→    window.addEventListener("keydown", handleKeyDown);
+   870→    return () => window.removeEventListener("keydown", handleKeyDown);
+   871→  }, [textSidebar.open]);
+   872→
+   873→  // Keyboard arrow for pages
+   874→  useEffect(() => {
+   875→    const handleKeyDown = (e: KeyboardEvent) => {
+   876→      if (textSidebar.open || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+   877→      if (e.key === "ArrowLeft")
+   878→        setCurrentPage(Math.max(1, currentPage - 1));
+   879→      if (e.key === "ArrowRight")
+   880→        setCurrentPage(Math.min(totalPages, currentPage + 1));
+   881→    };
+   882→    window.addEventListener("keydown", handleKeyDown);
+   883→    return () => window.removeEventListener("keydown", handleKeyDown);
+   884→  }, [currentPage, totalPages, textSidebar.open, setCurrentPage]);
+   885→
+   886→  const pageStamps = stamps.filter((s) => s.page === currentPage);
+   887→  const pageTexts = texts.filter((t) => t.page === currentPage);
+   888→  const pageErasers = erasers.filter((e) => e.page === currentPage);
+   889→
+   890→  const cursorClass =
+   891→    activeTool === "stamp" && selectedStampSrc
+   892→      ? "cursor-none"
+   893→      : activeTool === "stamp" || activeTool === "text"
+   894→      ? "cursor-crosshair"
+   895→      : activeTool === "eraser"
+   896→      ? "cursor-none"
+   897→      : "cursor-default";
+   898→  const zoomPercent = Math.round(zoomLevel * 100);
+   899→
+   900→  // Build SVG path string from eraser points
+   901→  const buildEraserPath = (points: EraserPoint[]): string => {
+   902→    if (points.length === 0) return "";
+   903→    if (points.length === 1) {
+   904→      const p = points[0];
+   905→      const r = 1;
+   906→      return `M ${p.x - r} ${p.y} A ${r} ${r} 0 1 0 ${p.x + r} ${p.y} A ${r} ${r} 0 1 0 ${p.x - r} ${p.y}`;
+   907→    }
+   908→    let d = `M ${points[0].x} ${points[0].y}`;
+   909→    for (let i = 1; i < points.length; i++) {
+   910→      d += ` L ${points[i].x} ${points[i].y}`;
+   911→    }
+   912→    return d;
+   913→  };
+   914→
+   915→  // Render resize handles for selected stamp
+   916→  const renderStampHandles = (stamp: StampItem) => {
+   917→    if (selectedItemId !== stamp.id) return null;
+   918→
+   919→    const hs = HANDLE_SIZE;
+   920→    const halfHs = hs / 2;
+   921→    const corners = [
+   922→      { key: "tl", style: { left: -halfHs, top: -halfHs, cursor: "nw-resize" } },
+   923→      { key: "tr", style: { right: -halfHs, top: -halfHs, cursor: "ne-resize" } },
+   924→      { key: "bl", style: { left: -halfHs, bottom: -halfHs, cursor: "sw-resize" } },
+   925→      { key: "br", style: { right: -halfHs, bottom: -halfHs, cursor: "se-resize" } },
+   926→    ];
+   927→
+   928→    return (
+   929→      <>
+   930→        {/* Selection ring */}
+   931→        <div className="absolute inset-0 ring-2 ring-primary/70 rounded-sm pointer-events-none" />
+   932→        <div className="absolute inset-0 ring-1 ring-primary/30 ring-offset-2 ring-offset-transparent rounded-sm pointer-events-none" />
+   933→
+   934→        {/* Corner resize handles */}
+   935→        {corners.map((c) => (
+   936→          <div
+   937→            key={c.key}
+   938→            className="absolute bg-background border-2 border-primary rounded-sm z-10 shadow-soft hover:scale-125 transition-transform"
+   939→            style={{
+   940→              ...c.style,
+   941→              width: hs,
+   942→              height: hs,
+   943→              cursor: c.cursor,
+   944→            }}
+   945→            onMouseDown={(e) =>
+   946→              handleResizeMouseDown(e, stamp.id, c.key, stamp)
+   947→            }
+   948→          />
+   949→        ))}
+   950→
+   951→        {/* Rotation handle */}
+   952→        <div
+   953→          className="absolute left-1/2 z-10"
+   954→          style={{
+   955→            top: -ROTATE_HANDLE_DISTANCE,
+   956→            transform: "translateX(-50%)",
+   957→            cursor: "grab",
+   958→          }}
+   959→          onMouseDown={(e) => handleRotateMouseDown(e, stamp.id, stamp)}
+   960→        >
+   961→          {/* Connecting line */}
+   962→          <div
+   963→            className="absolute left-1/2 bottom-full"
+   964→            style={{
+   965→              width: 1.5,
+   966→              height: ROTATE_HANDLE_DISTANCE - hs,
+   967→              backgroundColor: "var(--primary)",
+   968→              transform: "translateX(-50%)",
+   969→              pointerEvents: "none",
+   970→              opacity: 0.6,
+   971→            }}
+   972→          />
+   973→          {/* Rotation circle */}
+   974→          <div className="w-6 h-6 rounded-full gradient-bg border-2 border-background shadow-elevated flex items-center justify-center hover:scale-110 transition-transform">
+   975→            <svg
+   976→              width="11"
+   977→              height="11"
+   978→              viewBox="0 0 24 24"
+   979→              fill="none"
+   980→              stroke="white"
+   981→              strokeWidth="3"
+   982→              strokeLinecap="round"
+   983→              strokeLinejoin="round"
+   984→            >
+   985→              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+   986→            </svg>
+   987→          </div>
+   988→        </div>
+   989→      </>
+   990→    );
+   991→  };
+   992→
+   993→  const selectedStamp = stamps.find((s) => s.id === selectedItemId);
+   994→  const selectedText = texts.find((t) => t.id === selectedItemId);
+   995→
+   996→  // Show top bar
+   997→  const showTopBar =
+   998→    pdfDoc &&
+   999→    !error &&
+  1000→    !isLoading &&
+  1001→    ((activeTool === "text" && !selectedItemId) ||
+  1002→      activeTool === "eraser" ||
+  1003→      selectedItemId !== null);
+  1004→
+  1005→  return (
+  1006→    <div
+  1007→      ref={containerRef}
+  1008→      className="flex-1 flex flex-col overflow-hidden aurora-bg relative"
+  1009→    >
+  1010→      {/* Non-A4 warning banner — persistent */}
+  1011→      {nonA4Pages.length > 0 && !a4BannerDismissed && (
+  1012→        <div className="shrink-0 px-4 py-2 bg-amber-500/10 border-b border-amber-500/30 flex items-center gap-2.5 animate-slide-down">
+  1013→          <div className="h-7 w-7 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
+  1014→            <AlertTriangle className="h-4 w-4 text-amber-600" strokeWidth={2.5} />
+  1015→          </div>
+  1016→          <div className="flex-1 min-w-0">
+  1017→            <span className="text-xs font-semibold text-amber-700">
+  1018→              Формат страниц не А4:{" "}
+  1019→            </span>
+  1020→            <span className="text-xs text-amber-700/80">
+  1021→              стр. {nonA4Pages.length <= 8
+  1022→                ? nonA4Pages.join(", ")
+  1023→                : nonA4Pages.slice(0, 8).join(", ") + "…"}{" "}
+  1024→              · размер может отличаться от стандартного
+  1025→            </span>
+  1026→          </div>
+  1027→          <button
+  1028→            onClick={() => setA4BannerDismissed(true)}
+  1029→            className="h-7 w-7 rounded-md flex items-center justify-center text-amber-700/60 hover:bg-amber-500/15 hover:text-amber-700 transition-colors shrink-0"
+  1030→            title="Скрыть"
+  1031→          >
+  1032→            <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+  1033→          </button>
+  1034→        </div>
+  1035→      )}
+  1036→
+  1037→      {/* Main content row: thumbnails + canvas */}
+  1038→      <div className="flex-1 flex min-h-0">
+  1039→        {/* Page thumbnails strip */}
+  1040→        {pdfDoc && !error && !isLoading && (
+  1041→          <PageThumbnails pdfDoc={pdfDoc} />
+  1042→        )}
+  1043→
+  1044→        {/* Canvas + bottom controls column */}
+  1045→        <div className="flex-1 flex flex-col min-h-0 min-w-0">
+  1046→          {/* Canvas area */}
+  1047→          <div className="flex-1 flex items-center justify-center p-5 overflow-auto">
+  1048→        {error && (
+  1049→          <div className="text-center p-8 animate-fade-in">
+  1050→            <div className="relative h-16 w-16 mx-auto mb-5">
+  1051→              <div className="relative h-16 w-16 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
+  1052→                <AlertCircle className="h-8 w-8 text-destructive" strokeWidth={2} />
+  1053→              </div>
+  1054→            </div>
+  1055→            <div className="font-display text-lg font-semibold mb-2">{error}</div>
+  1056→            <p className="text-muted-foreground text-sm">
+  1057→              Попробуйте загрузить другой файл
+  1058→            </p>
+  1059→          </div>
+  1060→        )}
+  1061→
+  1062→        {isLoading && !error && (
+  1063→          <div className="flex flex-col items-center justify-center gap-4 animate-fade-in">
+  1064→            <div className="relative">
+  1065→              <Loader2 className="relative h-12 w-12 animate-spin text-primary" strokeWidth={2.5} />
+  1066→            </div>
+  1067→            <span className="text-sm text-muted-foreground font-medium">Загрузка PDF...</span>
+  1068→          </div>
+  1069→        )}
+  1070→
+  1071→        {pdfDoc && !error && !isLoading && isCurrentPageDeleted && (
+  1072→          <div className="text-center p-8 animate-fade-in">
+  1073→            <div className="relative h-16 w-16 mx-auto mb-5">
+  1074→              <div className="relative h-16 w-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+  1075→                <AlertTriangle className="h-8 w-8 text-amber-600" strokeWidth={2} />
+  1076→              </div>
+  1077→            </div>
+  1078→            <div className="font-display text-lg font-semibold mb-2">
+  1079→              Страница {currentPage} удалена
+  1080→            </div>
+  1081→            <p className="text-muted-foreground text-sm mb-4">
+  1082→              Она будет исключена из экспортируемого PDF
+  1083→            </p>
+  1084→            <Button
+  1085→              variant="outline"
+  1086→              size="sm"
+  1087→              onClick={() => usePdfEditorStore.getState().undeletePage(currentPage)}
+  1088→              className="gap-1.5 rounded-xl"
+  1089→            >
+  1090→              <RotateCcw className="h-3.5 w-3.5" />
+  1091→              Восстановить страницу
+  1092→            </Button>
+  1093→          </div>
+  1094→        )}
+  1095→
+  1096→        {pdfDoc && !error && !isLoading && !isCurrentPageDeleted && (
+  1097→          <div className="relative shadow-elevated border border-border/60 rounded-xl overflow-hidden bg-background">
+  1098→            <canvas ref={canvasRef} className="block" />
+  1099→
+  1100→            {/* Overlay */}
+  1101→            <div
+  1102→              ref={overlayRef}
+  1103→              className={`absolute top-0 left-0 ${cursorClass}`}
+  1104→              onClick={handleOverlayClick}
+  1105→              onMouseDown={handleOverlayMouseDown}
+  1106→              onMouseMove={(e) => {
+  1107→                const rect = overlayRef.current!.getBoundingClientRect();
+  1108→                const pos = {
+  1109→                  x: e.clientX - rect.left,
+  1110→                  y: e.clientY - rect.top,
+  1111→                };
+  1112→                if (activeTool === "eraser") setEraserCursorPos(pos);
+  1113→                if (activeTool === "stamp" && selectedStampSrc)
+  1114→                  setStampCursorPos(pos);
+  1115→              }}
+  1116→              onMouseLeave={() => {
+  1117→                setEraserCursorPos(null);
+  1118→                setStampCursorPos(null);
+  1119→              }}
+  1120→              style={{ width: canvasSize.width, height: canvasSize.height }}
+  1121→            >
+  1122→              {/* SVG layer for eraser strokes */}
+  1123→              <svg
+  1124→                className="absolute top-0 left-0 pointer-events-none"
+  1125→                width={canvasSize.width}
+  1126→                height={canvasSize.height}
+  1127→                style={{ zIndex: 5 }}
+  1128→              >
+  1129→                {pageErasers.filter((e) => !e.hidden).map((eraserItem) => {
+  1130→                  const sx =
+  1131→                    canvasSize.width /
+  1132→                    (eraserItem.canvasWidth || canvasSize.width);
+  1133→                  const sy =
+  1134→                    canvasSize.height /
+  1135→                    (eraserItem.canvasHeight || canvasSize.height);
+  1136→                  const scaledPoints = eraserItem.points.map((p) => ({
+  1137→                    x: p.x * sx,
+  1138→                    y: p.y * sy,
+  1139→                  }));
+  1140→                  return (
+  1141→                    <path
+  1142→                      key={eraserItem.id}
+  1143→                      d={buildEraserPath(scaledPoints)}
+  1144→                      stroke={eraserItem.color}
+  1145→                      strokeWidth={eraserItem.strokeWidth * Math.min(sx, sy)}
+  1146→                      strokeLinecap="round"
+  1147→                      strokeLinejoin="round"
+  1148→                      fill="none"
+  1149→                      className={
+  1150→                        selectedItemId === eraserItem.id
+  1151→                          ? "pointer-events-auto cursor-pointer"
+  1152→                          : "pointer-events-none"
+  1153→                      }
+  1154→                      onClick={(e) => {
+  1155→                        if (activeTool === "select" || activeTool === "eraser") {
+  1156→                          e.stopPropagation();
+  1157→                          clickedOnElementRef.current = true;
+  1158→                          setSelectedItem(eraserItem.id, "eraser");
+  1159→                        }
+  1160→                      }}
+  1161→                    />
+  1162→                  );
+  1163→                })}
+  1164→                {isEraserDrawing && currentEraserPoints.length > 0 && (
+  1165→                  <path
+  1166→                    d={buildEraserPath(currentEraserPoints)}
+  1167→                    stroke={eraserSettings.color}
+  1168→                    strokeWidth={eraserSettings.brushSize}
+  1169→                    strokeLinecap="round"
+  1170→                    strokeLinejoin="round"
+  1171→                    fill="none"
+  1172→                  />
+  1173→                )}
+  1174→              </svg>
+  1175→
+  1176→              {pageStamps.filter((s) => !s.hidden).map((stamp) => (
+  1177→                <div
+  1178→                  key={stamp.id}
+  1179→                  className={`absolute ${
+  1180→                    selectedItemId === stamp.id
+  1181→                      ? ""
+  1182→                      : "hover:ring-1 hover:ring-primary/50 rounded-sm"
+  1183→                  }`}
+  1184→                  style={{
+  1185→                    left: scaleToDisplay(stamp.x, stamp.canvasWidth),
+  1186→                    top: scaleToDisplayY(stamp.y, stamp.canvasHeight),
+  1187→                    width: scaleToDisplay(stamp.width, stamp.canvasWidth),
+  1188→                    height: scaleToDisplayY(stamp.height, stamp.canvasHeight),
+  1189→                    transform: `rotate(${stamp.rotation}deg)`,
+  1190→                    opacity: stamp.opacity,
+  1191→                    cursor: dragState?.mode === "move" ? "grabbing" : "grab",
+  1192→                  }}
+  1193→                  onMouseDown={(e) => handleItemMouseDown(e, stamp.id, "stamp")}
+  1194→                  onClick={(e) => e.stopPropagation()}
+  1195→                >
+  1196→                  <img
+  1197→                    src={stamp.src}
+  1198→                    alt={stamp.type}
+  1199→                    className="w-full h-full object-contain pointer-events-none select-none"
+  1200→                    draggable={false}
+
+[showing lines 501-1200 of 1884; use offset=1201 with limit to continue reading]

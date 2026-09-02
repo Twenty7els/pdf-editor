@@ -135,12 +135,12 @@ export default function TextEditSidebar({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="relative">
-                <div className="relative h-9 w-9 rounded-xl gradient-bg-tri flex items-center justify-center shadow-soft">
-                  <Type className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
+                <div className="relative h-9 w-9 rounded-xl gradient-bg flex items-center justify-center shadow-soft">
+                  <Type className="h-4 w-4 text-white" strokeWidth={2.2} />
                 </div>
               </div>
               <div>
-                <div className="font-display font-bold tracking-tight text-base leading-tight">
+                <div className="font-display font-semibold tracking-tight text-base leading-tight">
                   {mode === "create" ? "Новый текст" : "Редактировать текст"}
                 </div>
                 <div className="text-[11px] text-muted-foreground font-medium">
@@ -270,8 +270,8 @@ export default function TextEditSidebar({
                   onClick={() => update("fontSize", size)}
                   className={`px-2 py-1 rounded-md text-[10px] font-semibold tabular-nums transition-all ${
                     data.fontSize === size
-                      ? "bg-primary text-primary-foreground shadow-soft"
-                      : "bg-muted/50 hover:bg-accent text-muted-foreground"
+                      ? "bg-primary text-white shadow-soft"
+                      : "bg-secondary/70 hover:bg-accent text-muted-foreground"
                   }`}
                 >
                   {size}
@@ -295,7 +295,7 @@ export default function TextEditSidebar({
                     className={`px-2 py-2 rounded-lg border text-center transition-all ${
                       active
                         ? "border-primary bg-primary/10 shadow-soft"
-                        : "border-border/60 hover:border-primary/40 hover:bg-accent/30"
+                        : "border-border/60 hover:border-primary/40 hover:bg-accent"
                     }`}
                   >
                     <div
@@ -443,7 +443,7 @@ export default function TextEditSidebar({
           </div>
 
           {/* Hint */}
-          <div className="flex items-start gap-2 p-3 rounded-xl bg-primary/8 border border-primary/20">
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-secondary/60 border border-border/60">
             <ChevronRight className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" strokeWidth={2.5} />
             <p className="text-[11px] text-muted-foreground leading-relaxed">
               Текст применится к PDF после сохранения
@@ -464,7 +464,7 @@ export default function TextEditSidebar({
           <Button
             onClick={handleSave}
             disabled={!data.text.trim()}
-            className="gap-1.5 shadow-soft btn-glow shimmer rounded-xl font-semibold flex-1"
+            className="gap-1.5 shadow-soft rounded-xl font-semibold flex-1 bg-primary hover:bg-[#c15f3c] text-white transition-colors"
           >
             <Check className="h-4 w-4" strokeWidth={2.5} />
             {mode === "create" ? "Добавить" : "Сохранить"}
@@ -493,7 +493,7 @@ function ToggleButton({
       className={`h-9 rounded-lg border flex items-center justify-center transition-all ${
         active
           ? "border-primary bg-primary text-primary-foreground shadow-soft"
-          : "border-border/60 hover:border-primary/40 hover:bg-accent/30 text-muted-foreground hover:text-foreground"
+          : "border-border/60 hover:border-primary/40 hover:bg-accent text-muted-foreground hover:text-foreground"
       }`}
     >
       {children}

@@ -76,7 +76,9 @@ export default function PdfCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
-  const [pdfDoc, setPdfDoc] = useState<unknown | null>(null);
+  const [pdfDoc, setPdfDoc] = useState<
+    import("pdfjs-dist").PDFDocumentProxy | null
+  >(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nonA4Pages, setNonA4Pages] = useState<number[]>([]);
@@ -88,6 +90,7 @@ export default function PdfCanvas() {
   const clickedOnElementRef = useRef(false);
 
   // Eraser drawing state
+  const eraserPointsRef = useRef<EraserPoint[]>([]);
   const [isEraserDrawing, setIsEraserDrawing] = useState(false);
   const [currentEraserPoints, setCurrentEraserPoints] = useState<EraserPoint[]>(
     []
@@ -256,7 +259,7 @@ export default function PdfCanvas() {
       } else if (textSidebar.mode === "create" && textSidebar.pendingPos) {
         const pos = textSidebar.pendingPos;
         const newText: TextItem = {
-          id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: `text-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
           text: data.text,
           x: pos.x,
           y: pos.y,
@@ -321,6 +324,24 @@ export default function PdfCanvas() {
         setPdfDoc(pdf);
         setTotalPages(pdf.numPages);
 
+        // On narrow screens (mobile) start with a zoom that fits the page
+        // width so the document is immediately readable.
+        try {
+          const firstPage = await pdf.getPage(1);
+          const vp = firstPage.getViewport({ scale: 1 });
+          const container = containerRef.current;
+          if (container && vp.width > 0) {
+            const avail = container.clientWidth - 32; // padding allowance
+            if (avail > 120 && avail < vp.width) {
+              usePdfEditorStore
+                .getState()
+                .setZoomLevel(Math.max(0.35, avail / vp.width));
+            }
+          }
+        } catch {
+          // non-critical
+        }
+
         // Check page sizes against A4 standard
         const A4_WIDTH = 595.28;
         const A4_HEIGHT = 841.89;
@@ -364,8 +385,7 @@ export default function PdfCanvas() {
     if (!pdfDoc || !canvasRef.current || renderingRef.current) return;
     renderingRef.current = true;
     try {
-      const pdf = pdfDoc as import("pdfjs-dist").PDFDocumentProxy;
-      const page = await pdf.getPage(currentPage);
+      const page = await pdfDoc.getPage(currentPage);
       const container = containerRef.current;
       if (!container) {
         renderingRef.current = false;
@@ -373,7 +393,14 @@ export default function PdfCanvas() {
       }
       // Real PDF scale: 1.0 = 100% (1pt → 1px). No fit-to-container scaling.
       const scale = zoomLevel;
-      const rotation = pageRotations[currentPage] || 0;
+      // Total rotation = intrinsic page rotation + user rotation.
+      // pdf.js treats the `rotation` option as ABSOLUTE, so we must add
+      // the page's own /Rotate value — otherwise intrinsically rotated
+      // pages render differently here than in the exported PDF.
+      const intrinsic = page.rotate || 0;
+      const userRotation = pageRotations[currentPage] || 0;
+      const rotation =
+        ((((intrinsic + userRotation) % 360) + 360) % 360) as number;
       const scaledViewport = page.getViewport({ scale, rotation });
       const canvas = canvasRef.current;
       const context = canvas.getContext("2d");
@@ -394,6 +421,7 @@ export default function PdfCanvas() {
         height: Math.floor(scaledViewport.height),
       });
       await page.render({
+        canvas,
         canvasContext: context,
         viewport: scaledViewport,
         transform,
@@ -472,7 +500,7 @@ export default function PdfCanvas() {
         const size = 130;
         const newId = `stamp-${Date.now()}-${Math.random()
           .toString(36)
-          .substr(2, 9)}`;
+          .slice(2, 11)}`;
         addStamp({
           id: newId,
           type: selectedStampType,
@@ -527,6 +555,7 @@ export default function PdfCanvas() {
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
+      eraserPointsRef.current = [{ x, y }];
       setIsEraserDrawing(true);
       setCurrentEraserPoints([{ x, y }]);
     },
@@ -541,34 +570,34 @@ export default function PdfCanvas() {
       const rect = overlayRef.current!.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      setCurrentEraserPoints((prev) => [...prev, { x, y }]);
+      eraserPointsRef.current = [...eraserPointsRef.current, { x, y }];
+      setCurrentEraserPoints(eraserPointsRef.current);
       setEraserCursorPos({ x, y });
     };
 
     const handleMouseUp = () => {
-      const currentPoints = usePdfEditorStore.getState().erasers;
-      // Use latest currentEraserPoints via ref-style closure
-      setCurrentEraserPoints((prev) => {
-        if (prev.length > 0) {
-          const overlayW = overlayRef.current!.offsetWidth;
-          const overlayH = overlayRef.current!.offsetHeight;
-          const newId = `eraser-${Date.now()}-${Math.random()
-            .toString(36)
-            .substr(2, 9)}`;
-          addEraser({
-            id: newId,
-            points: prev,
-            strokeWidth: eraserSettings.brushSize,
-            color: eraserSettings.color,
-            page: currentPage,
-            canvasWidth: overlayW,
-            canvasHeight: overlayH,
-          });
-          setSelectedItem(newId, "eraser");
-        }
-        return [];
-      });
-      void currentPoints;
+      // Commit from the ref — store updates must never run inside a
+      // setState updater (React executes updaters during render).
+      const points = eraserPointsRef.current;
+      if (points.length > 0) {
+        const overlayW = overlayRef.current!.offsetWidth;
+        const overlayH = overlayRef.current!.offsetHeight;
+        const newId = `eraser-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 11)}`;
+        addEraser({
+          id: newId,
+          points,
+          strokeWidth: eraserSettings.brushSize,
+          color: eraserSettings.color,
+          page: currentPage,
+          canvasWidth: overlayW,
+          canvasHeight: overlayH,
+        });
+        setSelectedItem(newId, "eraser");
+      }
+      eraserPointsRef.current = [];
+      setCurrentEraserPoints([]);
       setIsEraserDrawing(false);
     };
 
@@ -918,11 +947,11 @@ export default function PdfCanvas() {
 
     const hs = HANDLE_SIZE;
     const halfHs = hs / 2;
-    const corners = [
-      { key: "tl", style: { left: -halfHs, top: -halfHs, cursor: "nw-resize" } },
-      { key: "tr", style: { right: -halfHs, top: -halfHs, cursor: "ne-resize" } },
-      { key: "bl", style: { left: -halfHs, bottom: -halfHs, cursor: "sw-resize" } },
-      { key: "br", style: { right: -halfHs, bottom: -halfHs, cursor: "se-resize" } },
+    const corners: { key: string; cursor: string; pos: React.CSSProperties }[] = [
+      { key: "tl", cursor: "nw-resize", pos: { left: -halfHs, top: -halfHs } },
+      { key: "tr", cursor: "ne-resize", pos: { right: -halfHs, top: -halfHs } },
+      { key: "bl", cursor: "sw-resize", pos: { left: -halfHs, bottom: -halfHs } },
+      { key: "br", cursor: "se-resize", pos: { right: -halfHs, bottom: -halfHs } },
     ];
 
     return (
@@ -937,7 +966,7 @@ export default function PdfCanvas() {
             key={c.key}
             className="absolute bg-background border-2 border-primary rounded-sm z-10 shadow-soft hover:scale-125 transition-transform"
             style={{
-              ...c.style,
+              ...c.pos,
               width: hs,
               height: hs,
               cursor: c.cursor,
@@ -1311,7 +1340,7 @@ export default function PdfCanvas() {
           {/* Bottom center controls */}
           {pdfDoc && !error && !isLoading && (
             <div className="flex justify-center pb-3 px-4 pt-1">
-              <div className="flex items-center gap-1 glass-strong gradient-border rounded-full shadow-elevated px-2 py-1">
+              <div className="flex items-center gap-1 glass-strong gradient-border rounded-full shadow-elevated px-2 py-1 max-w-[calc(100vw-24px)] overflow-x-auto">
                 <Button
                   variant="ghost"
                   size="icon"

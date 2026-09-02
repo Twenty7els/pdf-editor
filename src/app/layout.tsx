@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Inter, Lora } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 
@@ -9,10 +9,11 @@ const inter = Inter({
   display: "swap",
 });
 
-const spaceGrotesk = Space_Grotesk({
+const lora = Lora({
   variable: "--font-display",
-  subsets: ["latin"],
+  subsets: ["latin", "cyrillic"],
   weight: ["500", "600", "700"],
+  style: ["normal", "italic"],
   display: "swap",
 });
 
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#fafafa",
+  themeColor: "#faf9f5",
   width: "device-width",
   initialScale: 1,
 };
@@ -39,7 +40,7 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased bg-background text-foreground`}
+        className={`${inter.variable} ${lora.variable} font-sans antialiased bg-background text-foreground`}
       >
         {children}
         <Toaster
@@ -52,6 +53,9 @@ export default function RootLayout({
               borderRadius: "12px",
               fontSize: "13px",
               fontWeight: 500,
+              backgroundColor: "#ffffff",
+              color: "#1f1e1d",
+              border: "1px solid #e8e4d8",
             },
           }}
         />

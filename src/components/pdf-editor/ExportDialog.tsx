@@ -43,7 +43,12 @@ export default function ExportDialog({
   );
 
   const canvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
-  const pdfDocRef = useRef<unknown>(null);
+  const pdfDocRef = useRef<import("pdfjs-dist").PDFDocumentProxy | null>(null);
+  const loadingTaskRef = useRef<import("pdfjs-dist").PDFDocumentLoadingTask | null>(null);
+  const renderTasksRef = useRef<
+    Record<number, import("pdfjs-dist").RenderTask | undefined>
+  >({});
+  const lastRotationsKeyRef = useRef<string>("");
   const [pdfjsReady, setPdfjsReady] = useState(false);
   const [thumbLoaded, setThumbLoaded] = useState<Record<number, boolean>>({});
 
@@ -59,15 +64,17 @@ export default function ExportDialog({
         const pdfjs = await import("pdfjs-dist");
         if (cancelled) return;
         pdfjs.GlobalWorkerOptions.workerSrc = "/pdf-worker/pdf.worker.min.mjs";
-        const pdf = await pdfjs.getDocument({
+        const loadingTask = pdfjs.getDocument({
           data: new Uint8Array(pdfArrayBuffer.slice(0)),
           useSystemFonts: true,
-        }).promise;
+        });
+        const pdf = await loadingTask.promise;
         if (cancelled) {
-          pdf.destroy();
+          void loadingTask.destroy();
           return;
         }
         pdfDocRef.current = pdf;
+        loadingTaskRef.current = loadingTask;
         setPdfjsReady(true);
         // Render thumbnails for each page
         for (let p = 1; p <= pdf.numPages; p++) {
@@ -81,15 +88,18 @@ export default function ExportDialog({
     load();
     return () => {
       cancelled = true;
-      const pdf = pdfDocRef.current as { destroy?: () => void } | null;
-      if (pdf && typeof pdf.destroy === "function") {
+      const task = loadingTaskRef.current;
+      if (task) {
         try {
-          pdf.destroy();
+          void task.destroy();
         } catch {
           // ignore
         }
       }
+      loadingTaskRef.current = null;
       pdfDocRef.current = null;
+      renderTasksRef.current = {};
+      lastRotationsKeyRef.current = "";
       setPdfjsReady(false);
       setThumbLoaded({});
     };
@@ -101,7 +111,10 @@ export default function ExportDialog({
   ) => {
     try {
       const page = await pdf.getPage(pageNum);
-      const rotation = pageRotations[pageNum] || 0;
+      // Total rotation = intrinsic page rotation + user rotation
+      const rotation =
+        ((((page.rotate || 0) + (pageRotations[pageNum] || 0)) % 360) + 360) %
+        360;
       const baseVp = page.getViewport({ scale: 1 });
       const targetW = 80;
       const scale = targetW / baseVp.width;
@@ -110,32 +123,62 @@ export default function ExportDialog({
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
+      // Cancel any in-flight render on this canvas — pdf.js forbids
+      // multiple concurrent render() calls on the same canvas.
+      const prevTask = renderTasksRef.current[pageNum];
+      if (prevTask) {
+        try {
+          prevTask.cancel();
+        } catch {
+          // ignore
+        }
+        try {
+          await prevTask.promise;
+        } catch {
+          // cancellation rejection — expected
+        }
+      }
       const outputScale = Math.max(window.devicePixelRatio || 1, 2);
       canvas.width = Math.floor(viewport.width * outputScale);
       canvas.height = Math.floor(viewport.height * outputScale);
       canvas.style.width = `${Math.floor(viewport.width)}px`;
       canvas.style.height = `${Math.floor(viewport.height)}px`;
       const transform = [outputScale, 0, 0, outputScale, 0, 0];
-      await page.render({
+      const task = page.render({
+        canvas,
         canvasContext: ctx,
         viewport,
         transform,
-      }).promise;
+      });
+      renderTasksRef.current[pageNum] = task;
+      await task.promise;
       setThumbLoaded((prev) => ({ ...prev, [pageNum]: true }));
     } catch (err) {
+      // Ignore intentional cancellations
+      if (
+        err &&
+        typeof err === "object" &&
+        (err as { name?: string }).name === "RenderingCancelledException"
+      ) {
+        return;
+      }
       console.error(`Error rendering export thumbnail ${pageNum}:`, err);
     }
   };
 
-  // Re-render thumbnails if rotation changes
+  // Re-render thumbnails when rotations change (the initial render is
+  // done by the load effect above — skip to avoid double canvas renders)
   useEffect(() => {
     if (!open || !pdfjsReady) return;
-    const pdf = pdfDocRef.current as import("pdfjs-dist").PDFDocumentProxy | null;
+    const key = JSON.stringify(pageRotations);
+    if (lastRotationsKeyRef.current === key) return;
+    lastRotationsKeyRef.current = key;
+    const pdf = pdfDocRef.current;
     if (!pdf) return;
     for (let p = 1; p <= totalPages; p++) {
       void renderThumb(pdf, p);
     }
-  }, [pageRotations, open, pdfjsReady]);
+  }, [pageRotations, open, pdfjsReady, totalPages]);
 
   const pages = useMemo(
     () => Array.from({ length: totalPages }, (_, i) => i + 1),
@@ -170,14 +213,19 @@ export default function ExportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[640px] max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg gradient-bg-tri flex items-center justify-center shrink-0 shadow-soft">
-              <Download className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
+          <DialogTitle className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg gradient-bg flex items-center justify-center shrink-0 shadow-soft">
+              <Download
+                className="h-4 w-4 text-white"
+                strokeWidth={2.2}
+                fill="rgba(255,255,255,0.12)"
+              />
             </div>
-            <span>Экспорт PDF</span>
+            <span className="font-display">Экспорт PDF</span>
           </DialogTitle>
           <DialogDescription>
-            Выберите страницы для экспорта. Удалённые страницы всегда исключаются.
+            Выберите страницы для экспорта. Удалённые страницы всегда
+            исключаются.
           </DialogDescription>
         </DialogHeader>
 
@@ -194,10 +242,14 @@ export default function ExportDialog({
                 "flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all " +
                 (mode === "all"
                   ? "border-primary bg-primary/10 shadow-soft"
-                  : "border-border/60 hover:border-primary/40 hover:bg-accent/30")
+                  : "border-border hover:border-primary/40 hover:bg-accent")
               }
             >
-              <RadioGroupItem value="all" checked={mode === "all"} className="mt-0.5" />
+              <RadioGroupItem
+                value="all"
+                checked={mode === "all"}
+                className="mt-0.5"
+              />
               <div>
                 <div className="text-sm font-semibold">Все страницы</div>
                 <div className="text-[11px] text-muted-foreground mt-0.5">
@@ -211,10 +263,14 @@ export default function ExportDialog({
                 "flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all " +
                 (mode === "selected"
                   ? "border-primary bg-primary/10 shadow-soft"
-                  : "border-border/60 hover:border-primary/40 hover:bg-accent/30")
+                  : "border-border hover:border-primary/40 hover:bg-accent")
               }
             >
-              <RadioGroupItem value="selected" checked={mode === "selected"} className="mt-0.5" />
+              <RadioGroupItem
+                value="selected"
+                checked={mode === "selected"}
+                className="mt-0.5"
+              />
               <div>
                 <div className="text-sm font-semibold">Выбранные страницы</div>
                 <div className="text-[11px] text-muted-foreground mt-0.5">
@@ -228,12 +284,14 @@ export default function ExportDialog({
           {mode === "selected" && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                   Страницы
                 </span>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setSelected(pages.filter((p) => !deletedPages.includes(p)))}
+                    onClick={() =>
+                      setSelected(pages.filter((p) => !deletedPages.includes(p)))
+                    }
                     className="text-[10px] font-semibold text-primary hover:underline"
                   >
                     Выбрать все
@@ -251,7 +309,8 @@ export default function ExportDialog({
                 {pages.map((pageNum) => {
                   const isDeleted = deletedPages.includes(pageNum);
                   const isSelected = selected.includes(pageNum);
-                  const rotation = pageRotations[pageNum] || 0;
+                  const rotation =
+                    ((((pageRotations[pageNum] || 0) % 360) + 360) % 360);
                   return (
                     <button
                       key={pageNum}
@@ -259,10 +318,10 @@ export default function ExportDialog({
                       onClick={() => toggleSelected(pageNum)}
                       className={`group relative flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
                         isDeleted
-                          ? "border-border/30 opacity-40 cursor-not-allowed"
+                          ? "border-border/50 opacity-40 cursor-not-allowed"
                           : isSelected
                           ? "border-primary bg-primary/10 shadow-soft"
-                          : "border-border/60 hover:border-primary/40 hover:bg-accent/30"
+                          : "border-border hover:border-primary/40 hover:bg-accent"
                       }`}
                     >
                       <div className="relative w-full aspect-[3/4] bg-white rounded-md overflow-hidden flex items-center justify-center">
@@ -287,7 +346,10 @@ export default function ExportDialog({
                         {/* Selection checkmark */}
                         {!isDeleted && isSelected && (
                           <div className="absolute top-1 right-1 h-4 w-4 rounded-full bg-primary flex items-center justify-center shadow-soft">
-                            <Check className="h-2.5 w-2.5 text-primary-foreground" strokeWidth={3} />
+                            <Check
+                              className="h-2.5 w-2.5 text-white"
+                              strokeWidth={3}
+                            />
                           </div>
                         )}
                       </div>
@@ -310,7 +372,7 @@ export default function ExportDialog({
           )}
         </div>
 
-        <DialogFooter className="border-t border-border/40 pt-4 mt-2">
+        <DialogFooter className="border-t border-border/70 pt-4 mt-2">
           <div className="flex items-center justify-between w-full gap-2">
             <div className="text-xs text-muted-foreground">
               К экспорту:{" "}
@@ -330,7 +392,7 @@ export default function ExportDialog({
               <Button
                 onClick={handleExport}
                 disabled={activePageCount === 0}
-                className="gap-1.5 shadow-soft btn-glow shimmer rounded-xl font-semibold"
+                className="gap-1.5 shadow-soft rounded-xl font-semibold bg-primary hover:bg-[#c15f3c] text-white transition-colors"
               >
                 <Download className="h-4 w-4" />
                 Экспорт

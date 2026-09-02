@@ -19,7 +19,6 @@ import {
   Menu,
   LogOut,
   FileText,
-  Sparkles,
   ShieldCheck,
   Lock,
   ArrowRight,
@@ -40,6 +39,28 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
         b: parseInt(result[3], 16) / 255,
       }
     : null;
+}
+
+/* ============================================================
+   Export geometry helpers
+   ------------------------------------------------------------
+   Items are stored in "view space" — the coordinate system of
+   the rotated page as shown on screen (top-left origin, y down).
+   The exported PDF page keeps an unrotated mediabox and gets a
+   /Rotate entry, so every point and angle must be transformed.
+   ============================================================ */
+
+interface PageSize {
+  width: number;
+  height: number;
+}
+
+/** Display (view) dimensions in points for a page rotated T degrees CW. */
+function getViewDims(T: number, size: PageSize): PageSize {
+  const swap = T === 90 || T === 270;
+  return swap
+    ? { width: size.height, height: size.width }
+    : { width: size.width, height: size.height };
 }
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
@@ -75,18 +96,20 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
     <div className="min-h-screen flex items-center justify-center aurora-bg p-4 relative overflow-hidden">
       <div className="w-full max-w-md relative animate-slide-up">
         {/* Logo + title */}
-        <div className="flex flex-col items-center gap-5 mb-10">
-          <div className="relative">
-            {/* Logo */}
-            <div className="relative h-20 w-20 rounded-3xl gradient-bg-tri flex items-center justify-center shadow-glow-lg gradient-border-strong">
-              <FileText className="h-10 w-10 text-primary-foreground" strokeWidth={2} />
-            </div>
+        <div className="flex flex-col items-center gap-6 mb-10">
+          <div className="relative h-[4.5rem] w-[4.5rem] rounded-2xl gradient-bg flex items-center justify-center shadow-elevated">
+            <FileText
+              className="h-10 w-10 text-white"
+              strokeWidth={1.8}
+              fill="rgba(255,255,255,0.14)"
+            />
           </div>
           <div className="text-center">
-            <h1 className="font-display text-3xl font-bold tracking-tight text-balance">
-              PDF <span className="gradient-text-bright">Редактор</span>
+            <h1 className="font-display text-[2rem] leading-tight font-semibold tracking-tight text-balance">
+              PDF{" "}
+              <em className="italic font-medium text-primary">Редактор</em>
             </h1>
-            <p className="text-sm text-muted-foreground mt-2 max-w-xs text-balance">
+            <p className="text-sm text-muted-foreground mt-2.5 max-w-xs text-balance leading-relaxed">
               Печати, подписи и текст на документах — прямо в браузере
             </p>
           </div>
@@ -95,15 +118,19 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
         {/* Login card */}
         <form
           onSubmit={handleSubmit}
-          className="space-y-5 glass-strong rounded-2xl p-7 gradient-border shadow-elevated"
+          className="space-y-5 bg-card rounded-2xl p-7 border border-border shadow-elevated"
         >
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <label
+              htmlFor="password"
+              className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            >
               Пароль
             </label>
             <div className="relative group">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
               <input
+                id="password"
                 ref={inputRef}
                 type="password"
                 value={password}
@@ -112,46 +139,46 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
                   setError("");
                 }}
                 placeholder="Введите пароль"
-                className="w-full h-13 py-3.5 pl-11 pr-4 rounded-xl border border-input bg-background/60 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all placeholder:text-muted-foreground/60"
+                className="w-full h-12 py-3.5 pl-11 pr-4 rounded-xl border border-input bg-background text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/35 focus:border-primary transition-all placeholder:text-muted-foreground/60"
                 disabled={isLoading}
               />
             </div>
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-destructive/10 border border-destructive/20 animate-fade-in">
-              <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+            <div
+              className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-destructive/10 border border-destructive/20 animate-fade-in"
+              role="alert"
+            >
+              <div className="h-1.5 w-1.5 rounded-full bg-destructive" />
               <p className="text-xs font-medium text-destructive">{error}</p>
             </div>
           )}
 
           <Button
             type="submit"
-            className="w-full h-12 text-sm font-semibold btn-glow shimmer shadow-soft"
+            className="w-full h-12 text-sm font-semibold rounded-xl bg-primary hover:bg-[#c15f3c] text-white transition-colors"
             disabled={isLoading || !password.trim()}
           >
             {isLoading ? (
               <>
-                <div className="h-4 w-4 mr-2 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                <div className="h-4 w-4 mr-2 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 Проверка...
               </>
             ) : (
               <>
                 Войти
-                <ArrowRight className="h-4 w-4 ml-2 transition-transform group-hover:translate-x-1" />
+                <ArrowRight className="h-4 w-4 ml-2 transition-transform group-hover:translate-x-0.5" />
               </>
             )}
           </Button>
         </form>
 
         {/* Trust badge */}
-        <div className="flex items-center justify-center gap-2 mt-6 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass border border-border/40">
+        <div className="flex items-center justify-center mt-6 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-secondary/70 border border-border/60">
             <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-            <span className="font-medium">Защищённый доступ</span>
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass border border-border/40">
-            <span className="font-mono text-[10px]">SHA-256</span>
+            <span className="font-medium">Защищённый доступ · SHA-256</span>
           </div>
         </div>
       </div>
@@ -245,13 +272,25 @@ export default function Home() {
       }
       const keepSet = new Set(pagesToKeep);
 
+      // Items actually included in the export (visible & on kept pages)
+      const exportedStamps = stamps.filter(
+        (s) => !s.hidden && keepSet.has(s.page)
+      );
+      const exportedTexts = texts.filter(
+        (t) => !t.hidden && keepSet.has(t.page) && t.text.trim()
+      );
+      const exportedErasers = erasers.filter(
+        (e) => !e.hidden && keepSet.has(e.page) && e.points.length > 0
+      );
+
       // Apply page rotations to kept pages BEFORE drawing items
       for (const pageNum of pagesToKeep) {
         const userRotation = pageRotations[pageNum] || 0;
         if (userRotation !== 0) {
           const page = pdfDoc.getPage(pageNum - 1);
           const existing = page.getRotation().angle || 0;
-          page.setRotation(degrees((existing + userRotation) % 360));
+          const total = (((existing + userRotation) % 360) + 360) % 360;
+          page.setRotation(degrees(total));
         }
       }
 
@@ -280,29 +319,78 @@ export default function Home() {
         return unicodeFonts;
       };
 
+      /**
+       * Convert a point from view space (top-left origin, y down, points)
+       * to PDF space (bottom-left origin, y up) for a page with total
+       * rotation T. `dims` = unrotated mediabox {width W, height H},
+       * `Wv`/`Hv` = rotated view dimensions.
+       */
+      const viewPointToPdf = (
+        vx: number,
+        vy: number,
+        T: number,
+        H: number,
+        Wv: number,
+        Hv: number
+      ): { x: number; y: number } => {
+        let px: number;
+        let py: number;
+        switch (T) {
+          case 90:
+            px = vy;
+            py = Wv - vx;
+            break;
+          case 180:
+            px = Wv - vx;
+            py = Hv - vy;
+            break;
+          case 270:
+            px = Hv - vy;
+            py = vx;
+            break;
+          default:
+            px = vx;
+            py = vy;
+        }
+        return { x: px, y: H - py };
+      };
+
       // Stamps — skip if page not in keepSet
-      for (const stamp of stamps.filter(
-        (s) => !s.hidden && keepSet.has(s.page)
-      )) {
+      for (const stamp of exportedStamps) {
         try {
           const page = pdfDoc.getPage(stamp.page - 1);
           const { width: pageWidth, height: pageHeight } = page.getSize();
 
-          const cw = stamp.canvasWidth || 800;
-          const ch = stamp.canvasHeight || 1100;
+          const userRotation = pageRotations[stamp.page] || 0;
+          const intrinsic = page.getRotation().angle || 0;
+          const T = (((intrinsic + userRotation) % 360) + 360) % 360;
+          const { width: Wv, height: Hv } = getViewDims(T, {
+            width: pageWidth,
+            height: pageHeight,
+          });
 
-          const pdfX = (stamp.x / cw) * pageWidth;
-          const pdfY = pageHeight - ((stamp.y + stamp.height) / ch) * pageHeight;
-          const pdfWidth = (stamp.width / cw) * pageWidth;
-          const pdfHeight = (stamp.height / ch) * pageHeight;
+          const cw = stamp.canvasWidth || Wv;
+          const ch = stamp.canvasHeight || Hv;
 
-          // Compensate rotation: pdf-lib rotates around (x, y) = bottom-left corner,
-          // but canvas rotates around center. Adjust (x, y) so center stays in place.
-          const rad = (stamp.rotation * Math.PI) / 180;
-          const cx = pdfX + pdfWidth / 2;
-          const cy = pdfY + pdfHeight / 2;
-          const adjX = cx - (pdfWidth / 2) * Math.cos(rad) + (pdfHeight / 2) * Math.sin(rad);
-          const adjY = cy - (pdfWidth / 2) * Math.sin(rad) - (pdfHeight / 2) * Math.cos(rad);
+          // Item size in view points
+          const pw = (stamp.width / cw) * Wv;
+          const ph = (stamp.height / ch) * Hv;
+
+          // Item center in view space → PDF space
+          const cvx = ((stamp.x + stamp.width / 2) / cw) * Wv;
+          const cvy = ((stamp.y + stamp.height / 2) / ch) * Hv;
+          const center = viewPointToPdf(cvx, cvy, T, pageHeight, Wv, Hv);
+
+          // pdf-lib rotates CCW; canvas rotation is CW → invert,
+          // and account for the page's own /Rotate T.
+          const phiDeg = T - stamp.rotation;
+          const rad = (phiDeg * Math.PI) / 180;
+
+          // Anchor so the rotated image stays centered on `center`
+          const adjX =
+            center.x - (pw / 2) * Math.cos(rad) + (ph / 2) * Math.sin(rad);
+          const adjY =
+            center.y - (pw / 2) * Math.sin(rad) - (ph / 2) * Math.cos(rad);
 
           const response = await fetch(stamp.src);
           const imageArrayBuffer = await response.arrayBuffer();
@@ -323,9 +411,9 @@ export default function Home() {
           page.drawImage(image, {
             x: adjX,
             y: adjY,
-            width: pdfWidth,
-            height: pdfHeight,
-            rotate: degrees(stamp.rotation),
+            width: pw,
+            height: ph,
+            rotate: degrees(phiDeg),
             opacity: stamp.opacity,
           });
         } catch (err) {
@@ -334,28 +422,33 @@ export default function Home() {
       }
 
       // Texts — skip if page not in keepSet
-      for (const textItem of texts.filter(
-        (t) => !t.hidden && keepSet.has(t.page)
-      )) {
-        if (!textItem.text.trim()) continue;
-
+      for (const textItem of exportedTexts) {
         try {
           const page = pdfDoc.getPage(textItem.page - 1);
           const { width: pageWidth, height: pageHeight } = page.getSize();
 
-          const cw = textItem.canvasWidth || 800;
-          const ch = textItem.canvasHeight || 1100;
+          const userRotation = pageRotations[textItem.page] || 0;
+          const intrinsic = page.getRotation().angle || 0;
+          const T = (((intrinsic + userRotation) % 360) + 360) % 360;
+          const { width: Wv, height: Hv } = getViewDims(T, {
+            width: pageWidth,
+            height: pageHeight,
+          });
 
-          const scaledFontSize = (textItem.fontSize / ch) * pageHeight;
-          // letterSpacing in canvas px → PDF points (text space)
-          const scaledLetterSpacing =
-            (textItem.letterSpacing / ch) * pageHeight;
+          const cw = textItem.canvasWidth || Wv;
+          const ch = textItem.canvasHeight || Hv;
+
+          const scaledFontSize = (textItem.fontSize / ch) * Hv;
+          const scaledLetterSpacing = (textItem.letterSpacing / cw) * Wv;
 
           let font: import("pdf-lib").PDFFont;
           const uFonts = await getUnicodeFonts();
-          if (textItem.bold && textItem.italic) font = uFonts.boldItalic as import("pdf-lib").PDFFont;
-          else if (textItem.bold) font = uFonts.bold as import("pdf-lib").PDFFont;
-          else if (textItem.italic) font = uFonts.italic as import("pdf-lib").PDFFont;
+          if (textItem.bold && textItem.italic)
+            font = uFonts.boldItalic as import("pdf-lib").PDFFont;
+          else if (textItem.bold)
+            font = uFonts.bold as import("pdf-lib").PDFFont;
+          else if (textItem.italic)
+            font = uFonts.italic as import("pdf-lib").PDFFont;
           else font = uFonts.regular as import("pdf-lib").PDFFont;
 
           const color = hexToRgb(textItem.color);
@@ -374,8 +467,11 @@ export default function Home() {
           });
           // Line height = 1.2 * fontSize (matches canvas CSS lineHeight: 1.2)
           const scaledLineHeight = scaledFontSize * 1.2;
-          // Leading is distributed equally above and below the glyph in CSS
           const leadingHalf = (scaledLineHeight - scaledFontSize) / 2;
+
+          // pdf-lib CCW angle that matches the canvas CW angle after page rotation
+          const phiDeg = T - textItem.rotation;
+          const phiRad = (phiDeg * Math.PI) / 180;
 
           for (let li = 0; li < lines.length; li++) {
             const line = lines[li];
@@ -384,66 +480,94 @@ export default function Home() {
             }
 
             // Canvas: top of line-box = textItem.y + li * (fontSize * 1.2)
-            // Glyph top = top of line-box + leading/2
-            // PDF baseline = glyph top + ascent
             const lineCanvasTop = textItem.y + li * textItem.fontSize * 1.2;
-            const lineBaselinePdfY =
-              pageHeight -
-              ((lineCanvasTop + leadingHalf + fontAscent) / ch) * pageHeight;
+            const baselineViewY =
+              (lineCanvasTop / ch) * Hv + leadingHalf + fontAscent;
 
-            // Measure line width for alignment
-            const lineWidth = font.widthOfTextAtSize(line, scaledFontSize);
+            // pdf-lib has no charSpacing option — emulate letter spacing by
+            // drawing glyph runs per character when it is non-zero.
+            const hasSpacing = Math.abs(scaledLetterSpacing) > 0.001;
+            const chars = hasSpacing ? Array.from(line) : null;
+            const charWidths = chars
+              ? chars.map((c) => font.widthOfTextAtSize(c, scaledFontSize))
+              : null;
+            const totalSpacing = charWidths
+              ? scaledLetterSpacing * Math.max(0, chars!.length - 1)
+              : 0;
+            const naturalWidth = font.widthOfTextAtSize(line, scaledFontSize);
+            const lineWidth = charWidths
+              ? charWidths.reduce((a, b) => a + b, 0) + totalSpacing
+              : naturalWidth;
 
-            // Compute X based on alignment
-            let linePdfX: number;
-            const basePdfX = (textItem.x / cw) * pageWidth;
-            if (textItem.align === "center") {
-              linePdfX = basePdfX - lineWidth / 2;
-            } else if (textItem.align === "right") {
-              linePdfX = basePdfX - lineWidth;
-            } else {
-              linePdfX = basePdfX;
-            }
+            // Compute baseline X in view space based on alignment
+            const baseViewX = (textItem.x / cw) * Wv;
+            const baselineViewX =
+              textItem.align === "center"
+                ? baseViewX - lineWidth / 2
+                : textItem.align === "right"
+                ? baseViewX - lineWidth
+                : baseViewX;
 
-            // Compensate rotation for text (pdf-lib rotates around baseline-left,
-            // canvas rotates around center). Adjust (x, y) so center stays in place.
-            const textRad = (textItem.rotation * Math.PI) / 180;
-            const lineCenterX = linePdfX + lineWidth / 2;
-            const lineCenterY = lineBaselinePdfY + scaledFontSize / 2;
+            // Baseline start point → PDF space
+            const baselinePdf = viewPointToPdf(
+              baselineViewX,
+              baselineViewY,
+              T,
+              pageHeight,
+              Wv,
+              Hv
+            );
+
+            // Treat the line box as (lineWidth × fontSize) centered on
+            // baseline + fontSize/2; anchor so rotation keeps center fixed.
+            const lineCenterX = baselinePdf.x + lineWidth / 2;
+            const lineCenterY = baselinePdf.y + scaledFontSize / 2;
             const textAdjX =
               lineCenterX -
-              (lineWidth / 2) * Math.cos(textRad) +
-              (scaledFontSize / 2) * Math.sin(textRad);
+              (lineWidth / 2) * Math.cos(phiRad) +
+              (scaledFontSize / 2) * Math.sin(phiRad);
             const textAdjY =
               lineCenterY -
-              (lineWidth / 2) * Math.sin(textRad) -
-              (scaledFontSize / 2) * Math.cos(textRad);
+              (lineWidth / 2) * Math.sin(phiRad) -
+              (scaledFontSize / 2) * Math.cos(phiRad);
 
-            page.drawText(line, {
+            const drawOpts = {
               x: textAdjX,
               y: textAdjY,
               size: scaledFontSize,
               font,
               color: pdfColor,
-              rotate: degrees(textItem.rotation),
-              // charSpacing is in text space units (1/1000 of font size)
-              charSpacing: (scaledLetterSpacing / scaledFontSize) * 1000,
-            });
+              rotate: degrees(phiDeg),
+            };
 
-            // Underline: draw a thin rectangle below the baseline
+            if (charWidths && chars) {
+              // Letter-spaced: place each character along the rotated baseline
+              let cursorX = textAdjX;
+              let cursorY = textAdjY;
+              for (let ci = 0; ci < chars.length; ci++) {
+                if (chars[ci] !== " ") {
+                  page.drawText(chars[ci], { ...drawOpts, x: cursorX, y: cursorY });
+                }
+                const adv = charWidths[ci] + scaledLetterSpacing;
+                cursorX += adv * Math.cos(phiRad);
+                cursorY += adv * Math.sin(phiRad);
+              }
+            } else {
+              page.drawText(line, drawOpts);
+            }
+
+            // Underline: thin rectangle below the baseline, offset
+            // perpendicular to the text direction so it survives rotation.
             if (textItem.underline) {
-              const underlineThickness = Math.max(
-                0.5,
-                scaledFontSize / 18
-              );
-              const underlineY = textAdjY - scaledFontSize * 0.12;
+              const underlineThickness = Math.max(0.5, scaledFontSize / 18);
+              const off = scaledFontSize * 0.12;
               page.drawRectangle({
-                x: textAdjX,
-                y: underlineY,
+                x: textAdjX + off * Math.sin(phiRad),
+                y: textAdjY - off * Math.cos(phiRad),
                 width: lineWidth,
                 height: underlineThickness,
                 color: pdfColor,
-                rotate: degrees(textItem.rotation),
+                rotate: degrees(phiDeg),
               });
             }
           }
@@ -453,48 +577,53 @@ export default function Home() {
       }
 
       // Erasers — skip if page not in keepSet
-      for (const eraserItem of erasers.filter(
-        (e) => !e.hidden && keepSet.has(e.page)
-      )) {
+      for (const eraserItem of exportedErasers) {
         try {
-          if (eraserItem.points.length === 0) continue;
-
           const page = pdfDoc.getPage(eraserItem.page - 1);
           const { width: pageWidth, height: pageHeight } = page.getSize();
 
-          const cw = eraserItem.canvasWidth || 800;
-          const ch = eraserItem.canvasHeight || 1100;
+          const userRotation = pageRotations[eraserItem.page] || 0;
+          const intrinsic = page.getRotation().angle || 0;
+          const T = (((intrinsic + userRotation) % 360) + 360) % 360;
+          const { width: Wv, height: Hv } = getViewDims(T, {
+            width: pageWidth,
+            height: pageHeight,
+          });
+
+          const cw = eraserItem.canvasWidth || Wv;
+          const ch = eraserItem.canvasHeight || Hv;
 
           const eraserColor = hexToRgb(eraserItem.color);
           const pdfColor = eraserColor
             ? rgb(eraserColor.r, eraserColor.g, eraserColor.b)
             : rgb(1, 1, 1);
 
-          const pdfStrokeWidth = (eraserItem.strokeWidth / ch) * pageHeight;
+          const pdfStrokeWidth = (eraserItem.strokeWidth / ch) * Hv;
 
-          for (let i = 0; i < eraserItem.points.length; i++) {
-            const p = eraserItem.points[i];
+          const pdfPoints = eraserItem.points.map((p) => {
+            const vx = (p.x / cw) * Wv;
+            const vy = (p.y / ch) * Hv;
+            return viewPointToPdf(vx, vy, T, pageHeight, Wv, Hv);
+          });
 
-            const pdfX = (p.x / cw) * pageWidth;
-            const pdfY = pageHeight - (p.y / ch) * pageHeight;
+          for (let i = 0; i < pdfPoints.length; i++) {
+            const p = pdfPoints[i];
 
-            if (i === 0 && eraserItem.points.length === 1) {
+            if (i === 0 && pdfPoints.length === 1) {
               const halfSize = pdfStrokeWidth / 2;
               page.drawRectangle({
-                x: pdfX - halfSize,
-                y: pdfY - halfSize,
+                x: p.x - halfSize,
+                y: p.y - halfSize,
                 width: pdfStrokeWidth,
                 height: pdfStrokeWidth,
                 color: pdfColor,
               });
             } else if (i > 0) {
-              const prevP = eraserItem.points[i - 1];
-              const prevPdfX = (prevP.x / cw) * pageWidth;
-              const prevPdfY = pageHeight - (prevP.y / ch) * pageHeight;
+              const prevP = pdfPoints[i - 1];
 
               page.drawLine({
-                start: { x: prevPdfX, y: prevPdfY },
-                end: { x: pdfX, y: pdfY },
+                start: { x: prevP.x, y: prevP.y },
+                end: { x: p.x, y: p.y },
                 thickness: pdfStrokeWidth,
                 color: pdfColor,
               });
@@ -522,7 +651,9 @@ export default function Home() {
       }
 
       const modifiedPdfBytes = await pdfDoc.save();
-      const blob = new Blob([modifiedPdfBytes], { type: "application/pdf" });
+      const blob = new Blob([new Uint8Array(modifiedPdfBytes)], {
+        type: "application/pdf",
+      });
       const url = URL.createObjectURL(blob);
 
       const link = document.createElement("a");
@@ -537,9 +668,8 @@ export default function Home() {
       setTimeout(() => URL.revokeObjectURL(url), 5000);
 
       toast.dismiss(loadingToast);
-      const exportedCount = pagesToKeep.length;
       toast.success("PDF сохранён!", {
-        description: `${exportedCount} стр. · ${stamps.length} печатей · ${texts.length} текстов · ${erasers.length} мазков`,
+        description: `${pagesToKeep.length} стр. · ${exportedStamps.length} печатей · ${exportedTexts.length} текстов · ${exportedErasers.length} мазков`,
       });
     } catch (error) {
       toast.dismiss(loadingToast);
@@ -580,7 +710,7 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="border-b border-border/40 glass-strong px-4 py-2.5 flex items-center justify-between shrink-0 z-30">
+      <header className="border-b border-border/70 glass-strong px-4 py-2.5 flex items-center justify-between shrink-0 z-30">
         <div className="flex items-center gap-3">
           {pdfFile && (
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
@@ -596,21 +726,24 @@ export default function Home() {
               <SheetContent side="left" className="p-0 w-72 overflow-y-auto">
                 <SheetTitle className="sr-only">Панель инструментов</SheetTitle>
                 {toolbarContent}
-                <div className="h-px bg-gradient-to-r from-transparent via-border/40 to-transparent mx-4" />
+                <div className="h-px bg-border/60 mx-4" />
                 <LayersPanel currentPage={currentPage} totalPages={totalPages} />
               </SheetContent>
             </Sheet>
           )}
 
-          {/* Premium logo */}
-          <div className="relative group">
-            <div className="relative h-9 w-9 rounded-xl gradient-bg-tri flex items-center justify-center shadow-soft gradient-border-strong">
-              <FileText className="h-5 w-5 text-primary-foreground" strokeWidth={2.2} />
-            </div>
+          {/* Logo */}
+          <div className="relative h-9 w-9 rounded-xl gradient-bg flex items-center justify-center shadow-soft">
+            <FileText
+              className="h-5 w-5 text-white"
+              strokeWidth={2}
+              fill="rgba(255,255,255,0.15)"
+            />
           </div>
           <div>
-            <h1 className="font-display text-base font-bold leading-tight tracking-tight">
-              PDF <span className="gradient-text-bright">Редактор</span>
+            <h1 className="font-display text-base font-semibold leading-tight tracking-tight">
+              PDF{" "}
+              <em className="italic font-medium text-primary">Редактор</em>
             </h1>
             <p className="text-[11px] text-muted-foreground hidden sm:block font-medium">
               Печати и текст на документах
@@ -626,9 +759,9 @@ export default function Home() {
               ].map((h) => (
                 <span
                   key={h.kbd}
-                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-muted/40 border border-border/40 hover:border-primary/30 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-secondary/60 border border-border/50 hover:border-primary/30 transition-colors"
                 >
-                  <kbd className="px-1.5 py-0.5 bg-background rounded text-[10px] font-mono border border-border/60 shadow-soft">
+                  <kbd className="px-1.5 py-0.5 bg-card rounded text-[10px] font-mono border border-border/70 shadow-soft">
                     {h.kbd}
                   </kbd>
                   <span className="text-[11px] text-muted-foreground">{h.label}</span>
@@ -639,7 +772,7 @@ export default function Home() {
         </div>
         <div className="flex items-center gap-2">
           {pdfFile && (
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl glass border border-border/40 max-w-[220px]">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-secondary/70 border border-border/50 max-w-[220px]">
               <div className="h-6 w-6 rounded-md bg-primary/15 flex items-center justify-center shrink-0">
                 <FileText className="h-3.5 w-3.5 text-primary" />
               </div>
@@ -663,9 +796,9 @@ export default function Home() {
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {pdfFile && (
-          <aside className="hidden md:block w-72 border-r border-border/40 bg-card/20 overflow-y-auto shrink-0">
+          <aside className="hidden md:block w-72 border-r border-border/70 bg-card/30 overflow-y-auto shrink-0">
             {toolbarContent}
-            <div className="h-px bg-gradient-to-r from-transparent via-border/40 to-transparent mx-4" />
+            <div className="h-px bg-border/60 mx-4" />
             <LayersPanel currentPage={currentPage} totalPages={totalPages} />
           </aside>
         )}
@@ -674,10 +807,12 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-border/40 glass-strong px-4 py-2.5 text-center text-xs text-muted-foreground shrink-0 mt-auto">
+      <footer className="border-t border-border/70 glass-strong px-4 py-2.5 text-center text-xs text-muted-foreground shrink-0 mt-auto">
         <div className="flex items-center justify-center gap-2">
-          <Sparkles className="h-3 w-3 text-primary" />
-          <span className="font-medium">PDF Редактор · добавляйте печати и текст на PDF документы</span>
+          <ShieldCheck className="h-3 w-3 text-primary" />
+          <span className="font-medium">
+            PDF Редактор · документы не покидают ваш браузер
+          </span>
         </div>
       </footer>
 

@@ -2,6 +2,7 @@
 
 import React, { useMemo } from "react";
 import { usePdfEditorStore } from "@/store/pdf-editor-store";
+import { STAMP_DEFINITIONS } from "@/lib/stamps";
 import {
   Stamp,
   Type,
@@ -39,6 +40,7 @@ export default function LayersPanel({
     stamps,
     texts,
     erasers,
+    customStamps,
     selectedItemId,
     selectedItemType,
     setSelectedItem,
@@ -47,6 +49,17 @@ export default function LayersPanel({
     removeText,
     removeEraser,
   } = usePdfEditorStore();
+
+  // Resolve a human-readable name for any stamp (preset, built-in or uploaded)
+  const getStampLabel = useMemo(() => {
+    return (type: string): string => {
+      const def = STAMP_DEFINITIONS.find((s) => s.id === type);
+      if (def) return def.name;
+      const custom = customStamps.find((s) => s.id === type);
+      if (custom) return custom.name;
+      return "Печать";
+    };
+  }, [customStamps]);
 
   // Combine all items into a unified layer list, newest first
   const layers = useMemo<LayerEntry[]>(() => {
@@ -70,14 +83,14 @@ export default function LayersPanel({
     const eraserLayers: LayerEntry[] = erasers.map((e) => ({
       id: e.id,
       type: "eraser" as const,
-      label: `Мазок ластика`,
+      label: "Мазок ластика",
       sublabel: `Ластик · стр. ${e.page} · ${e.points.length} точек`,
       page: e.page,
       hidden: !!e.hidden,
     }));
     // Newest first (items pushed at end → reverse)
     return [...stampLayers, ...textLayers, ...eraserLayers].reverse();
-  }, [stamps, texts, erasers]);
+  }, [stamps, texts, erasers, getStampLabel]);
 
   const counts = useMemo(
     () => ({
@@ -111,43 +124,31 @@ export default function LayersPanel({
       {/* Header with counts */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg gradient-bg flex items-center justify-center shadow-soft">
-            <Layers className="h-3.5 w-3.5 text-primary-foreground" strokeWidth={2.5} />
+          <div className="h-7 w-7 rounded-lg bg-ink flex items-center justify-center shadow-soft">
+            <Layers className="h-3.5 w-3.5 text-white" strokeWidth={2.2} />
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
             Слои
           </span>
         </div>
-        <span className="text-[10px] font-semibold text-muted-foreground px-2 py-0.5 rounded-md bg-muted/40 tabular-nums">
+        <span className="text-[10px] font-semibold text-muted-foreground px-2 py-0.5 rounded-md bg-secondary/70 tabular-nums">
           {counts.total}
         </span>
       </div>
 
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-1.5">
-        <StatChip
-          icon={Stamp}
-          count={counts.stamps}
-          label="Печати"
-        />
-        <StatChip
-          icon={Type}
-          count={counts.texts}
-          label="Тексты"
-        />
-        <StatChip
-          icon={Paintbrush}
-          count={counts.erasers}
-          label="Ластик"
-        />
+        <StatChip icon={Stamp} count={counts.stamps} label="Печати" />
+        <StatChip icon={Type} count={counts.texts} label="Тексты" />
+        <StatChip icon={Paintbrush} count={counts.erasers} label="Ластик" />
       </div>
 
-      <div className="h-px bg-gradient-to-r from-transparent via-border/60 to-transparent" />
+      <div className="h-px bg-border/70" />
 
       {/* Layers list */}
       {layers.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-8 text-center">
-          <div className="h-12 w-12 rounded-xl bg-muted/30 flex items-center justify-center">
+          <div className="h-12 w-12 rounded-xl bg-secondary/60 flex items-center justify-center">
             <Layers className="h-5 w-5 text-muted-foreground/60" />
           </div>
           <p className="text-xs text-muted-foreground font-medium">
@@ -162,7 +163,12 @@ export default function LayersPanel({
           {layers.map((layer) => {
             const isSelected =
               selectedItemId === layer.id && selectedItemType === layer.type;
-            const Icon = layer.type === "stamp" ? Stamp : layer.type === "text" ? Type : Paintbrush;
+            const Icon =
+              layer.type === "stamp"
+                ? Stamp
+                : layer.type === "text"
+                ? Type
+                : Paintbrush;
             const onCurrentPage = layer.page === currentPage;
             return (
               <div
@@ -171,15 +177,17 @@ export default function LayersPanel({
                   isSelected
                     ? "border-primary bg-primary/10 shadow-soft"
                     : onCurrentPage
-                    ? "border-border/60 hover:border-primary/40 hover:bg-accent/30"
-                    : "border-border/40 opacity-60 hover:opacity-100 hover:border-border/80"
+                    ? "border-border/70 hover:border-primary/40 hover:bg-accent"
+                    : "border-border/50 opacity-60 hover:opacity-100 hover:border-border"
                 }`}
                 onClick={() => handleSelect(layer)}
               >
                 {/* Icon / thumbnail */}
-                <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${
-                  isSelected ? "gradient-bg" : "bg-muted/40"
-                }`}>
+                <div
+                  className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${
+                    isSelected ? "gradient-bg" : "bg-secondary/70"
+                  }`}
+                >
                   {layer.type === "stamp" && layer.thumbSrc ? (
                     <img
                       src={layer.thumbSrc}
@@ -190,7 +198,7 @@ export default function LayersPanel({
                   ) : (
                     <Icon
                       className={`h-4 w-4 ${
-                        isSelected ? "text-primary-foreground" : "text-muted-foreground"
+                        isSelected ? "text-white" : "text-muted-foreground"
                       }`}
                       strokeWidth={2.2}
                     />
@@ -205,14 +213,14 @@ export default function LayersPanel({
                   <div className="text-[10px] text-muted-foreground truncate leading-tight mt-0.5">
                     {layer.sublabel}
                     {!onCurrentPage && (
-                      <span className="ml-1 text-amber-600/80">· другая стр.</span>
+                      <span className="ml-1 text-amber-600">· другая стр.</span>
                     )}
                   </div>
                 </div>
 
                 {/* Page badge if not current */}
                 {!onCurrentPage && (
-                  <span className="text-[9px] font-bold text-muted-foreground/70 px-1.5 py-0.5 rounded bg-muted/40 shrink-0 tabular-nums">
+                  <span className="text-[9px] font-bold text-muted-foreground/70 px-1.5 py-0.5 rounded bg-secondary/70 shrink-0 tabular-nums">
                     {layer.page}
                   </span>
                 )}
@@ -255,8 +263,11 @@ export default function LayersPanel({
 
       {/* Hint */}
       {layers.length > 0 && (
-        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/15">
-          <ChevronRight className="h-3 w-3 text-primary shrink-0 mt-0.5" strokeWidth={2.5} />
+        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-secondary/50 border border-border/60">
+          <ChevronRight
+            className="h-3 w-3 text-primary shrink-0 mt-0.5"
+            strokeWidth={2.5}
+          />
           <p className="text-[10px] text-muted-foreground leading-relaxed">
             Клик — выбрать · наведи для скрытия/удаления
           </p>
@@ -276,7 +287,7 @@ function StatChip({
   label: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-muted/30 border border-border/40">
+    <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-secondary/50 border border-border/60">
       <div className="flex items-center gap-1">
         <Icon className="h-3 w-3 text-primary" strokeWidth={2.5} />
         <span className="text-sm font-bold tabular-nums">{count}</span>
@@ -286,13 +297,4 @@ function StatChip({
       </span>
     </div>
   );
-}
-
-function getStampLabel(type: string): string {
-  const map: Record<string, string> = {
-    "custom-seal-ooo": "Печать ООО",
-    "custom-signature-1": "Литвинкин",
-    "custom-signature-2": "Вегеш",
-  };
-  return map[type] || "Печать";
 }

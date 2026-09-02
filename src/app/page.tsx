@@ -93,23 +93,36 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center aurora-bg p-4 relative overflow-hidden">
-      <div className="w-full max-w-md relative animate-slide-up">
+    <div className="min-h-screen flex items-center justify-center aurora-bg dot-bg p-4 relative overflow-hidden grain">
+      {/* Ambient corner glows */}
+      <div
+        aria-hidden
+        className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-terracotta/10 blur-3xl pointer-events-none"
+      />
+      <div
+        aria-hidden
+        className="absolute -bottom-40 -right-24 h-[28rem] w-[28rem] rounded-full bg-[#7d9b76]/10 blur-3xl pointer-events-none"
+      />
+
+      <div className="w-full max-w-md relative">
         {/* Logo + title */}
-        <div className="flex flex-col items-center gap-6 mb-10">
-          <div className="relative h-[4.5rem] w-[4.5rem] rounded-2xl bg-ink flex items-center justify-center shadow-elevated">
-            <FileText
-              className="h-10 w-10 text-white"
-              strokeWidth={1.8}
-              fill="rgba(255,255,255,0.14)"
-            />
+        <div className="flex flex-col items-center gap-7 mb-10 stagger-item">
+          <div className="relative">
+            <div className="h-20 w-20 rounded-[1.4rem] bg-ink flex items-center justify-center shadow-elevated">
+              <FileText
+                className="h-9 w-9 text-white"
+                strokeWidth={1.6}
+                fill="rgba(217,119,87,0.35)"
+              />
+            </div>
+            <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-terracotta ring-4 ring-background" />
           </div>
           <div className="text-center">
-            <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-balance">
+            <h1 className="display-title text-[2.6rem] text-balance">
               PDF{" "}
-              <span className="text-primary">Редактор</span>
+              <span className="text-terracotta-dark">Редактор</span>
             </h1>
-            <p className="text-sm text-muted-foreground mt-2.5 max-w-xs text-balance leading-relaxed">
+            <p className="text-sm text-muted-foreground mt-3 max-w-[17rem] text-balance leading-relaxed">
               Печати, подписи и текст на документах — прямо в браузере
             </p>
           </div>
@@ -118,7 +131,8 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
         {/* Login card */}
         <form
           onSubmit={handleSubmit}
-          className="space-y-5 bg-card rounded-2xl p-7 border border-border shadow-elevated"
+          className="space-y-5 bg-card rounded-2xl p-7 border border-border shadow-elevated stagger-item"
+          style={{ "--stagger-delay": "90ms" } as React.CSSProperties}
         >
           <div className="space-y-2">
             <label
@@ -157,7 +171,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
           <Button
             type="submit"
-            className="w-full h-12 text-sm font-medium rounded-xl bg-primary hover:bg-terracotta-dark text-white transition-colors"
+            className="w-full h-12 text-sm font-medium rounded-xl bg-ink hover:bg-ink-hover text-white transition-colors shadow-soft disabled:bg-ink/25"
             disabled={isLoading || !password.trim()}
           >
             {isLoading ? (
@@ -175,8 +189,11 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
         </form>
 
         {/* Trust badge */}
-        <div className="flex items-center justify-center mt-6 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-secondary/70 border border-border/60">
+        <div
+          className="flex items-center justify-center mt-6 text-xs text-muted-foreground stagger-item"
+          style={{ "--stagger-delay": "180ms" } as React.CSSProperties}
+        >
+          <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-card/80 backdrop-blur-sm border border-border/60 shadow-soft">
             <ShieldCheck className="h-3.5 w-3.5 text-primary" />
             <span className="font-medium">Защищённый доступ · SHA-256</span>
           </div>
@@ -737,13 +754,13 @@ export default function Home() {
             <FileText
               className="h-5 w-5 text-white"
               strokeWidth={2}
-              fill="rgba(255,255,255,0.15)"
+              fill="rgba(217,119,87,0.4)"
             />
           </div>
           <div>
-            <h1 className="text-base font-semibold leading-tight tracking-tight">
+            <h1 className="display-title text-lg leading-tight">
               PDF{" "}
-              <span className="text-primary">Редактор</span>
+              <span className="text-terracotta-dark">Редактор</span>
             </h1>
             <p className="text-[11px] text-muted-foreground hidden sm:block">
               Печати и текст на документах
@@ -759,11 +776,9 @@ export default function Home() {
               ].map((h) => (
                 <span
                   key={h.kbd}
-                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-secondary/60 border border-border/50 hover:border-primary/30 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-secondary/50 border border-border/40"
                 >
-                  <kbd className="px-1.5 py-0.5 bg-card rounded text-[10px] font-mono border border-border/70 shadow-soft">
-                    {h.kbd}
-                  </kbd>
+                  <span className="kbd">{h.kbd}</span>
                   <span className="text-[11px] text-muted-foreground">{h.label}</span>
                 </span>
               ))}
@@ -815,7 +830,6 @@ export default function Home() {
           </span>
         </div>
       </footer>
-
       <input
         ref={fileInputRef}
         type="file"

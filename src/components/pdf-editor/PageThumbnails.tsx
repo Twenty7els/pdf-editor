@@ -148,10 +148,10 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
   return (
     <div className="hidden md:flex w-[124px] shrink-0 border-r border-border/70 bg-card/30 overflow-y-auto py-3 px-2 flex-col gap-2.5">
       <div className="flex items-center justify-between gap-1 px-1 mb-1">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           Страницы
         </span>
-        <span className="text-[10px] font-medium text-muted-foreground px-1 py-0.5 rounded-lg bg-muted/40 tabular-nums">
+        <span className="text-[11px] font-medium text-muted-foreground px-2 py-0.5 rounded-full bg-secondary tabular-nums">
           {totalPages}
         </span>
       </div>
@@ -165,12 +165,12 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
         return (
           <div
             key={pageNum}
-            className={`group relative rounded-xl p-1.5 transition-all cursor-pointer border ${
+            className={`group relative rounded-xl p-1.5 transition-all cursor-pointer ${
               isCurrent
-                ? "border-primary bg-primary/10 shadow-soft"
+                ? "border-2 border-primary bg-card shadow-soft"
                 : isDeleted
-                ? "border-border/50 bg-muted/20 opacity-50 hover:opacity-90"
-                : "border-border/70 hover:border-primary/40 hover:bg-accent"
+                ? "border border-border/50 bg-card opacity-50 hover:opacity-90"
+                : "border border-border bg-card hover:border-primary/40"
             }`}
             onClick={() => {
               if (isDeleted) {
@@ -188,8 +188,10 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
             {/* Page number */}
             <div className="flex items-center justify-between mb-1 px-0.5">
               <span
-                className={`text-[10px] font-medium tabular-nums ${
-                  isCurrent ? "text-primary" : "text-muted-foreground"
+                className={`inline-flex items-center justify-center min-w-5 px-1.5 py-0.5 rounded-full text-[10px] font-medium tabular-nums leading-none ${
+                  isCurrent
+                    ? "bg-primary text-white"
+                    : "bg-secondary text-muted-foreground"
                 }`}
               >
                 {pageNum}

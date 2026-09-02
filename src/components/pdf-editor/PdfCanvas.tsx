@@ -1123,7 +1123,7 @@ export default function PdfCanvas() {
         )}
 
         {pdfDoc && !error && !isLoading && !isCurrentPageDeleted && (
-          <div className="relative shadow-elevated border border-border/60 rounded-xl overflow-hidden bg-background">
+          <div className="relative shadow-paper border border-border/60 rounded-xl overflow-hidden bg-background">
             <canvas ref={canvasRef} className="block" />
 
             {/* Overlay */}
@@ -1340,11 +1340,11 @@ export default function PdfCanvas() {
           {/* Bottom center controls */}
           {pdfDoc && !error && !isLoading && (
             <div className="flex justify-center pb-3 px-4 pt-1">
-              <div className="flex items-center gap-1 glass-strong border border-border/70 rounded-full shadow-elevated px-2 py-1 max-w-[calc(100vw-24px)] overflow-x-auto">
+              <div className="flex items-center gap-1 bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-float px-2 py-1 max-w-[calc(100vw-24px)] overflow-x-auto">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-lg hover:bg-accent"
+                  className="h-8 w-8 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground"
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                   disabled={currentPage <= 1}
                 >
@@ -1352,14 +1352,14 @@ export default function PdfCanvas() {
                 </Button>
                 <div className="flex items-center gap-1.5 px-2">
                   <FileText className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-[11px] font-medium tabular-nums min-w-[60px] text-center select-none">
+                  <span className="text-xs font-medium tabular-nums min-w-[60px] text-center select-none">
                     {currentPage} / {totalPages}
                   </span>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-lg hover:bg-accent"
+                  className="h-8 w-8 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground"
                   onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage >= totalPages}
                 >
@@ -1370,7 +1370,7 @@ export default function PdfCanvas() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-lg hover:bg-accent"
+                  className="h-8 w-8 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground"
                   onClick={undo}
                   disabled={past.length === 0}
                   title="Отменить (Ctrl+Z)"
@@ -1380,7 +1380,7 @@ export default function PdfCanvas() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-lg hover:bg-accent"
+                  className="h-8 w-8 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground"
                   onClick={redo}
                   disabled={future.length === 0}
                   title="Повторить (Ctrl+Y)"
@@ -1392,7 +1392,7 @@ export default function PdfCanvas() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-lg hover:bg-accent"
+                  className="h-8 w-8 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground"
                   onClick={() => rotatePage(currentPage)}
                   disabled={isCurrentPageDeleted}
                   title={`Повернуть страницу (текущий: ${pageRotations[currentPage] || 0}°)`}
@@ -1414,14 +1414,14 @@ export default function PdfCanvas() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-lg hover:bg-accent"
+                  className="h-8 w-8 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground"
                   onClick={zoomOut}
                   disabled={zoomLevel <= 0.25}
                 >
                   <ZoomOut className="h-4 w-4" />
                 </Button>
                 <button
-                  className="text-[11px] font-medium tabular-nums min-w-[52px] text-center hover:bg-accent rounded-full py-1 px-2 transition-colors select-none"
+                  className="text-xs font-medium tabular-nums min-w-[52px] text-center hover:bg-secondary rounded-full py-1 px-2 transition-colors select-none"
                   onClick={zoomFit}
                   title="Сбросить до 100%"
                 >
@@ -1430,7 +1430,7 @@ export default function PdfCanvas() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-lg hover:bg-accent"
+                  className="h-8 w-8 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground"
                   onClick={zoomIn}
                   disabled={zoomLevel >= 5.0}
                 >
@@ -1445,7 +1445,7 @@ export default function PdfCanvas() {
       {/* Floating properties bar */}
       {showTopBar && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 max-w-[calc(100%-1.5rem)] animate-slide-down">
-          <div className="glass-strong rounded-2xl shadow-elevated border border-border/70 px-3 py-2 flex items-center gap-2 overflow-x-auto max-w-full">
+          <div className="bg-card/95 backdrop-blur-sm rounded-full shadow-float border border-border px-3 py-2 flex items-center gap-2 overflow-x-auto max-w-full">
             {/* Text tool hint (no element selected) */}
             {activeTool === "text" && !selectedItemId && (
               <>

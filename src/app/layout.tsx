@@ -1,11 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin", "cyrillic"],
+  display: "swap",
+});
+
+const sourceSerif = Source_Serif_4({
+  variable: "--font-source-serif",
+  subsets: ["latin", "cyrillic"],
+  weight: ["600", "700"],
   display: "swap",
 });
 
@@ -32,7 +39,7 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning>
       <body
-        className={`${inter.variable} font-sans antialiased bg-background text-foreground`}
+        className={`${inter.variable} ${sourceSerif.variable} font-sans antialiased bg-background text-foreground`}
       >
         {children}
         <Toaster

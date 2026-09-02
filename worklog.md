@@ -118,3 +118,84 @@ Stage Summary:
 - Дизайн полностью унифицирован: Inter везде, 3 веса, плоские цвета, консистентные состояния.
 - Баг «квадратики при скачивании» исправлен и проверен сквозным тестом с растеризацией экспорта.
 - Проект готов к выгрузке на GitHub — ждём ключ от пользователя.
+
+---
+Task ID: 2-a
+Agent: frontend-styling-expert
+Task: Рестайл Toolbar + ExportDialog по ATELIER v2
+
+Work Log:
+- Прочитал worklog.md и весь globals.css (ATELIER v2: токены ink/ink-hover/terracotta/terracotta-dark/terracotta-soft/oat, утилиты display-title/shadow-*/lift/kbd/glass, регламент в комментарии).
+- Toolbar.tsx: «Скачать PDF» — главный CTA переведён с терракоты на чернила (bg-primary hover:bg-terracotta-dark → bg-ink hover:bg-ink-hover, text-white shadow-soft); «Загрузить другой»/«Загрузить PDF» — вторичный стиль bg-card border-border text-foreground hover:bg-secondary/60, иконка-чип bg-primary/12 → bg-terracotta-soft, FileUp text-primary → text-terracotta-dark; 4 плитки инструментов приведены к единой структуре: активная border-primary/40 bg-terracotta-soft/50 shadow-soft, чип bg-primary text-white, неактивная border-border bg-card, чип bg-secondary (иконка text-muted-foreground), hover:border-primary/30 hover:shadow-soft + lift; чип увеличен h-8 w-8 rounded-lg → h-10 w-10 shrink-0 rounded-xl, иконка h-4 → h-5, убран лишний group-hover-кондиционал на чипе; метка плитки font-semibold → font-medium (по правилу «labels/buttons = 500»); индикаторная точка активности bg-primary → bg-terracotta; плитки печатей («Ваши печати», «Загруженные») — унификация hover: hover:border-primary hover:bg-accent → hover:border-primary/30 hover:shadow-soft, база border-border/70 → border-border bg-card; «Загрузить свою печать» — вторичный канон (bg-card hover:bg-secondary/60 hover:border-primary/30, dashed сохранён); пресет-тексты: активная border-primary/40 bg-terracotta-soft/50, неактивная border-border bg-card hover:border-primary/30 hover:shadow-soft. Секционные заголовки уже канонические (text-[11px] font-semibold uppercase tracking-wider) — не тронуты.
+- ExportDialog.tsx: DialogContent + rounded-2xl shadow-elevated (по спеке для диалогов); заголовок «Экспорт PDF» — добавлен display-title (антиква Source Serif, только здесь), text-base → text-lg; радио-карточки «Все страницы»/«Выбранные страницы»: выбранная border-primary/50 bg-terracotta-soft/40 (shadow-soft), невыбранная border-border bg-card hover:border-primary/30; RadioGroupItem + data-[state=checked]:border-terracotta (точка индикатора fill-primary = терракота уже канонична); карточки страниц сетки: выбранная border-primary/50 bg-terracotta-soft/40 shadow-soft, невыбранная border-border bg-card hover:border-primary/30 hover:shadow-soft, холст превью rounded-md → rounded-lg; чекбокс выбранной страницы — bg-primary + border border-primary, белая галочка Check strokeWidth 2.2; бейдж поворота text-[8px] font-semibold → text-[10px] font-medium (amber сохранён — только индикаторы); «Выбрать все» text-primary → text-terracotta-dark (канон акцентного текста); футер: «Отмена» — ghost (не тронута), «Экспорт» — bg-primary hover:bg-terracotta-dark → bg-ink hover:bg-ink-hover text-white, disabled-логика (activePageCount === 0) не тронута.
+- Проверки: bunx tsc --noEmit — 0 ошибок в src/ (4 ошибки только в examples/ и skills/ — существовали до задачи); bun run lint — 0 ошибок/предупреждений; grep обоих файлов на font-display|font-bold|gradient-bg|bg-[#|tracking-widest|text-[8px]|text-[9px]|<em|italic|shadow-lg — 0 совпадений; git diff сверен — изменены только className/размеры/радиусы, ни одного props/handler/state/aria/текста.
+
+Stage Summary:
+- Toolbar и ExportDialog переведены на ATELIER v2: primary-кнопки — чернильные (bg-ink/bg-ink-hover), терракота осталась только в акцентах/активных состояниях (мягкие подложки bg-terracotta-soft/40–50, border-primary/40–50, точка bg-terracotta), вторичные кнопки и плитки — bg-card + border-border + hover:bg-secondary/60.
+- Плитки инструментов: единый размер и структура (чип 40px rounded-xl), hover-канон border-primary/30 + shadow-soft + lift.
+- Экспорт-диалог: rounded-2xl + shadow-elevated, антиква display-title только в заголовке, радио-карточки/карточки страниц/чекбоксы в едином терракотово-мягком стиле.
+- Верификация: tsc 0 ошибок (src/), lint 0/0, запрещённые паттерны отсутствуют, логика не затронута.
+
+---
+Task ID: 2-b
+Agent: frontend-styling-expert
+Task: Рестайл LayersPanel + PageThumbnails + TextEditSidebar по ATELIER v2
+
+Work Log:
+- Прочитал worklog.md (Tasks 1, 2, 4-a/b/c, 3) и весь globals.css (ATELIER v2: токены, display-title, kbd, shadow-soft/elevated/paper/float, lift, glass, регламент в шапке).
+- LayersPanel.tsx: счётчик в шапке → каноничный бейдж rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium (tabular-nums сохранён); StatChip (ПЕЧАТИ/ТЕКСТЫ/ЛАСТИК) → единые пилюли rounded-xl border border-border bg-card px-3 py-2, иконка text-terracotta-dark (была text-primary), число text-sm font-semibold, подпись text-[10px] font-medium uppercase tracking-wider text-muted-foreground (было tracking-wide на bg-secondary/50); пустое состояние: чип bg-secondary (без /60), иконка без /60, заголовок «Пока нет слоёв» → display-title text-base text-foreground (единственный font-display в трёх файлах — по спецификации), описание text-[10px]/70 → text-xs text-muted-foreground; строки слоёв: невыбранные → border-border bg-card hover:border-primary/30 hover:shadow-soft (было hover:bg-accent), чужие страницы — дим opacity-60 сохранён + bg-card + hover:shadow-soft, выбранные → border-primary/40 bg-terracotta-soft/40 shadow-soft (было border-primary bg-primary/10); плитка-иконка невыбранного bg-secondary/70 → bg-secondary (выбранная bg-primary с белой иконкой — сохранена); мини-кнопки Eye/EyeOff/Trash rounded-md → rounded-lg (шкала радиусов); amber-индикаторы (скрытие/другая стр.) не тронуты — amber зарезервирован.
+- PageThumbnails.tsx: заголовок «Страницы» text-[10px] → text-[11px] font-semibold uppercase tracking-wider text-muted-foreground (по ТЗ 2-b единый канон секционных заголовков); счётчик → rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium (было rounded-lg bg-muted/40 px-1 text-[10px]); карточка миниатюры: выбранная → border-2 border-primary bg-card shadow-soft (было border-primary bg-primary/10), невыбранная → border border-border bg-card hover:border-primary/40 (без bg-hover по ТЗ), удалённая → border border-border/50 bg-card opacity-50 (дим сохранён); номер-бейдж → пилюля rounded-full min-w-5 px-1.5 py-0.5 text-[10px] font-medium leading-none: выбранная bg-primary text-white, невыбранная bg-secondary text-muted-foreground; canvas-рендер (refs, useEffect, renderTasks) не тронут; amber-индикатор поворота сохранён; равные отступы gap-2.5 и rounded-xl сохранены.
+- TextEditSidebar.tsx: textarea → каноничный контрол rounded-lg border border-input bg-background text-sm px-3 focus:ring-2 focus:ring-primary/35 focus:border-primary focus:outline-none (было rounded-xl, ring-primary/40; min-h/py-2.5/resize-none сохранены — textarea, h-9 не применим); kbd-подсказка Ctrl+Enter → утилита .kbd из globals.css (вместо ручных классов); color-input rounded-md → rounded-lg; кнопка «Отмена» → вторичная по ТЗ: bg-card border border-border hover:bg-secondary/60 rounded-lg (была ghost на hover:bg-accent); кнопка «Добавить/Сохранить» → основная по ТЗ и правилу 6 ATELIER: bg-ink hover:bg-ink-hover text-white rounded-lg (была bg-primary hover:bg-terracotta-dark rounded-xl — терракота запрещена для primary-кнопок); close-X в шапке rounded-xl → rounded-lg; все 8 label уже были каноничными text-[11px] font-semibold uppercase tracking-wider text-muted-foreground — ОДИНАКОВО по файлу, не тронуты; секции уже разделены space-y-5 + hairline h-px bg-border/60; ToggleButton/пресеты/шрифтовые плитки (активные = border-primary/bg-primary — разрешённые активные состояния), live-preview inline-стили, value/onChange/handlers/disabled — без изменений.
+- Верификация: bunx tsc --noEmit — 0 ошибок в src/ (примеры/skills вне скоупа игнорированы); bun run lint — 0 ошибок/предупреждений; git diff -U0 по трём файлам — все изменённые строки только className/строки классов (props/onClick/onChange/state/aria/тексты не тронуты); grep по трём файлам на font-bold|tracking-widest|text-[9px]|gradient-bg|gradient-border|bg-[#|font-display — 0 совпадений (font-display присутствует только как утилита display-title в пустом состоянии слоёв, разрешено ТЗ).
+
+Stage Summary:
+- Три панели приведены к ATELIER v2: секционные заголовки + счётчики-бейджи (rounded-full bg-secondary), стат-пилюли LayersPanel на bg-card с terracotta-dark иконками, пустое состояние слоёв с display-title, строки слоёв bg-card + terracotta-soft/40 выбор, миниатюры с border-2 border-primary + номер-бейджем bg-primary text-white, форма TextEditSidebar с едиными контролами (rounded-lg, ring-primary/35) и кнопками bg-ink/secondary-outline по правилу «primary = ink, accent = terracotta».
+- Только презентационные изменения (className/обёртки классов): 0 изменений props/handlers/state/effects/aria/текстов; canvas-логика миниатюр не затронута.
+- Проверки: tsc 0 ошибок в src/; ESLint 0/0; запрещённые паттерны — 0.
+
+---
+Task ID: 2-c
+Agent: frontend-styling-expert
+Task: Рестайл UploadZone + UI-обвязки PdfCanvas по ATELIER v2
+
+Work Log:
+- Прочитал worklog.md (история Task 1, 2, 3, 4-a/b/c), весь globals.css (ATELIER v2 токены/утилиты), UploadZone.tsx и PdfCanvas.tsx (1913 строк); сверился с каноничным паттерном логина в page.tsx (display-title + text-terracotta-dark акцент + stagger-item).
+- UploadZone.tsx (полный рестайл, логика/тексты/aria не тронуты):
+  1. Заголовок вынесен из карточки в самостоятельный hero-блок над дропзоной (как на логине): h2 display-title text-3xl md:text-[2.75rem] text-balance, «PDF» — text-terracotta-dark; подзаголовок («Перетащите файл...») перенесён вместе с заголовком, текст сохранён.
+  2. Хореография входа: контейнер больше не animate-slide-up; каждому блоку stagger-item + inline --stagger-delay: hero-заголовок 0ms, карточка загрузки 90ms, панель «Возможности» 180ms, карточка доверия 270ms.
+  3. Карточка загрузки: rounded-3xl border-2 border-dashed, покой = border-border bg-card/70 backdrop-blur-sm, hover = border-primary/40 + shadow-elevated + bg-card, transition-all duration-300; dragover-логика сохранена, классы уточнены: border-primary bg-terracotta-soft/30 (scale/shadow-elevated оставлены). Иконка-чип: h-16 w-16 rounded-2xl bg-terracotta-soft, FileUp h-8 w-8 text-terracotta-dark (ping-индикатор dragover сохранён, rounded-2xl в тон чипа).
+  4. CTA «Выбрать файл» = главная: h-11 px-6 rounded-xl bg-ink text-white text-sm font-medium shadow-soft group-hover:bg-ink-hover; иконка FileUp (2.2, solid-правило) и стрелка ArrowRight с group-hover сдвигом сохранены.
+  5. Панель «Возможности»: заголовок → канон text-[11px] font-semibold uppercase tracking-wider text-muted-foreground + декоративная терракотовая черта h-px w-5 bg-terracotta (aria-hidden); сетка 2x2 сохранена, плитки → rounded-2xl border-border bg-card p-4 hover:border-primary/30 hover:shadow-soft lift; чипы h-10 w-10 rounded-xl bg-terracotta-soft, иконки h-5 w-5 text-terracotta-dark; заголовок плитки text-sm font-medium, подпись text-xs text-muted-foreground.
+  6. Карточка доверия — премиальная тёмная: rounded-2xl bg-ink text-white p-5 shadow-elevated; чип h-10 w-10 rounded-xl bg-white/10, ShieldCheck text-white (2.2); заголовок text-sm font-medium text-white, описание text-xs text-white/70 leading-relaxed.
+  7. Мелочи: trust-бейджи («Только PDF» / «Не покидает браузер») — иконки text-terracotta-dark; watermark FileText (opacity 0.04, strokeWidth 0.8) сохранён; fill-хаки у lucide-иконок убраны; aurora/dot-bg, label-обёртка, скрытый input, все handler'ы — без изменений.
+- PdfCanvas.tsx (ТОЛЬКО обвязка, 12 строк diff, все правки — className):
+  1. Обёртка страницы вокруг <canvas>: shadow-elevated → shadow-paper (размеры/позиционирование/canvas не тронуты).
+  2. Нижний пилл (зум/страница/навигация/undo-redo/поворот/удаление): glass-strong shadow-elevated border-border/70 → bg-card/95 backdrop-blur-sm border-border shadow-float (rounded-full сохранён); 7 ghost-кнопок h-8 w-8 rounded-lg → hover:bg-secondary text-muted-foreground hover:text-foreground (destructive Trash сохранён намеренно); индикатор страницы и зум-% → text-xs font-medium tabular-nums.
+  3. Плавающая панель свойств (топ-бар): тот же единый сёрфас bg-card/95 backdrop-blur-sm border-border shadow-float, rounded-2xl → rounded-full (пилюля ~46px, геометрически проверено — контент не режется); позиционирование/анимация обёртки не тронуты.
+  4. ЗАПРЕЩЁННОЕ не тронуто: useEffect/useRef/handler'ы, координатная математика (scaleToDisplay, HANDLE_SIZE/ROTATE_HANDLE_DISTANCE), outputScale, рендер, оверлеи печатей/текста/ластика, selection-handles, state, props, тексты; inline text-edit input в файле отсутствует (текст редактируется через TextEditSidebar) — пункт спецификации N/A.
+- Верификация: git-diff PdfCanvas = 12 строк, все className-only; тексты/aria/accept/handler'ы UploadZone сверены диффом — 0 изменений; bunx tsc --noEmit — 0 ошибок в src/ (только преждние ошибки examples/ и skills/, вне зоны); bun run lint — exit 0, 0 ошибок/предупреждений; grep UploadZone+PdfCanvas на font-display/font-bold/gradient-bg/tracking-widest/text-[9px]/<em/glass-strong — 0 совпадений.
+
+Stage Summary:
+- UploadZone превращён в витрину ATELIER v2: display-title с терракотовым «PDF», stagger-хореография 0/90/180/270ms, дашед-карточка bg-card/70+backdrop-blur с hover:shadow-elevated, терракота-софт чипы, чернильная CTA h-11 и премиальная тёмная карточка доверия bg-ink; вся загрузочная логика (drag&drop, input, aria) без изменений.
+- PdfCanvas: все плавающие поверхности приведены к единому стилю — страница shadow-paper, нижний пилл и панель свойств bg-card/95 backdrop-blur-sm border-border shadow-float rounded-full, кнопки hover:bg-secondary + text-muted-foreground, индикаторы text-xs font-medium tabular-nums. Логика/координаты/рендер гарантированно не тронуты (className-only diff).
+- Проверки: tsc 0 ошибок в src/, lint 0/0, запрещённые паттерны — 0.
+
+---
+Task ID: 3-v2 (design system + page.tsx + oversight 2-a/b/c)
+Agent: Z.ai Code (main)
+Task: Премиальный редизайн «ATELIER v2» — редакторская типографика, точная палитра, глубина; верификация и деплой
+
+Work Log:
+- Определена система ATELIER v2: пара шрифтов со строгим разделением ролей — Source Serif 4 (только hero-заголовки: логин, загрузка, заголовок диалога, пустое состояние) + Inter (весь UI); веса 400/500/600.
+- globals.css: добавлены --font-display, .display-title, .stagger-item (+ --stagger-delay), .kbd, .shadow-paper, .shadow-float, .grain (бумажное зерно), усилены aurora-bg/dot-bg; обновлён манифест правил системы (кнопки основного действия = bg-ink, терракота = акценты).
+- layout.tsx: подключён Source Serif 4 (600/700, latin+cyrillic) через next/font.
+- page.tsx: логин — хореография входа (stagger 0/90/180ms), ambient-блики, зерно, логотип-плитка с терракотовой точкой, антиква-заголовок, тёмная кнопка «Войти»; шапка — антиква-вордмарк, kbd-подсказки через .kbd.
+- Параллельные сабагенты: 2-a (Toolbar, ExportDialog), 2-b (LayersPanel, PageThumbnails, TextEditSidebar), 2-c (UploadZone — hero-экран, PdfCanvas — только обвязка). Все отчитались: tsc 0, lint 0, логика/props/aria/тексты не тронуты.
+- Браузерная верификация (agent-browser, 1440×900 и 390×844): логин → загрузка → выбор инструмента «Печать» → установка печати «Печать ООО» на канвас (слой создан, пилюля свойств в новом стиле) → экспорт «Все страницы» → скачивание.
+- ГЛАВНОЕ: экспортированный PDF отрендерен через pdftoppm — все цифры (№ 12345, даты, суммы) читаются, квадратиков нет; печать на месте. Багфикс цифр работает после редизайна.
+- Консоль браузера: 0 ошибок/предупреждений. Мобильная версия: hero-заголовок, карточка загрузки, авто-зум документа, нижняя пилюля навигации, футер на месте.
+
+Stage Summary:
+- Приложение переведено на премиальную систему ATELIER v2: редакторская антиква в hero-зонах, тёмные кнопки основного действия, слоистые мягкие тени, зерно бумаги, хореографические входы экранов.
+- Вся логика редактора без изменений; экспорт с цифрами проверен сквозным тестом.
+- Обновления запушены в GitHub: Twenty7els/pdf-editor.

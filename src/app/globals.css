@@ -5,6 +5,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-source-serif), Georgia, "Times New Roman", serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo,
     Consolas, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
@@ -50,18 +51,29 @@
 }
 
 /* ============================================================
-   CLAUDE-STYLE THEME — unified design system
+   ATELIER v2 — premium Claude-style design system
    ------------------------------------------------------------
    Rules of this system (do not break them in components):
-   1. ONE typeface: Inter (font-sans). No serif, no italics in UI.
-      font-mono only inside <kbd>.
+   1. TWO typefaces, STRICTLY separated by role:
+      · font-display (Source Serif 4) — ONLY big hero headlines:
+        login title, upload title, dialog titles, empty states.
+        Always font-semibold, tracking-tight, never italic.
+      · font-sans (Inter) — 100% of the UI: labels, buttons,
+        body, captions. font-mono only inside <kbd>.
    2. THREE weights: font-normal (body), font-medium (labels,
       buttons), font-semibold (headings). Never font-bold.
-   3. FLAT colors. No gradients, no glows.
+   3. FLAT warm colors. Depth comes from layered soft shadows
+      and hairlines — not gradients on controls.
    4. Radius scale: rounded-2xl cards/dialogs, rounded-xl
       buttons/inputs/tiles, rounded-lg mini-buttons, rounded-full
       pills/dots.
-   5. Elevation: shadow-soft resting, shadow-elevated overlays.
+   5. Elevation: shadow-soft resting, shadow-elevated overlays,
+      shadow-paper for document pages, shadow-float for toolbars.
+   6. Primary actions = bg-ink (dark). Brand accents = terracotta
+      (icons, highlights, active states). Never terracotta buttons
+      for primary flow.
+   7. Entrance: .stagger-item with inline --stagger-delay for
+      choreographed screens (80ms steps, max ~400ms).
    ============================================================ */
 :root {
   --radius: 0.75rem;
@@ -215,27 +227,38 @@
     background-image:
       radial-gradient(
         ellipse at 18% 12%,
-        rgba(217, 119, 87, 0.05) 0%,
+        rgba(217, 119, 87, 0.07) 0%,
         transparent 46%
       ),
       radial-gradient(
         ellipse at 85% 8%,
-        rgba(212, 162, 127, 0.05) 0%,
+        rgba(212, 162, 127, 0.06) 0%,
         transparent 42%
       ),
       radial-gradient(
         ellipse at 50% 100%,
-        rgba(125, 155, 118, 0.04) 0%,
+        rgba(125, 155, 118, 0.05) 0%,
         transparent 50%
       );
   }
 
   .dot-bg {
     background-image: radial-gradient(
-      rgba(31, 30, 29, 0.09) 1px,
+      rgba(31, 30, 29, 0.07) 1px,
       transparent 1px
     );
     background-size: 22px 22px;
+  }
+
+  /* Paper grain — barely visible, adds material warmth.
+     Apply on the SAME element as a background (position:relative). */
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.028;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
   /* Shadows — soft, warm, layered */
@@ -250,6 +273,37 @@
       0 1px 2px rgba(32, 30, 26, 0.06),
       0 8px 24px -6px rgba(32, 30, 26, 0.12),
       0 20px 48px -16px rgba(32, 30, 26, 0.1);
+  }
+
+  /* Document page on canvas */
+  .shadow-paper {
+    box-shadow:
+      0 0 0 1px rgba(31, 30, 29, 0.07),
+      0 2px 6px rgba(32, 30, 26, 0.06),
+      0 16px 40px -12px rgba(32, 30, 26, 0.18);
+  }
+
+  /* Floating toolbars / pills over canvas */
+  .shadow-float {
+    box-shadow:
+      0 0 0 1px rgba(31, 30, 29, 0.06),
+      0 2px 6px rgba(32, 30, 26, 0.06),
+      0 12px 32px -8px rgba(32, 30, 26, 0.16);
+  }
+
+  /* Unified keyboard hint */
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.375rem;
+    background: var(--card);
+    border: 1px solid rgba(31, 30, 29, 0.12);
+    border-bottom-width: 2px;
+    border-radius: 0.375rem;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1.2;
+    color: var(--muted-foreground);
   }
 
   /* Card hover lift */
@@ -275,6 +329,20 @@
 
   .animate-slide-down {
     animation: slideDown 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Choreographed entrance — set --stagger-delay inline per item */
+  .stagger-item {
+    animation: slideUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--stagger-delay, 0ms);
+  }
+
+  /* Display serif headline */
+  .display-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.1;
   }
 
   /* Text balance for headings */

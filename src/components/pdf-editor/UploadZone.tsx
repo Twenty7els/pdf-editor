@@ -65,139 +65,148 @@ export default function UploadZone() {
       {/* Decorative dots overlay */}
       <div className="absolute inset-0 dot-bg opacity-40 pointer-events-none" />
 
-      <div className="relative w-full max-w-4xl grid lg:grid-cols-5 gap-6 animate-slide-up py-2">
-        {/* Hero dropzone */}
-        <Card
-          className={`lg:col-span-3 relative border-2 border-dashed transition-all duration-300 cursor-pointer overflow-hidden group lift ${
-            isDragOver
-              ? "border-primary bg-terracotta-soft/40 scale-[1.01] shadow-elevated"
-              : "border-border bg-card hover:border-primary/50 hover:shadow-soft"
-          }`}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
+      <div className="relative w-full max-w-4xl py-2">
+        {/* Hero headline — stagger 0ms */}
+        <div
+          className="stagger-item text-center mb-8 md:mb-10"
+          style={{ "--stagger-delay": "0ms" } as React.CSSProperties}
         >
-          <label className="flex flex-col items-center justify-center p-10 md:p-14 cursor-pointer relative">
-            {/* Background icon */}
-            <div
-              className={`absolute right-4 bottom-4 opacity-[0.04] transition-all duration-500 ${
-                isDragOver
-                  ? "scale-125 rotate-6"
-                  : "group-hover:scale-110 group-hover:rotate-3"
-              }`}
-            >
-              <FileText className="h-48 w-48" strokeWidth={0.8} />
-            </div>
+          <h2 className="display-title text-3xl md:text-[2.75rem] text-balance">
+            Загрузите{" "}
+            <span className="text-terracotta-dark">PDF</span> документ
+          </h2>
+          <p className="text-muted-foreground text-sm md:text-[15px] mt-4 max-w-md mx-auto text-balance leading-relaxed">
+            Перетащите файл сюда или нажмите для выбора — всё
+            обрабатывается локально
+          </p>
+        </div>
 
-            {/* Upload icon */}
-            <div className="relative mb-6">
-              {isDragOver && (
-                <div className="absolute -inset-3 rounded-3xl bg-primary/20 animate-ping" />
-              )}
+        <div className="grid lg:grid-cols-5 gap-6">
+          {/* Hero dropzone — stagger 90ms */}
+          <Card
+            className={`lg:col-span-3 stagger-item relative rounded-3xl border-2 border-dashed transition-all duration-300 cursor-pointer overflow-hidden group ${
+              isDragOver
+                ? "border-primary bg-terracotta-soft/30 scale-[1.01] shadow-elevated"
+                : "border-border bg-card/70 backdrop-blur-sm hover:border-primary/40 hover:bg-card hover:shadow-elevated"
+            }`}
+            style={{ "--stagger-delay": "90ms" } as React.CSSProperties}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+          >
+            <label className="flex flex-col items-center justify-center p-10 md:p-14 cursor-pointer relative">
+              {/* Background icon */}
               <div
-                className={`relative h-20 w-20 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                className={`absolute right-4 bottom-4 opacity-[0.04] transition-all duration-500 ${
                   isDragOver
-                    ? "bg-primary scale-105 shadow-elevated"
-                    : "bg-primary group-hover:scale-[1.03] shadow-soft"
+                    ? "scale-125 rotate-6"
+                    : "group-hover:scale-110 group-hover:rotate-3"
                 }`}
               >
-                <FileUp
-                  className="h-9 w-9 text-white"
+                <FileText className="h-48 w-48" strokeWidth={0.8} />
+              </div>
+
+              {/* Upload icon chip */}
+              <div className="relative mb-7">
+                {isDragOver && (
+                  <div className="absolute -inset-3 rounded-2xl bg-primary/20 animate-ping" />
+                )}
+                <div
+                  className={`relative h-16 w-16 rounded-2xl bg-terracotta-soft flex items-center justify-center transition-all duration-300 ${
+                    isDragOver
+                      ? "scale-105 shadow-elevated"
+                      : "group-hover:scale-[1.03] shadow-soft"
+                  }`}
+                >
+                  <FileUp className="h-8 w-8 text-terracotta-dark" />
+                </div>
+              </div>
+
+              {/* CTA */}
+              <div className="inline-flex items-center gap-2 h-11 px-6 rounded-xl bg-ink text-white text-sm font-medium shadow-soft group-hover:bg-ink-hover transition-colors">
+                <FileUp className="h-4 w-4" strokeWidth={2.2} />
+                Выбрать файл
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+              </div>
+
+              {/* Trust badges */}
+              <div className="flex items-center gap-4 mt-8 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5 text-terracotta-dark" />
+                  <span className="font-medium">Только PDF</span>
+                </div>
+                <div className="w-1 h-1 rounded-full bg-border" />
+                <div className="flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-terracotta-dark" />
+                  <span className="font-medium">Не покидает браузер</span>
+                </div>
+              </div>
+
+              <input
+                type="file"
+                accept=".pdf,application/pdf"
+                onChange={handleFileChange}
+                className="hidden"
+                aria-label="Загрузить PDF файл"
+              />
+            </label>
+          </Card>
+
+          {/* Features side panel */}
+          <div className="lg:col-span-2 flex flex-col gap-4">
+            {/* Features grid — stagger 180ms */}
+            <div
+              className="stagger-item bg-card rounded-2xl p-5 border border-border shadow-soft"
+              style={{ "--stagger-delay": "180ms" } as React.CSSProperties}
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <div aria-hidden="true" className="h-px w-5 bg-terracotta" />
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Возможности
+                </h3>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                {FEATURES.map((f) => (
+                  <div
+                    key={f.title}
+                    className="flex flex-col gap-2.5 p-4 rounded-2xl border border-border bg-card hover:border-primary/30 hover:shadow-soft lift"
+                  >
+                    <div className="h-10 w-10 rounded-xl bg-terracotta-soft flex items-center justify-center">
+                      <f.icon className="h-5 w-5 text-terracotta-dark" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium leading-tight">
+                        {f.title}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {f.desc}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Highlight card — stagger 270ms */}
+            <div
+              className="stagger-item rounded-2xl bg-ink text-white p-5 shadow-elevated flex items-start gap-3"
+              style={{ "--stagger-delay": "270ms" } as React.CSSProperties}
+            >
+              <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                <ShieldCheck
+                  className="h-5 w-5 text-white"
                   strokeWidth={2.2}
-                  fill="rgba(255,255,255,0.12)"
                 />
               </div>
-            </div>
-
-            {/* Headline */}
-            <h2 className="text-2xl md:text-[2rem] md:leading-snug font-semibold mb-3 tracking-tight text-balance text-center">
-              Загрузите{" "}
-              <span className="text-primary">PDF</span> документ
-            </h2>
-            <p className="text-muted-foreground text-sm md:text-[15px] text-center mb-8 max-w-md text-balance leading-relaxed">
-              Перетащите файл сюда или нажмите для выбора — всё
-              обрабатывается локально
-            </p>
-
-            {/* CTA */}
-            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-ink text-white text-sm font-medium shadow-soft group-hover:bg-ink-hover transition-colors">
-              <FileUp className="h-4 w-4" strokeWidth={2.2} />
-              Выбрать файл
-              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-            </div>
-
-            {/* Trust badges */}
-            <div className="flex items-center gap-4 mt-8 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <FileText className="h-3.5 w-3.5 text-primary" />
-                <span className="font-medium">Только PDF</span>
-              </div>
-              <div className="w-1 h-1 rounded-full bg-border" />
-              <div className="flex items-center gap-1.5">
-                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                <span className="font-medium">Не покидает браузер</span>
-              </div>
-            </div>
-
-            <input
-              type="file"
-              accept=".pdf,application/pdf"
-              onChange={handleFileChange}
-              className="hidden"
-              aria-label="Загрузить PDF файл"
-            />
-          </label>
-        </Card>
-
-        {/* Features side panel */}
-        <div className="lg:col-span-2 flex flex-col gap-4">
-          {/* Features grid */}
-          <div className="bg-card rounded-2xl p-5 border border-border shadow-soft">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="h-px w-4 bg-primary/60" />
-              <h3 className="text-sm font-semibold">
-                Возможности
-              </h3>
-            </div>
-            <div className="grid grid-cols-2 gap-2.5">
-              {FEATURES.map((f) => (
-                <div
-                  key={f.title}
-                  className="group flex flex-col gap-2 p-3 rounded-xl bg-secondary/50 border border-border/60 hover:border-primary/35 hover:bg-accent transition-all lift"
-                >
-                  <div className="h-9 w-9 rounded-lg bg-primary/12 flex items-center justify-center border border-primary/15">
-                    <f.icon className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold leading-tight">
-                      {f.title}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">
-                      {f.desc}
-                    </div>
-                  </div>
+              <div>
+                <div className="text-sm font-medium text-white mb-1">
+                  Работает прямо в браузере
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Highlight card */}
-          <div className="bg-card rounded-2xl p-5 border border-border shadow-soft flex items-start gap-3">
-            <div className="h-10 w-10 rounded-xl bg-ink flex items-center justify-center shrink-0 shadow-soft">
-              <ShieldCheck
-                className="h-5 w-5 text-white"
-                strokeWidth={2.2}
-                fill="rgba(255,255,255,0.12)"
-              />
-            </div>
-            <div>
-              <div className="text-sm font-semibold mb-1">
-                Работает прямо в браузере
+                <p className="text-xs text-white/70 leading-relaxed">
+                  Никакой загрузки на сервер. Все операции выполняются
+                  локально — это быстро и безопасно.
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Никакой загрузки на сервер. Все операции выполняются
-                локально — это быстро и безопасно.
-              </p>
             </div>
           </div>
         </div>

@@ -211,9 +211,9 @@ export default function ExportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[640px] max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-[640px] max-h-[90vh] flex flex-col rounded-2xl shadow-elevated">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2.5 text-base font-semibold">
+          <DialogTitle className="flex items-center gap-2.5 text-lg display-title">
             <div className="h-8 w-8 rounded-lg bg-ink flex items-center justify-center shrink-0 shadow-soft">
               <Download
                 className="h-4 w-4 text-white"
@@ -241,14 +241,14 @@ export default function ExportDialog({
               className={
                 "flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all " +
                 (mode === "all"
-                  ? "border-primary bg-primary/10 shadow-soft"
-                  : "border-border hover:border-primary/40 hover:bg-accent")
+                  ? "border-primary/50 bg-terracotta-soft/40 shadow-soft"
+                  : "border-border bg-card hover:border-primary/30")
               }
             >
               <RadioGroupItem
                 value="all"
                 checked={mode === "all"}
-                className="mt-0.5"
+                className="mt-0.5 data-[state=checked]:border-terracotta"
               />
               <div>
                 <div className="text-sm font-medium">Все страницы</div>
@@ -262,14 +262,14 @@ export default function ExportDialog({
               className={
                 "flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all " +
                 (mode === "selected"
-                  ? "border-primary bg-primary/10 shadow-soft"
-                  : "border-border hover:border-primary/40 hover:bg-accent")
+                  ? "border-primary/50 bg-terracotta-soft/40 shadow-soft"
+                  : "border-border bg-card hover:border-primary/30")
               }
             >
               <RadioGroupItem
                 value="selected"
                 checked={mode === "selected"}
-                className="mt-0.5"
+                className="mt-0.5 data-[state=checked]:border-terracotta"
               />
               <div>
                 <div className="text-sm font-medium">Выбранные страницы</div>
@@ -292,7 +292,7 @@ export default function ExportDialog({
                     onClick={() =>
                       setSelected(pages.filter((p) => !deletedPages.includes(p)))
                     }
-                    className="text-[11px] font-medium text-primary hover:underline"
+                    className="text-[11px] font-medium text-terracotta-dark hover:underline"
                   >
                     Выбрать все
                   </button>
@@ -320,11 +320,11 @@ export default function ExportDialog({
                         isDeleted
                           ? "border-border/50 opacity-40 cursor-not-allowed"
                           : isSelected
-                          ? "border-primary bg-primary/10 shadow-soft"
-                          : "border-border hover:border-primary/40 hover:bg-accent"
+                          ? "border-primary/50 bg-terracotta-soft/40 shadow-soft"
+                          : "border-border bg-card hover:border-primary/30 hover:shadow-soft"
                       }`}
                     >
-                      <div className="relative w-full aspect-[3/4] bg-white rounded-md overflow-hidden flex items-center justify-center">
+                      <div className="relative w-full aspect-[3/4] bg-white rounded-lg overflow-hidden flex items-center justify-center">
                         <canvas
                           ref={(el) => {
                             canvasRefs.current[pageNum] = el;
@@ -345,7 +345,7 @@ export default function ExportDialog({
                         )}
                         {/* Selection checkmark */}
                         {!isDeleted && isSelected && (
-                          <div className="absolute top-1 right-1 h-4 w-4 rounded-full bg-primary flex items-center justify-center shadow-soft">
+                          <div className="absolute top-1 right-1 h-4 w-4 rounded-full bg-primary border border-primary flex items-center justify-center shadow-soft">
                             <Check
                               className="h-2.5 w-2.5 text-white"
                               strokeWidth={2.2}
@@ -359,7 +359,7 @@ export default function ExportDialog({
                           {pageNum}
                         </span>
                         {rotation !== 0 && (
-                          <span className="inline-flex items-center gap-0.5 text-[8px] text-amber-600 font-semibold">
+                          <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 font-medium">
                             <RotateCw className="h-2 w-2" />
                           </span>
                         )}
@@ -392,7 +392,7 @@ export default function ExportDialog({
               <Button
                 onClick={handleExport}
                 disabled={activePageCount === 0}
-                className="gap-1.5 shadow-soft rounded-xl bg-primary hover:bg-terracotta-dark text-white font-medium transition-colors"
+                className="gap-1.5 shadow-soft rounded-xl bg-ink hover:bg-ink-hover text-white font-medium transition-colors"
               >
                 <Download className="h-4 w-4" />
                 Экспорт

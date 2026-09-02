@@ -131,7 +131,7 @@ export default function LayersPanel({
             Слои
           </span>
         </div>
-        <span className="text-[10px] font-medium text-muted-foreground px-2 py-0.5 rounded-lg bg-secondary/70 tabular-nums">
+        <span className="text-[11px] font-medium text-muted-foreground px-2 py-0.5 rounded-full bg-secondary tabular-nums">
           {counts.total}
         </span>
       </div>
@@ -148,13 +148,13 @@ export default function LayersPanel({
       {/* Layers list */}
       {layers.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-8 text-center">
-          <div className="h-12 w-12 rounded-xl bg-secondary/60 flex items-center justify-center">
-            <Layers className="h-5 w-5 text-muted-foreground/60" />
+          <div className="h-12 w-12 rounded-xl bg-secondary flex items-center justify-center">
+            <Layers className="h-5 w-5 text-muted-foreground" />
           </div>
-          <p className="text-xs font-medium text-muted-foreground">
+          <p className="display-title text-base text-foreground">
             Пока нет слоёв
           </p>
-          <p className="text-[10px] text-muted-foreground/70 leading-relaxed max-w-[200px]">
+          <p className="text-xs text-muted-foreground leading-relaxed max-w-[200px]">
             Добавьте печати, текст или ластики — они появятся здесь
           </p>
         </div>
@@ -175,17 +175,17 @@ export default function LayersPanel({
                 key={`${layer.type}-${layer.id}`}
                 className={`group relative flex items-center gap-2 p-2 rounded-xl border transition-all cursor-pointer ${
                   isSelected
-                    ? "border-primary bg-primary/10 shadow-soft"
+                    ? "border-primary/40 bg-terracotta-soft/40 shadow-soft"
                     : onCurrentPage
-                    ? "border-border/70 hover:border-primary/40 hover:bg-accent"
-                    : "border-border/50 opacity-60 hover:opacity-100 hover:border-border"
+                    ? "border-border bg-card hover:border-primary/30 hover:shadow-soft"
+                    : "border-border/50 bg-card opacity-60 hover:opacity-100 hover:border-border hover:shadow-soft"
                 }`}
                 onClick={() => handleSelect(layer)}
               >
                 {/* Icon / thumbnail */}
                 <div
                   className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${
-                    isSelected ? "bg-primary" : "bg-secondary/70"
+                    isSelected ? "bg-primary" : "bg-secondary"
                   }`}
                 >
                   {layer.type === "stamp" && layer.thumbSrc ? (
@@ -229,7 +229,7 @@ export default function LayersPanel({
                 <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={(e) => handleToggleHidden(e, layer)}
-                    className={`h-7 w-7 rounded-md flex items-center justify-center transition-colors ${
+                    className={`h-7 w-7 rounded-lg flex items-center justify-center transition-colors ${
                       layer.hidden
                         ? "text-amber-600 hover:bg-amber-500/10"
                         : "text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -244,7 +244,7 @@ export default function LayersPanel({
                   </button>
                   <button
                     onClick={(e) => handleDelete(e, layer)}
-                    className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                     title="Удалить"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -284,12 +284,12 @@ function StatChip({
   label: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-secondary/50 border border-border/60">
+    <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-card px-3 py-2">
       <div className="flex items-center gap-1">
-        <Icon className="h-3 w-3 text-primary" />
+        <Icon className="h-3 w-3 text-terracotta-dark" />
         <span className="text-sm font-semibold tabular-nums">{count}</span>
       </div>
-      <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">
+      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
     </div>

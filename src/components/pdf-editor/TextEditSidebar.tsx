@@ -151,7 +151,7 @@ export default function TextEditSidebar({
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-xl shrink-0"
+              className="h-9 w-9 rounded-lg shrink-0"
               onClick={handleCancel}
               title="Закрыть"
             >
@@ -227,13 +227,10 @@ export default function TextEditSidebar({
                 }
               }}
               placeholder="Введите текст... (Enter для новой строки)"
-              className="w-full min-h-[100px] resize-none rounded-xl border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+              className="w-full min-h-[100px] resize-none rounded-lg border border-input bg-background text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/35 focus:border-primary transition-all"
             />
             <div className="text-[10px] text-muted-foreground mt-1.5">
-              <kbd className="px-1 py-0.5 bg-muted rounded text-[10px] font-mono border border-border">
-                Ctrl+Enter
-              </kbd>{" "}
-              — сохранить
+              <kbd className="kbd">Ctrl+Enter</kbd> — сохранить
             </div>
           </div>
 
@@ -412,7 +409,7 @@ export default function TextEditSidebar({
                 type="color"
                 value={data.color}
                 onChange={(e) => update("color", e.target.value)}
-                className="h-7 w-10 cursor-pointer p-0 rounded-md border border-border"
+                className="h-7 w-10 cursor-pointer p-0 rounded-lg border border-border"
               />
             </label>
             <div className="grid grid-cols-6 gap-1.5 mt-2">
@@ -456,7 +453,7 @@ export default function TextEditSidebar({
           <Button
             variant="ghost"
             onClick={handleCancel}
-            className="gap-1.5 rounded-xl font-medium flex-1"
+            className="gap-1.5 rounded-lg font-medium flex-1 bg-card border border-border hover:bg-secondary/60"
           >
             <X className="h-4 w-4" />
             Отмена
@@ -464,7 +461,7 @@ export default function TextEditSidebar({
           <Button
             onClick={handleSave}
             disabled={!data.text.trim()}
-            className="gap-1.5 shadow-soft rounded-xl font-medium flex-1 bg-primary hover:bg-terracotta-dark text-white transition-colors"
+            className="gap-1.5 shadow-soft rounded-lg font-medium flex-1 bg-ink hover:bg-ink-hover text-white transition-colors"
           >
             <Check className="h-4 w-4" strokeWidth={2.2} />
             {mode === "create" ? "Добавить" : "Сохранить"}

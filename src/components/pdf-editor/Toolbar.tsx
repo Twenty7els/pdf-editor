@@ -87,18 +87,18 @@ export default function Toolbar({
       <div className="flex flex-col gap-2">
         <Button
           variant="outline"
-          className="w-full justify-start gap-2.5 h-10 rounded-xl border-border hover:bg-accent hover:border-primary/40 font-medium transition-all group"
+          className="w-full justify-start gap-2.5 h-10 rounded-xl border-border bg-card text-foreground hover:bg-secondary/60 font-medium transition-colors group"
           onClick={onUploadClick}
         >
-          <div className="h-6 w-6 rounded-lg bg-primary/12 flex items-center justify-center group-hover:scale-105 transition-transform">
-            <FileUp className="h-3.5 w-3.5 text-primary" />
+          <div className="h-6 w-6 rounded-lg bg-terracotta-soft flex items-center justify-center group-hover:scale-105 transition-transform">
+            <FileUp className="h-3.5 w-3.5 text-terracotta-dark" />
           </div>
           <span>
             {pdfFile ? "Загрузить другой" : "Загрузить PDF"}
           </span>
         </Button>
         <Button
-          className="w-full justify-start gap-2.5 h-10 rounded-xl bg-primary hover:bg-terracotta-dark text-white shadow-soft font-medium transition-colors"
+          className="w-full justify-start gap-2.5 h-10 rounded-xl bg-ink hover:bg-ink-hover text-white shadow-soft font-medium transition-colors"
           onClick={onDownloadClick}
           disabled={!pdfFile || isDownloading}
         >
@@ -130,30 +130,26 @@ export default function Toolbar({
                 key={tool.id}
                 onClick={() => setActiveTool(tool.id)}
                 aria-pressed={active}
-                className={`group relative flex flex-col items-start gap-1.5 p-3 rounded-xl border transition-all text-left lift ${
+                className={`group relative flex flex-col items-start gap-2 p-3 rounded-xl border transition-all text-left lift ${
                   active
-                    ? "border-primary bg-primary/10 shadow-soft"
-                    : "border-border/70 hover:border-primary/40 hover:bg-accent"
+                    ? "border-primary/40 bg-terracotta-soft/50 shadow-soft"
+                    : "border-border bg-card hover:border-primary/30 hover:shadow-soft"
                 }`}
               >
                 <div
-                  className={`relative h-8 w-8 rounded-lg flex items-center justify-center transition-all ${
-                    active
-                      ? "bg-primary shadow-soft"
-                      : "bg-secondary group-hover:bg-primary/10"
+                  className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                    active ? "bg-primary" : "bg-secondary"
                   }`}
                 >
                   <tool.icon
-                    className={`h-4 w-4 transition-colors ${
-                      active
-                        ? "text-white"
-                        : "text-muted-foreground group-hover:text-primary"
+                    className={`h-5 w-5 transition-colors ${
+                      active ? "text-white" : "text-muted-foreground"
                     }`}
                     strokeWidth={active ? 2.2 : 2}
                   />
                 </div>
                 <div className="relative">
-                  <div className="text-xs font-semibold leading-tight">
+                  <div className="text-xs font-medium leading-tight">
                     {tool.label}
                   </div>
                   <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">
@@ -161,7 +157,7 @@ export default function Toolbar({
                   </div>
                 </div>
                 {active && (
-                  <div className="absolute top-2.5 right-2.5 h-1.5 w-1.5 rounded-full bg-primary" />
+                  <div className="absolute top-2.5 right-2.5 h-1.5 w-1.5 rounded-full bg-terracotta" />
                 )}
               </button>
             );
@@ -183,7 +179,7 @@ export default function Toolbar({
                 {builtInCustom.map((stamp) => (
                   <button
                     key={stamp.id}
-                    className="group relative flex flex-col items-center gap-1.5 p-2.5 rounded-xl border border-border/70 hover:border-primary hover:bg-accent transition-all lift overflow-hidden"
+                    className="group relative flex flex-col items-center gap-1.5 p-2.5 rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-soft transition-all lift overflow-hidden"
                     onClick={() =>
                       usePdfEditorStore
                         .getState()
@@ -222,7 +218,7 @@ export default function Toolbar({
                 {customStamps.map((stamp) => (
                   <div
                     key={stamp.id}
-                    className="group relative flex flex-col items-center gap-1.5 p-2.5 rounded-xl border border-border/70 hover:border-primary hover:bg-accent transition-all lift"
+                    className="group relative flex flex-col items-center gap-1.5 p-2.5 rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-soft transition-all lift"
                   >
                     <button
                       className="flex flex-col items-center gap-1.5 w-full"
@@ -263,7 +259,7 @@ export default function Toolbar({
 
             <Button
               variant="outline"
-              className="w-full gap-2 h-9 rounded-xl border-dashed hover:bg-accent hover:border-primary/40 font-medium"
+              className="w-full gap-2 h-9 rounded-xl border-dashed border-border bg-card hover:bg-secondary/60 hover:border-primary/30 font-medium"
               onClick={() => customStampInputRef.current?.click()}
             >
               <ImagePlus className="h-4 w-4 text-primary" />
@@ -317,8 +313,8 @@ export default function Toolbar({
                     aria-pressed={active}
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs text-left transition-all border ${
                       active
-                        ? "border-primary bg-primary/10 text-foreground shadow-soft"
-                        : "border-border/70 hover:border-primary/40 hover:bg-accent text-muted-foreground"
+                        ? "border-primary/40 bg-terracotta-soft/50 text-foreground shadow-soft"
+                        : "border-border bg-card hover:border-primary/30 hover:shadow-soft text-muted-foreground"
                     }`}
                   >
                     <div

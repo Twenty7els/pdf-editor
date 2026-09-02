@@ -135,15 +135,15 @@ export default function TextEditSidebar({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="relative">
-                <div className="relative h-9 w-9 rounded-xl gradient-bg flex items-center justify-center shadow-soft">
+                <div className="relative h-9 w-9 rounded-xl bg-primary flex items-center justify-center shadow-soft">
                   <Type className="h-4 w-4 text-white" strokeWidth={2.2} />
                 </div>
               </div>
               <div>
-                <div className="font-display font-semibold tracking-tight text-base leading-tight">
+                <div className="text-base font-semibold tracking-tight leading-tight">
                   {mode === "create" ? "Новый текст" : "Редактировать текст"}
                 </div>
-                <div className="text-[11px] text-muted-foreground font-medium">
+                <div className="text-[11px] text-muted-foreground">
                   {mode === "create" ? "Создание блока" : "Изменение блока"}
                 </div>
               </div>
@@ -164,7 +164,7 @@ export default function TextEditSidebar({
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
           {/* Live preview */}
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
               Предпросмотр
             </label>
             <div className="rounded-xl border border-border/40 bg-muted/20 p-4 min-h-[70px] max-h-[120px] overflow-auto flex items-center justify-center">
@@ -207,9 +207,9 @@ export default function TextEditSidebar({
 
           {/* Textarea */}
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 flex items-center justify-between">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center justify-between">
               <span>Текст</span>
-              <span className="text-muted-foreground/70 font-normal normal-case tracking-normal">
+              <span className="text-[11px] font-medium text-muted-foreground/70 normal-case tracking-normal">
                 {data.text.length} симв.
               </span>
             </label>
@@ -227,7 +227,7 @@ export default function TextEditSidebar({
                 }
               }}
               placeholder="Введите текст... (Enter для новой строки)"
-              className="w-full min-h-[100px] resize-none rounded-xl border border-input bg-background px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+              className="w-full min-h-[100px] resize-none rounded-xl border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
             />
             <div className="text-[10px] text-muted-foreground mt-1.5">
               <kbd className="px-1 py-0.5 bg-muted rounded text-[10px] font-mono border border-border">
@@ -237,13 +237,13 @@ export default function TextEditSidebar({
             </div>
           </div>
 
-          <div className="h-px bg-gradient-to-r from-transparent via-border/60 to-transparent" />
+          <div className="h-px bg-border/60" />
 
           {/* Size */}
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 flex items-center justify-between">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center justify-between">
               <span>Размер</span>
-              <span className="text-primary tabular-nums font-semibold">
+              <span className="text-primary tabular-nums font-medium">
                 {data.fontSize}px
               </span>
             </label>
@@ -268,7 +268,7 @@ export default function TextEditSidebar({
                 <button
                   key={size}
                   onClick={() => update("fontSize", size)}
-                  className={`px-2 py-1 rounded-md text-[10px] font-semibold tabular-nums transition-all ${
+                  className={`px-2 py-1 rounded-lg text-[10px] font-medium tabular-nums transition-all ${
                     data.fontSize === size
                       ? "bg-primary text-white shadow-soft"
                       : "bg-secondary/70 hover:bg-accent text-muted-foreground"
@@ -282,7 +282,7 @@ export default function TextEditSidebar({
 
           {/* Font picker */}
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
               Шрифт
             </label>
             <div className="grid grid-cols-2 gap-1.5">
@@ -318,7 +318,7 @@ export default function TextEditSidebar({
 
           {/* B / I / U */}
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
               Начертание
             </label>
             <div className="grid grid-cols-3 gap-1.5">
@@ -348,7 +348,7 @@ export default function TextEditSidebar({
 
           {/* Alignment */}
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
               Выравнивание
             </label>
             <div className="grid grid-cols-3 gap-1.5">
@@ -378,9 +378,9 @@ export default function TextEditSidebar({
 
           {/* Letter spacing */}
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 flex items-center justify-between">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center justify-between">
               <span>Межбуквенный интервал</span>
-              <span className="text-primary tabular-nums font-semibold">
+              <span className="text-primary tabular-nums font-medium">
                 {data.letterSpacing}px
               </span>
             </label>
@@ -406,7 +406,7 @@ export default function TextEditSidebar({
 
           {/* Color */}
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 flex items-center justify-between">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center justify-between">
               <span>Цвет</span>
               <input
                 type="color"
@@ -434,7 +434,7 @@ export default function TextEditSidebar({
                       style={{
                         color: c === "#FFFFFF" || c === "#F5F5F5" ? "#000" : "#fff",
                       }}
-                      strokeWidth={3}
+                      strokeWidth={2.2}
                     />
                   )}
                 </button>
@@ -444,7 +444,7 @@ export default function TextEditSidebar({
 
           {/* Hint */}
           <div className="flex items-start gap-2 p-3 rounded-xl bg-secondary/60 border border-border/60">
-            <ChevronRight className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" strokeWidth={2.5} />
+            <ChevronRight className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
             <p className="text-[11px] text-muted-foreground leading-relaxed">
               Текст применится к PDF после сохранения
             </p>
@@ -464,9 +464,9 @@ export default function TextEditSidebar({
           <Button
             onClick={handleSave}
             disabled={!data.text.trim()}
-            className="gap-1.5 shadow-soft rounded-xl font-semibold flex-1 bg-primary hover:bg-[#c15f3c] text-white transition-colors"
+            className="gap-1.5 shadow-soft rounded-xl font-medium flex-1 bg-primary hover:bg-terracotta-dark text-white transition-colors"
           >
-            <Check className="h-4 w-4" strokeWidth={2.5} />
+            <Check className="h-4 w-4" strokeWidth={2.2} />
             {mode === "create" ? "Добавить" : "Сохранить"}
           </Button>
         </div>

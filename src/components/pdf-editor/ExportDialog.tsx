@@ -213,15 +213,15 @@ export default function ExportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[640px] max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg gradient-bg flex items-center justify-center shrink-0 shadow-soft">
+          <DialogTitle className="flex items-center gap-2.5 text-base font-semibold">
+            <div className="h-8 w-8 rounded-lg bg-ink flex items-center justify-center shrink-0 shadow-soft">
               <Download
                 className="h-4 w-4 text-white"
                 strokeWidth={2.2}
                 fill="rgba(255,255,255,0.12)"
               />
             </div>
-            <span className="font-display">Экспорт PDF</span>
+            <span>Экспорт PDF</span>
           </DialogTitle>
           <DialogDescription>
             Выберите страницы для экспорта. Удалённые страницы всегда
@@ -251,8 +251,8 @@ export default function ExportDialog({
                 className="mt-0.5"
               />
               <div>
-                <div className="text-sm font-semibold">Все страницы</div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">
+                <div className="text-sm font-medium">Все страницы</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
                   Экспортировать весь документ (кроме удалённых)
                 </div>
               </div>
@@ -272,8 +272,8 @@ export default function ExportDialog({
                 className="mt-0.5"
               />
               <div>
-                <div className="text-sm font-semibold">Выбранные страницы</div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">
+                <div className="text-sm font-medium">Выбранные страницы</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
                   Отметьте конкретные страницы для экспорта
                 </div>
               </div>
@@ -284,7 +284,7 @@ export default function ExportDialog({
           {mode === "selected" && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Страницы
                 </span>
                 <div className="flex items-center gap-2">
@@ -292,14 +292,14 @@ export default function ExportDialog({
                     onClick={() =>
                       setSelected(pages.filter((p) => !deletedPages.includes(p)))
                     }
-                    className="text-[10px] font-semibold text-primary hover:underline"
+                    className="text-[11px] font-medium text-primary hover:underline"
                   >
                     Выбрать все
                   </button>
                   <span className="text-muted-foreground/40">·</span>
                   <button
                     onClick={() => setSelected([])}
-                    className="text-[10px] font-semibold text-muted-foreground hover:text-foreground"
+                    className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
                   >
                     Очистить
                   </button>
@@ -338,7 +338,7 @@ export default function ExportDialog({
                         )}
                         {isDeleted && (
                           <div className="absolute inset-0 bg-destructive/30 flex items-center justify-center">
-                            <span className="text-[8px] font-bold text-destructive-foreground px-1 py-0.5 rounded bg-background/80">
+                            <span className="text-[10px] font-medium text-destructive-foreground px-1 py-0.5 rounded bg-background/80">
                               удалена
                             </span>
                           </div>
@@ -348,14 +348,14 @@ export default function ExportDialog({
                           <div className="absolute top-1 right-1 h-4 w-4 rounded-full bg-primary flex items-center justify-center shadow-soft">
                             <Check
                               className="h-2.5 w-2.5 text-white"
-                              strokeWidth={3}
+                              strokeWidth={2.2}
                             />
                           </div>
                         )}
                       </div>
                       <div className="flex items-center gap-1">
                         <FileText className="h-2.5 w-2.5 text-muted-foreground" />
-                        <span className="text-[10px] font-bold tabular-nums">
+                        <span className="text-[10px] font-medium tabular-nums">
                           {pageNum}
                         </span>
                         {rotation !== 0 && (
@@ -376,7 +376,7 @@ export default function ExportDialog({
           <div className="flex items-center justify-between w-full gap-2">
             <div className="text-xs text-muted-foreground">
               К экспорту:{" "}
-              <span className="font-bold text-foreground tabular-nums">
+              <span className="font-semibold text-foreground tabular-nums">
                 {activePageCount}
               </span>{" "}
               стр.
@@ -392,7 +392,7 @@ export default function ExportDialog({
               <Button
                 onClick={handleExport}
                 disabled={activePageCount === 0}
-                className="gap-1.5 shadow-soft rounded-xl font-semibold bg-primary hover:bg-[#c15f3c] text-white transition-colors"
+                className="gap-1.5 shadow-soft rounded-xl bg-primary hover:bg-terracotta-dark text-white font-medium transition-colors"
               >
                 <Download className="h-4 w-4" />
                 Экспорт

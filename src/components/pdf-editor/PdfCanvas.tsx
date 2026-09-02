@@ -1000,14 +1000,14 @@ export default function PdfCanvas() {
             }}
           />
           {/* Rotation circle */}
-          <div className="w-6 h-6 rounded-full gradient-bg border-2 border-background shadow-elevated flex items-center justify-center hover:scale-110 transition-transform">
+          <div className="w-6 h-6 rounded-full bg-primary border-2 border-background shadow-soft flex items-center justify-center hover:scale-110 transition-transform">
             <svg
               width="11"
               height="11"
               viewBox="0 0 24 24"
               fill="none"
               stroke="white"
-              strokeWidth="3"
+              strokeWidth="2.2"
               strokeLinecap="round"
               strokeLinejoin="round"
             >
@@ -1040,10 +1040,10 @@ export default function PdfCanvas() {
       {nonA4Pages.length > 0 && !a4BannerDismissed && (
         <div className="shrink-0 px-4 py-2 bg-amber-500/10 border-b border-amber-500/30 flex items-center gap-2.5 animate-slide-down">
           <div className="h-7 w-7 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
-            <AlertTriangle className="h-4 w-4 text-amber-600" strokeWidth={2.5} />
+            <AlertTriangle className="h-4 w-4 text-amber-600" strokeWidth={2} />
           </div>
           <div className="flex-1 min-w-0">
-            <span className="text-xs font-semibold text-amber-700">
+            <span className="text-xs font-medium text-amber-700">
               Формат страниц не А4:{" "}
             </span>
             <span className="text-xs text-amber-700/80">
@@ -1055,10 +1055,10 @@ export default function PdfCanvas() {
           </div>
           <button
             onClick={() => setA4BannerDismissed(true)}
-            className="h-7 w-7 rounded-md flex items-center justify-center text-amber-700/60 hover:bg-amber-500/15 hover:text-amber-700 transition-colors shrink-0"
+            className="h-7 w-7 rounded-lg flex items-center justify-center text-amber-700/60 hover:bg-amber-500/15 hover:text-amber-700 transition-colors shrink-0"
             title="Скрыть"
           >
-            <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+            <X className="h-3.5 w-3.5" strokeWidth={2} />
           </button>
         </div>
       )}
@@ -1081,7 +1081,7 @@ export default function PdfCanvas() {
                 <AlertCircle className="h-8 w-8 text-destructive" strokeWidth={2} />
               </div>
             </div>
-            <div className="font-display text-lg font-semibold mb-2">{error}</div>
+            <div className="text-lg font-semibold mb-2">{error}</div>
             <p className="text-muted-foreground text-sm">
               Попробуйте загрузить другой файл
             </p>
@@ -1091,9 +1091,9 @@ export default function PdfCanvas() {
         {isLoading && !error && (
           <div className="flex flex-col items-center justify-center gap-4 animate-fade-in">
             <div className="relative">
-              <Loader2 className="relative h-12 w-12 animate-spin text-primary" strokeWidth={2.5} />
+              <Loader2 className="relative h-12 w-12 animate-spin text-primary" strokeWidth={2} />
             </div>
-            <span className="text-sm text-muted-foreground font-medium">Загрузка PDF...</span>
+            <span className="text-sm font-normal text-muted-foreground">Загрузка PDF...</span>
           </div>
         )}
 
@@ -1104,7 +1104,7 @@ export default function PdfCanvas() {
                 <AlertTriangle className="h-8 w-8 text-amber-600" strokeWidth={2} />
               </div>
             </div>
-            <div className="font-display text-lg font-semibold mb-2">
+            <div className="text-lg font-semibold mb-2">
               Страница {currentPage} удалена
             </div>
             <p className="text-muted-foreground text-sm mb-4">
@@ -1340,11 +1340,11 @@ export default function PdfCanvas() {
           {/* Bottom center controls */}
           {pdfDoc && !error && !isLoading && (
             <div className="flex justify-center pb-3 px-4 pt-1">
-              <div className="flex items-center gap-1 glass-strong gradient-border rounded-full shadow-elevated px-2 py-1 max-w-[calc(100vw-24px)] overflow-x-auto">
+              <div className="flex items-center gap-1 glass-strong border border-border/70 rounded-full shadow-elevated px-2 py-1 max-w-[calc(100vw-24px)] overflow-x-auto">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full hover:bg-accent"
+                  className="h-8 w-8 rounded-lg hover:bg-accent"
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                   disabled={currentPage <= 1}
                 >
@@ -1352,14 +1352,14 @@ export default function PdfCanvas() {
                 </Button>
                 <div className="flex items-center gap-1.5 px-2">
                   <FileText className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-xs font-semibold tabular-nums min-w-[60px] text-center select-none">
+                  <span className="text-[11px] font-medium tabular-nums min-w-[60px] text-center select-none">
                     {currentPage} / {totalPages}
                   </span>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full hover:bg-accent"
+                  className="h-8 w-8 rounded-lg hover:bg-accent"
                   onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage >= totalPages}
                 >
@@ -1370,7 +1370,7 @@ export default function PdfCanvas() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full hover:bg-accent"
+                  className="h-8 w-8 rounded-lg hover:bg-accent"
                   onClick={undo}
                   disabled={past.length === 0}
                   title="Отменить (Ctrl+Z)"
@@ -1380,7 +1380,7 @@ export default function PdfCanvas() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full hover:bg-accent"
+                  className="h-8 w-8 rounded-lg hover:bg-accent"
                   onClick={redo}
                   disabled={future.length === 0}
                   title="Повторить (Ctrl+Y)"
@@ -1392,7 +1392,7 @@ export default function PdfCanvas() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full hover:bg-accent"
+                  className="h-8 w-8 rounded-lg hover:bg-accent"
                   onClick={() => rotatePage(currentPage)}
                   disabled={isCurrentPageDeleted}
                   title={`Повернуть страницу (текущий: ${pageRotations[currentPage] || 0}°)`}
@@ -1403,7 +1403,7 @@ export default function PdfCanvas() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
+                  className="h-8 w-8 rounded-lg hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
                   onClick={() => setDeletePageDialogOpen(true)}
                   disabled={isCurrentPageDeleted}
                   title="Удалить страницу"
@@ -1414,14 +1414,14 @@ export default function PdfCanvas() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full hover:bg-accent"
+                  className="h-8 w-8 rounded-lg hover:bg-accent"
                   onClick={zoomOut}
                   disabled={zoomLevel <= 0.25}
                 >
                   <ZoomOut className="h-4 w-4" />
                 </Button>
                 <button
-                  className="text-xs font-semibold tabular-nums min-w-[52px] text-center hover:bg-accent rounded-full py-1 px-2 transition-colors select-none"
+                  className="text-[11px] font-medium tabular-nums min-w-[52px] text-center hover:bg-accent rounded-full py-1 px-2 transition-colors select-none"
                   onClick={zoomFit}
                   title="Сбросить до 100%"
                 >
@@ -1430,7 +1430,7 @@ export default function PdfCanvas() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full hover:bg-accent"
+                  className="h-8 w-8 rounded-lg hover:bg-accent"
                   onClick={zoomIn}
                   disabled={zoomLevel >= 5.0}
                 >
@@ -1445,22 +1445,22 @@ export default function PdfCanvas() {
       {/* Floating properties bar */}
       {showTopBar && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 max-w-[calc(100%-1.5rem)] animate-slide-down">
-          <div className="glass-strong rounded-2xl shadow-elevated gradient-border px-3 py-2 flex items-center gap-2 overflow-x-auto max-w-full">
+          <div className="glass-strong rounded-2xl shadow-elevated border border-border/70 px-3 py-2 flex items-center gap-2 overflow-x-auto max-w-full">
             {/* Text tool hint (no element selected) */}
             {activeTool === "text" && !selectedItemId && (
               <>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <div className="h-7 w-7 rounded-lg gradient-bg flex items-center justify-center shrink-0 shadow-soft">
-                    <Type className="h-3.5 w-3.5 text-primary-foreground" strokeWidth={2.5} />
+                  <div className="h-7 w-7 rounded-lg bg-ink flex items-center justify-center shrink-0 shadow-soft">
+                    <Type className="h-3.5 w-3.5 text-white" strokeWidth={2.2} />
                   </div>
                 </div>
                 <Divider />
                 {presetText ? (
-                  <span className="text-xs text-primary font-semibold shrink-0 truncate max-w-60">
+                  <span className="text-xs text-primary font-medium shrink-0 truncate max-w-60">
                     ✦ {presetText}
                   </span>
                 ) : (
-                  <span className="text-xs text-muted-foreground shrink-0 font-medium">
+                  <span className="text-[11px] text-muted-foreground leading-relaxed shrink-0">
                     Кликните на PDF — откроется редактор текста
                   </span>
                 )}
@@ -1472,7 +1472,7 @@ export default function PdfCanvas() {
               <>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <Eraser className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Кисть</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Кисть</span>
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
@@ -1485,7 +1485,7 @@ export default function PdfCanvas() {
                           : "outline"
                       }
                       size="sm"
-                      className="h-7 px-2 text-xs shrink-0 min-w-9"
+                      className="h-7 px-2 text-xs tabular-nums shrink-0 min-w-9 rounded-lg"
                       onClick={() => setEraserSettings({ brushSize: size })}
                     >
                       {size}
@@ -1496,7 +1496,7 @@ export default function PdfCanvas() {
                 <Divider />
 
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-xs text-muted-foreground">Цвет</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Цвет</span>
                   <Input
                     type="color"
                     value={eraserSettings.color}
@@ -1511,9 +1511,9 @@ export default function PdfCanvas() {
                   {["#FFFFFF", "#000000", "#F5F5F5", "#D4D4D4"].map((c) => (
                     <button
                       key={c}
-                      className={`w-5 h-5 rounded-md border-2 transition-all shrink-0 ${
+                      className={`w-5 h-5 rounded-lg border-2 transition-all shrink-0 ${
                         eraserSettings.color === c
-                          ? "border-primary scale-110"
+                          ? "border-primary scale-110 shadow-soft"
                           : "border-border"
                       }`}
                       style={{ backgroundColor: c }}
@@ -1529,7 +1529,7 @@ export default function PdfCanvas() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    className="h-7 gap-1.5 shrink-0"
+                    className="h-7 gap-1.5 shrink-0 rounded-lg"
                     onClick={() => {
                       usePdfEditorStore
                         .getState()
@@ -1542,7 +1542,7 @@ export default function PdfCanvas() {
                   </Button>
                 )}
 
-                <span className="text-xs text-muted-foreground shrink-0 hidden md:inline">
+                <span className="text-[11px] text-muted-foreground shrink-0 hidden md:inline">
                   Рисуйте чтобы замазать
                 </span>
               </>
@@ -1554,13 +1554,13 @@ export default function PdfCanvas() {
               selectedStamp && (
                 <>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                       Поворот
                     </span>
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-7 w-7 rounded-lg"
                       onClick={() =>
                         updateStamp(selectedItemId!, {
                           rotation: selectedStamp.rotation - 15,
@@ -1580,13 +1580,13 @@ export default function PdfCanvas() {
                           rotation: parseFloat(e.target.value) || 0,
                         })
                       }
-                      className="h-7 text-xs w-14 text-center"
+                      className="h-7 text-xs w-14 text-center tabular-nums rounded-lg"
                     />
-                    <span className="text-xs text-muted-foreground">°</span>
+                    <span className="text-[11px] text-muted-foreground">°</span>
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-7 w-7 rounded-lg"
                       onClick={() =>
                         updateStamp(selectedItemId!, {
                           rotation: selectedStamp.rotation + 15,
@@ -1600,7 +1600,7 @@ export default function PdfCanvas() {
                   <Divider />
 
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-xs text-muted-foreground">Ш</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Ш</span>
                     <Input
                       type="number"
                       min={20}
@@ -1613,12 +1613,12 @@ export default function PdfCanvas() {
                             Math.max(20, parseInt(e.target.value) || 20),
                         })
                       }
-                      className="h-7 text-xs w-16 text-center"
+                      className="h-7 text-xs w-16 text-center tabular-nums rounded-lg"
                     />
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-xs text-muted-foreground">В</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">В</span>
                     <Input
                       type="number"
                       min={20}
@@ -1631,14 +1631,14 @@ export default function PdfCanvas() {
                             Math.max(20, parseInt(e.target.value) || 20),
                         })
                       }
-                      className="h-7 text-xs w-16 text-center"
+                      className="h-7 text-xs w-16 text-center tabular-nums rounded-lg"
                     />
                   </div>
 
                   <Divider />
 
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                       Прозр.
                     </span>
                     <Input
@@ -1654,7 +1654,7 @@ export default function PdfCanvas() {
                       }
                       className="w-20 h-7"
                     />
-                    <span className="text-xs text-muted-foreground w-8 text-right tabular-nums">
+                    <span className="text-[11px] font-medium text-muted-foreground w-8 text-right tabular-nums">
                       {Math.round(selectedStamp.opacity * 100)}%
                     </span>
                   </div>
@@ -1664,7 +1664,7 @@ export default function PdfCanvas() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    className="h-7 gap-1.5 shrink-0"
+                    className="h-7 gap-1.5 shrink-0 rounded-lg"
                     onClick={() => {
                       usePdfEditorStore
                         .getState()
@@ -1687,7 +1687,7 @@ export default function PdfCanvas() {
                   <Button
                     variant="default"
                     size="sm"
-                    className="h-7 gap-1.5 shrink-0 shadow-soft"
+                    className="h-7 gap-1.5 shrink-0 shadow-soft rounded-lg hover:bg-terracotta-dark"
                     onClick={() => openTextSidebarForEdit(selectedText)}
                     title="Редактировать текст"
                   >
@@ -1701,7 +1701,7 @@ export default function PdfCanvas() {
                   <Button
                     variant={selectedText.bold ? "default" : "outline"}
                     size="icon"
-                    className="h-7 w-7 shrink-0"
+                    className="h-7 w-7 shrink-0 rounded-lg"
                     onClick={() =>
                       updateText(selectedItemId!, {
                         bold: !selectedText.bold,
@@ -1714,7 +1714,7 @@ export default function PdfCanvas() {
                   <Button
                     variant={selectedText.italic ? "default" : "outline"}
                     size="icon"
-                    className="h-7 w-7 shrink-0"
+                    className="h-7 w-7 shrink-0 rounded-lg"
                     onClick={() =>
                       updateText(selectedItemId!, {
                         italic: !selectedText.italic,
@@ -1727,7 +1727,7 @@ export default function PdfCanvas() {
                   <Button
                     variant={selectedText.underline ? "default" : "outline"}
                     size="icon"
-                    className="h-7 w-7 shrink-0"
+                    className="h-7 w-7 shrink-0 rounded-lg"
                     onClick={() =>
                       updateText(selectedItemId!, {
                         underline: !selectedText.underline,
@@ -1744,7 +1744,7 @@ export default function PdfCanvas() {
                   <Button
                     variant={selectedText.align === "left" ? "default" : "outline"}
                     size="icon"
-                    className="h-7 w-7 shrink-0"
+                    className="h-7 w-7 shrink-0 rounded-lg"
                     onClick={() => updateText(selectedItemId!, { align: "left" })}
                     title="По левому краю"
                   >
@@ -1753,7 +1753,7 @@ export default function PdfCanvas() {
                   <Button
                     variant={selectedText.align === "center" ? "default" : "outline"}
                     size="icon"
-                    className="h-7 w-7 shrink-0"
+                    className="h-7 w-7 shrink-0 rounded-lg"
                     onClick={() => updateText(selectedItemId!, { align: "center" })}
                     title="По центру"
                   >
@@ -1762,7 +1762,7 @@ export default function PdfCanvas() {
                   <Button
                     variant={selectedText.align === "right" ? "default" : "outline"}
                     size="icon"
-                    className="h-7 w-7 shrink-0"
+                    className="h-7 w-7 shrink-0 rounded-lg"
                     onClick={() => updateText(selectedItemId!, { align: "right" })}
                     title="По правому краю"
                   >
@@ -1773,7 +1773,7 @@ export default function PdfCanvas() {
 
                   {/* Color */}
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-xs text-muted-foreground">Цвет</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Цвет</span>
                     <Input
                       type="color"
                       value={selectedText.color}
@@ -1791,7 +1791,7 @@ export default function PdfCanvas() {
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-7 w-7 rounded-lg"
                       onClick={() =>
                         updateText(selectedItemId!, {
                           rotation: selectedText.rotation - 15,
@@ -1811,13 +1811,13 @@ export default function PdfCanvas() {
                           rotation: parseFloat(e.target.value) || 0,
                         })
                       }
-                      className="h-7 text-xs w-14 text-center"
+                      className="h-7 text-xs w-14 text-center tabular-nums rounded-lg"
                     />
-                    <span className="text-xs text-muted-foreground">°</span>
+                    <span className="text-[11px] text-muted-foreground">°</span>
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-7 w-7 rounded-lg"
                       onClick={() =>
                         updateText(selectedItemId!, {
                           rotation: selectedText.rotation + 15,
@@ -1833,7 +1833,7 @@ export default function PdfCanvas() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    className="h-7 gap-1.5 shrink-0"
+                    className="h-7 gap-1.5 shrink-0 rounded-lg"
                     onClick={() => {
                       usePdfEditorStore.getState().removeText(selectedItemId!);
                       setSelectedItem(null, null);
@@ -1880,10 +1880,10 @@ export default function PdfCanvas() {
         open={deletePageDialogOpen}
         onOpenChange={setDeletePageDialogOpen}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить страницу {currentPage}?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-base font-semibold">Удалить страницу {currentPage}?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">
               Страница будет исключена из экспортируемого PDF. Вы можете
               восстановить её позже из панели миниатюр или отменить действие
               (Ctrl+Z).
@@ -1892,7 +1892,7 @@ export default function PdfCanvas() {
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl">Отмена</AlertDialogCancel>
             <AlertDialogAction
-              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="rounded-xl bg-primary text-white font-medium hover:bg-terracotta-dark"
               onClick={() => {
                 deletePage(currentPage);
                 setDeletePageDialogOpen(false);

@@ -148,10 +148,10 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
   return (
     <div className="hidden md:flex w-[124px] shrink-0 border-r border-border/70 bg-card/30 overflow-y-auto py-3 px-2 flex-col gap-2.5">
       <div className="flex items-center justify-between gap-1 px-1 mb-1">
-        <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           Страницы
         </span>
-        <span className="text-[9px] font-semibold text-muted-foreground px-1 py-0.5 rounded bg-muted/40 tabular-nums">
+        <span className="text-[10px] font-medium text-muted-foreground px-1 py-0.5 rounded-lg bg-muted/40 tabular-nums">
           {totalPages}
         </span>
       </div>
@@ -165,7 +165,7 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
         return (
           <div
             key={pageNum}
-            className={`group relative rounded-lg p-1.5 transition-all cursor-pointer border ${
+            className={`group relative rounded-xl p-1.5 transition-all cursor-pointer border ${
               isCurrent
                 ? "border-primary bg-primary/10 shadow-soft"
                 : isDeleted
@@ -188,14 +188,14 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
             {/* Page number */}
             <div className="flex items-center justify-between mb-1 px-0.5">
               <span
-                className={`text-[10px] font-bold tabular-nums ${
+                className={`text-[10px] font-medium tabular-nums ${
                   isCurrent ? "text-primary" : "text-muted-foreground"
                 }`}
               >
                 {pageNum}
               </span>
               {rotation !== 0 && (
-                <span className="inline-flex items-center gap-0.5 text-[9px] text-amber-600 font-semibold">
+                <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 font-medium">
                   <RotateCw className="h-2.5 w-2.5" />
                   {rotation}°
                 </span>
@@ -204,7 +204,7 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
 
             {/* Thumbnail canvas */}
             <div
-              className="relative bg-white rounded-md overflow-hidden flex items-center justify-center"
+              className="relative bg-white rounded-lg overflow-hidden flex items-center justify-center"
               style={{ minHeight: 80, minWidth: THUMB_WIDTH }}
             >
               <canvas
@@ -223,7 +223,7 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
                 </div>
               )}
               {st?.error && (
-                <div className="absolute inset-0 flex items-center justify-center text-[9px] text-muted-foreground">
+                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-muted-foreground">
                   Ошибка
                 </div>
               )}
@@ -231,7 +231,7 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
               {/* Deleted overlay */}
               {isDeleted && (
                 <div className="absolute inset-0 bg-destructive/20 backdrop-blur-[1px] flex items-center justify-center">
-                  <div className="text-[9px] font-semibold text-destructive px-1.5 py-0.5 rounded bg-background/80">
+                  <div className="text-[10px] font-medium text-destructive px-1.5 py-0.5 rounded-lg bg-background/80">
                     удалена
                   </div>
                 </div>
@@ -252,7 +252,7 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
                       e.stopPropagation();
                       rotatePage(pageNum);
                     }}
-                    className="h-5 w-5 rounded bg-background/90 border border-border/60 flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+                    className="h-5 w-5 rounded-lg bg-background/90 border border-border/60 flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
                     title="Повернуть страницу"
                   >
                     <RotateCw className="h-2.5 w-2.5" />
@@ -262,7 +262,7 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
                       e.stopPropagation();
                       deletePage(pageNum);
                     }}
-                    className="h-5 w-5 rounded bg-background/90 border border-border/60 flex items-center justify-center text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
+                    className="h-5 w-5 rounded-lg bg-background/90 border border-border/60 flex items-center justify-center text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
                     title="Удалить страницу"
                   >
                     <Trash2 className="h-2.5 w-2.5" />
@@ -275,7 +275,7 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
                     e.stopPropagation();
                     undeletePage(pageNum);
                   }}
-                  className="h-5 w-5 rounded bg-background/90 border border-border/60 flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+                  className="h-5 w-5 rounded-lg bg-background/90 border border-border/60 flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
                   title="Восстановить страницу"
                 >
                   <RotateCcw className="h-2.5 w-2.5" />

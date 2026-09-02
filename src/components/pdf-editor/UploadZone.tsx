@@ -97,22 +97,22 @@ export default function UploadZone() {
               <div
                 className={`relative h-20 w-20 rounded-2xl flex items-center justify-center transition-all duration-300 ${
                   isDragOver
-                    ? "gradient-bg scale-105 shadow-elevated"
-                    : "gradient-bg group-hover:scale-[1.03] shadow-soft"
+                    ? "bg-primary scale-105 shadow-elevated"
+                    : "bg-primary group-hover:scale-[1.03] shadow-soft"
                 }`}
               >
                 <FileUp
                   className="h-9 w-9 text-white"
-                  strokeWidth={1.8}
+                  strokeWidth={2.2}
                   fill="rgba(255,255,255,0.12)"
                 />
               </div>
             </div>
 
             {/* Headline */}
-            <h2 className="font-display text-2xl md:text-[2rem] md:leading-snug font-semibold mb-3 tracking-tight text-balance text-center">
+            <h2 className="text-2xl md:text-[2rem] md:leading-snug font-semibold mb-3 tracking-tight text-balance text-center">
               Загрузите{" "}
-              <em className="italic font-medium text-primary">PDF</em> документ
+              <span className="text-primary">PDF</span> документ
             </h2>
             <p className="text-muted-foreground text-sm md:text-[15px] text-center mb-8 max-w-md text-balance leading-relaxed">
               Перетащите файл сюда или нажмите для выбора — всё
@@ -120,7 +120,7 @@ export default function UploadZone() {
             </p>
 
             {/* CTA */}
-            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-ink text-white text-sm font-semibold shadow-soft group-hover:bg-ink-hover transition-colors">
+            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-ink text-white text-sm font-medium shadow-soft group-hover:bg-ink-hover transition-colors">
               <FileUp className="h-4 w-4" strokeWidth={2.2} />
               Выбрать файл
               <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -155,7 +155,7 @@ export default function UploadZone() {
           <div className="bg-card rounded-2xl p-5 border border-border shadow-soft">
             <div className="flex items-center gap-2 mb-4">
               <span className="h-px w-4 bg-primary/60" />
-              <h3 className="font-display text-sm font-semibold tracking-tight">
+              <h3 className="text-sm font-semibold">
                 Возможности
               </h3>
             </div>
@@ -172,7 +172,7 @@ export default function UploadZone() {
                     <div className="text-xs font-semibold leading-tight">
                       {f.title}
                     </div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
                       {f.desc}
                     </div>
                   </div>
@@ -186,12 +186,12 @@ export default function UploadZone() {
             <div className="h-10 w-10 rounded-xl bg-ink flex items-center justify-center shrink-0 shadow-soft">
               <ShieldCheck
                 className="h-5 w-5 text-white"
-                strokeWidth={2}
+                strokeWidth={2.2}
                 fill="rgba(255,255,255,0.12)"
               />
             </div>
             <div>
-              <div className="font-display text-sm font-semibold mb-1 tracking-tight">
+              <div className="text-sm font-semibold mb-1">
                 Работает прямо в браузере
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">

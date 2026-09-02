@@ -1,0 +1,964 @@
+   950→    const corners: { key: string; cursor: string; pos: React.CSSProperties }[] = [
+   951→      { key: "tl", cursor: "nw-resize", pos: { left: -halfHs, top: -halfHs } },
+   952→      { key: "tr", cursor: "ne-resize", pos: { right: -halfHs, top: -halfHs } },
+   953→      { key: "bl", cursor: "sw-resize", pos: { left: -halfHs, bottom: -halfHs } },
+   954→      { key: "br", cursor: "se-resize", pos: { right: -halfHs, bottom: -halfHs } },
+   955→    ];
+   956→
+   957→    return (
+   958→      <>
+   959→        {/* Selection ring */}
+   960→        <div className="absolute inset-0 ring-2 ring-primary/70 rounded-sm pointer-events-none" />
+   961→        <div className="absolute inset-0 ring-1 ring-primary/30 ring-offset-2 ring-offset-transparent rounded-sm pointer-events-none" />
+   962→
+   963→        {/* Corner resize handles */}
+   964→        {corners.map((c) => (
+   965→          <div
+   966→            key={c.key}
+   967→            className="absolute bg-background border-2 border-primary rounded-sm z-10 shadow-soft hover:scale-125 transition-transform"
+   968→            style={{
+   969→              ...c.pos,
+   970→              width: hs,
+   971→              height: hs,
+   972→              cursor: c.cursor,
+   973→            }}
+   974→            onMouseDown={(e) =>
+   975→              handleResizeMouseDown(e, stamp.id, c.key, stamp)
+   976→            }
+   977→          />
+   978→        ))}
+   979→
+   980→        {/* Rotation handle */}
+   981→        <div
+   982→          className="absolute left-1/2 z-10"
+   983→          style={{
+   984→            top: -ROTATE_HANDLE_DISTANCE,
+   985→            transform: "translateX(-50%)",
+   986→            cursor: "grab",
+   987→          }}
+   988→          onMouseDown={(e) => handleRotateMouseDown(e, stamp.id, stamp)}
+   989→        >
+   990→          {/* Connecting line */}
+   991→          <div
+   992→            className="absolute left-1/2 bottom-full"
+   993→            style={{
+   994→              width: 1.5,
+   995→              height: ROTATE_HANDLE_DISTANCE - hs,
+   996→              backgroundColor: "var(--primary)",
+   997→              transform: "translateX(-50%)",
+   998→              pointerEvents: "none",
+   999→              opacity: 0.6,
+  1000→            }}
+  1001→          />
+  1002→          {/* Rotation circle */}
+  1003→          <div className="w-6 h-6 rounded-full gradient-bg border-2 border-background shadow-elevated flex items-center justify-center hover:scale-110 transition-transform">
+  1004→            <svg
+  1005→              width="11"
+  1006→              height="11"
+  1007→              viewBox="0 0 24 24"
+  1008→              fill="none"
+  1009→              stroke="white"
+  1010→              strokeWidth="3"
+  1011→              strokeLinecap="round"
+  1012→              strokeLinejoin="round"
+  1013→            >
+  1014→              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+  1015→            </svg>
+  1016→          </div>
+  1017→        </div>
+  1018→      </>
+  1019→    );
+  1020→  };
+  1021→
+  1022→  const selectedStamp = stamps.find((s) => s.id === selectedItemId);
+  1023→  const selectedText = texts.find((t) => t.id === selectedItemId);
+  1024→
+  1025→  // Show top bar
+  1026→  const showTopBar =
+  1027→    pdfDoc &&
+  1028→    !error &&
+  1029→    !isLoading &&
+  1030→    ((activeTool === "text" && !selectedItemId) ||
+  1031→      activeTool === "eraser" ||
+  1032→      selectedItemId !== null);
+  1033→
+  1034→  return (
+  1035→    <div
+  1036→      ref={containerRef}
+  1037→      className="flex-1 flex flex-col overflow-hidden aurora-bg relative"
+  1038→    >
+  1039→      {/* Non-A4 warning banner — persistent */}
+  1040→      {nonA4Pages.length > 0 && !a4BannerDismissed && (
+  1041→        <div className="shrink-0 px-4 py-2 bg-amber-500/10 border-b border-amber-500/30 flex items-center gap-2.5 animate-slide-down">
+  1042→          <div className="h-7 w-7 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
+  1043→            <AlertTriangle className="h-4 w-4 text-amber-600" strokeWidth={2.5} />
+  1044→          </div>
+  1045→          <div className="flex-1 min-w-0">
+  1046→            <span className="text-xs font-semibold text-amber-700">
+  1047→              Формат страниц не А4:{" "}
+  1048→            </span>
+  1049→            <span className="text-xs text-amber-700/80">
+  1050→              стр. {nonA4Pages.length <= 8
+  1051→                ? nonA4Pages.join(", ")
+  1052→                : nonA4Pages.slice(0, 8).join(", ") + "…"}{" "}
+  1053→              · размер может отличаться от стандартного
+  1054→            </span>
+  1055→          </div>
+  1056→          <button
+  1057→            onClick={() => setA4BannerDismissed(true)}
+  1058→            className="h-7 w-7 rounded-md flex items-center justify-center text-amber-700/60 hover:bg-amber-500/15 hover:text-amber-700 transition-colors shrink-0"
+  1059→            title="Скрыть"
+  1060→          >
+  1061→            <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+  1062→          </button>
+  1063→        </div>
+  1064→      )}
+  1065→
+  1066→      {/* Main content row: thumbnails + canvas */}
+  1067→      <div className="flex-1 flex min-h-0">
+  1068→        {/* Page thumbnails strip */}
+  1069→        {pdfDoc && !error && !isLoading && (
+  1070→          <PageThumbnails pdfDoc={pdfDoc} />
+  1071→        )}
+  1072→
+  1073→        {/* Canvas + bottom controls column */}
+  1074→        <div className="flex-1 flex flex-col min-h-0 min-w-0">
+  1075→          {/* Canvas area */}
+  1076→          <div className="flex-1 flex items-center justify-center p-5 overflow-auto">
+  1077→        {error && (
+  1078→          <div className="text-center p-8 animate-fade-in">
+  1079→            <div className="relative h-16 w-16 mx-auto mb-5">
+  1080→              <div className="relative h-16 w-16 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
+  1081→                <AlertCircle className="h-8 w-8 text-destructive" strokeWidth={2} />
+  1082→              </div>
+  1083→            </div>
+  1084→            <div className="font-display text-lg font-semibold mb-2">{error}</div>
+  1085→            <p className="text-muted-foreground text-sm">
+  1086→              Попробуйте загрузить другой файл
+  1087→            </p>
+  1088→          </div>
+  1089→        )}
+  1090→
+  1091→        {isLoading && !error && (
+  1092→          <div className="flex flex-col items-center justify-center gap-4 animate-fade-in">
+  1093→            <div className="relative">
+  1094→              <Loader2 className="relative h-12 w-12 animate-spin text-primary" strokeWidth={2.5} />
+  1095→            </div>
+  1096→            <span className="text-sm text-muted-foreground font-medium">Загрузка PDF...</span>
+  1097→          </div>
+  1098→        )}
+  1099→
+  1100→        {pdfDoc && !error && !isLoading && isCurrentPageDeleted && (
+  1101→          <div className="text-center p-8 animate-fade-in">
+  1102→            <div className="relative h-16 w-16 mx-auto mb-5">
+  1103→              <div className="relative h-16 w-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+  1104→                <AlertTriangle className="h-8 w-8 text-amber-600" strokeWidth={2} />
+  1105→              </div>
+  1106→            </div>
+  1107→            <div className="font-display text-lg font-semibold mb-2">
+  1108→              Страница {currentPage} удалена
+  1109→            </div>
+  1110→            <p className="text-muted-foreground text-sm mb-4">
+  1111→              Она будет исключена из экспортируемого PDF
+  1112→            </p>
+  1113→            <Button
+  1114→              variant="outline"
+  1115→              size="sm"
+  1116→              onClick={() => usePdfEditorStore.getState().undeletePage(currentPage)}
+  1117→              className="gap-1.5 rounded-xl"
+  1118→            >
+  1119→              <RotateCcw className="h-3.5 w-3.5" />
+  1120→              Восстановить страницу
+  1121→            </Button>
+  1122→          </div>
+  1123→        )}
+  1124→
+  1125→        {pdfDoc && !error && !isLoading && !isCurrentPageDeleted && (
+  1126→          <div className="relative shadow-elevated border border-border/60 rounded-xl overflow-hidden bg-background">
+  1127→            <canvas ref={canvasRef} className="block" />
+  1128→
+  1129→            {/* Overlay */}
+  1130→            <div
+  1131→              ref={overlayRef}
+  1132→              className={`absolute top-0 left-0 ${cursorClass}`}
+  1133→              onClick={handleOverlayClick}
+  1134→              onMouseDown={handleOverlayMouseDown}
+  1135→              onMouseMove={(e) => {
+  1136→                const rect = overlayRef.current!.getBoundingClientRect();
+  1137→                const pos = {
+  1138→                  x: e.clientX - rect.left,
+  1139→                  y: e.clientY - rect.top,
+  1140→                };
+  1141→                if (activeTool === "eraser") setEraserCursorPos(pos);
+  1142→                if (activeTool === "stamp" && selectedStampSrc)
+  1143→                  setStampCursorPos(pos);
+  1144→              }}
+  1145→              onMouseLeave={() => {
+  1146→                setEraserCursorPos(null);
+  1147→                setStampCursorPos(null);
+  1148→              }}
+  1149→              style={{ width: canvasSize.width, height: canvasSize.height }}
+  1150→            >
+  1151→              {/* SVG layer for eraser strokes */}
+  1152→              <svg
+  1153→                className="absolute top-0 left-0 pointer-events-none"
+  1154→                width={canvasSize.width}
+  1155→                height={canvasSize.height}
+  1156→                style={{ zIndex: 5 }}
+  1157→              >
+  1158→                {pageErasers.filter((e) => !e.hidden).map((eraserItem) => {
+  1159→                  const sx =
+  1160→                    canvasSize.width /
+  1161→                    (eraserItem.canvasWidth || canvasSize.width);
+  1162→                  const sy =
+  1163→                    canvasSize.height /
+  1164→                    (eraserItem.canvasHeight || canvasSize.height);
+  1165→                  const scaledPoints = eraserItem.points.map((p) => ({
+  1166→                    x: p.x * sx,
+  1167→                    y: p.y * sy,
+  1168→                  }));
+  1169→                  return (
+  1170→                    <path
+  1171→                      key={eraserItem.id}
+  1172→                      d={buildEraserPath(scaledPoints)}
+  1173→                      stroke={eraserItem.color}
+  1174→                      strokeWidth={eraserItem.strokeWidth * Math.min(sx, sy)}
+  1175→                      strokeLinecap="round"
+  1176→                      strokeLinejoin="round"
+  1177→                      fill="none"
+  1178→                      className={
+  1179→                        selectedItemId === eraserItem.id
+  1180→                          ? "pointer-events-auto cursor-pointer"
+  1181→                          : "pointer-events-none"
+  1182→                      }
+  1183→                      onClick={(e) => {
+  1184→                        if (activeTool === "select" || activeTool === "eraser") {
+  1185→                          e.stopPropagation();
+  1186→                          clickedOnElementRef.current = true;
+  1187→                          setSelectedItem(eraserItem.id, "eraser");
+  1188→                        }
+  1189→                      }}
+  1190→                    />
+  1191→                  );
+  1192→                })}
+  1193→                {isEraserDrawing && currentEraserPoints.length > 0 && (
+  1194→                  <path
+  1195→                    d={buildEraserPath(currentEraserPoints)}
+  1196→                    stroke={eraserSettings.color}
+  1197→                    strokeWidth={eraserSettings.brushSize}
+  1198→                    strokeLinecap="round"
+  1199→                    strokeLinejoin="round"
+  1200→                    fill="none"
+  1201→                  />
+  1202→                )}
+  1203→              </svg>
+  1204→
+  1205→              {pageStamps.filter((s) => !s.hidden).map((stamp) => (
+  1206→                <div
+  1207→                  key={stamp.id}
+  1208→                  className={`absolute ${
+  1209→                    selectedItemId === stamp.id
+  1210→                      ? ""
+  1211→                      : "hover:ring-1 hover:ring-primary/50 rounded-sm"
+  1212→                  }`}
+  1213→                  style={{
+  1214→                    left: scaleToDisplay(stamp.x, stamp.canvasWidth),
+  1215→                    top: scaleToDisplayY(stamp.y, stamp.canvasHeight),
+  1216→                    width: scaleToDisplay(stamp.width, stamp.canvasWidth),
+  1217→                    height: scaleToDisplayY(stamp.height, stamp.canvasHeight),
+  1218→                    transform: `rotate(${stamp.rotation}deg)`,
+  1219→                    opacity: stamp.opacity,
+  1220→                    cursor: dragState?.mode === "move" ? "grabbing" : "grab",
+  1221→                  }}
+  1222→                  onMouseDown={(e) => handleItemMouseDown(e, stamp.id, "stamp")}
+  1223→                  onClick={(e) => e.stopPropagation()}
+  1224→                >
+  1225→                  <img
+  1226→                    src={stamp.src}
+  1227→                    alt={stamp.type}
+  1228→                    className="w-full h-full object-contain pointer-events-none select-none"
+  1229→                    draggable={false}
+  1230→                  />
+  1231→                  {renderStampHandles(stamp)}
+  1232→                </div>
+  1233→              ))}
+  1234→
+  1235→              {pageTexts.filter((t) => !t.hidden).map((textItem) => {
+  1236→                const dispX = scaleToDisplay(textItem.x, textItem.canvasWidth);
+  1237→                const dispY = scaleToDisplayY(
+  1238→                  textItem.y,
+  1239→                  textItem.canvasHeight
+  1240→                );
+  1241→                const dispFontSize = scaleToDisplay(
+  1242→                  textItem.fontSize,
+  1243→                  textItem.canvasWidth
+  1244→                );
+  1245→                const dispLetterSpacing = scaleToDisplay(
+  1246→                  textItem.letterSpacing,
+  1247→                  textItem.canvasWidth
+  1248→                );
+  1249→                const textLines = textItem.text.split("\n");
+  1250→                const isSelected = selectedItemId === textItem.id;
+  1251→                return (
+  1252→                  <div
+  1253→                    key={textItem.id}
+  1254→                    className={`absolute ${
+  1255→                      isSelected
+  1256→                        ? "ring-1 ring-primary/70 ring-offset-2 ring-offset-background rounded-sm p-0.5"
+  1257→                        : "hover:ring-1 hover:ring-primary/50 rounded-sm"
+  1258→                    }`}
+  1259→                    style={{
+  1260→                      left: dispX,
+  1261→                      top: dispY,
+  1262→                      color: textItem.color,
+  1263→                      transform: `rotate(${textItem.rotation}deg)`,
+  1264→                      cursor:
+  1265→                        dragState?.mode === "move" ? "grabbing" : "grab",
+  1266→                      userSelect: "none",
+  1267→                      lineHeight: 1.2,
+  1268→                      width: "fit-content",
+  1269→                      textAlign: textItem.align,
+  1270→                    }}
+  1271→                    onMouseDown={(e) =>
+  1272→                      handleItemMouseDown(e, textItem.id, "text")
+  1273→                    }
+  1274→                    onClick={(e) => e.stopPropagation()}
+  1275→                    onDoubleClick={(e) => handleTextDoubleClick(e, textItem)}
+  1276→                  >
+  1277→                    {textLines.map((line, i) => (
+  1278→                      <div
+  1279→                        key={i}
+  1280→                        style={{
+  1281→                          fontSize: dispFontSize,
+  1282→                          fontFamily: getFontCss(textItem.fontFamily),
+  1283→                          fontWeight: textItem.bold ? "bold" : "normal",
+  1284→                          fontStyle: textItem.italic ? "italic" : "normal",
+  1285→                          textDecoration: textItem.underline
+  1286→                            ? "underline"
+  1287→                            : "none",
+  1288→                          letterSpacing: `${dispLetterSpacing}px`,
+  1289→                          whiteSpace: "pre",
+  1290→                          textAlign: textItem.align,
+  1291→                        }}
+  1292→                      >
+  1293→                        {line || "\u00A0"}
+  1294→                      </div>
+  1295→                    ))}
+  1296→                  </div>
+  1297→                );
+  1298→              })}
+  1299→
+  1300→              {/* Stamp cursor preview */}
+  1301→              {activeTool === "stamp" && selectedStampSrc && stampCursorPos && (
+  1302→                <img
+  1303→                  src={selectedStampSrc}
+  1304→                  alt=""
+  1305→                  className="absolute pointer-events-none object-contain"
+  1306→                  style={{
+  1307→                    width: 130,
+  1308→                    height: 130,
+  1309→                    left: stampCursorPos.x,
+  1310→                    top: stampCursorPos.y,
+  1311→                    transform: "translate(-50%, -50%)",
+  1312→                    opacity: 0.7,
+  1313→                    zIndex: 50,
+  1314→                  }}
+  1315→                  draggable={false}
+  1316→                />
+  1317→              )}
+  1318→
+  1319→              {/* Eraser cursor preview */}
+  1320→              {activeTool === "eraser" && eraserCursorPos && (
+  1321→                <div
+  1322→                  className="absolute pointer-events-none rounded-full border-2 border-foreground/40"
+  1323→                  style={{
+  1324→                    width: eraserSettings.brushSize,
+  1325→                    height: eraserSettings.brushSize,
+  1326→                    left: eraserCursorPos.x,
+  1327→                    top: eraserCursorPos.y,
+  1328→                    transform: "translate(-50%, -50%)",
+  1329→                    backgroundColor: eraserSettings.color,
+  1330→                    opacity: 0.6,
+  1331→                    zIndex: 50,
+  1332→                  }}
+  1333→                />
+  1334→              )}
+  1335→            </div>
+  1336→          </div>
+  1337→        )}
+  1338→          </div>
+  1339→
+  1340→          {/* Bottom center controls */}
+  1341→          {pdfDoc && !error && !isLoading && (
+  1342→            <div className="flex justify-center pb-3 px-4 pt-1">
+  1343→              <div className="flex items-center gap-1 glass-strong gradient-border rounded-full shadow-elevated px-2 py-1 max-w-[calc(100vw-24px)] overflow-x-auto">
+  1344→                <Button
+  1345→                  variant="ghost"
+  1346→                  size="icon"
+  1347→                  className="h-8 w-8 rounded-full hover:bg-accent"
+  1348→                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+  1349→                  disabled={currentPage <= 1}
+  1350→                >
+  1351→                  <ChevronLeft className="h-4 w-4" />
+  1352→                </Button>
+  1353→                <div className="flex items-center gap-1.5 px-2">
+  1354→                  <FileText className="h-3 w-3 text-muted-foreground" />
+  1355→                  <span className="text-xs font-semibold tabular-nums min-w-[60px] text-center select-none">
+  1356→                    {currentPage} / {totalPages}
+  1357→                  </span>
+  1358→                </div>
+  1359→                <Button
+  1360→                  variant="ghost"
+  1361→                  size="icon"
+  1362→                  className="h-8 w-8 rounded-full hover:bg-accent"
+  1363→                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+  1364→                  disabled={currentPage >= totalPages}
+  1365→                >
+  1366→                  <ChevronRight className="h-4 w-4" />
+  1367→                </Button>
+  1368→                <div className="w-px h-5 bg-border/60 mx-1" />
+  1369→                {/* Undo / Redo */}
+  1370→                <Button
+  1371→                  variant="ghost"
+  1372→                  size="icon"
+  1373→                  className="h-8 w-8 rounded-full hover:bg-accent"
+  1374→                  onClick={undo}
+  1375→                  disabled={past.length === 0}
+  1376→                  title="Отменить (Ctrl+Z)"
+  1377→                >
+  1378→                  <Undo2 className="h-4 w-4" />
+  1379→                </Button>
+  1380→                <Button
+  1381→                  variant="ghost"
+  1382→                  size="icon"
+  1383→                  className="h-8 w-8 rounded-full hover:bg-accent"
+  1384→                  onClick={redo}
+  1385→                  disabled={future.length === 0}
+  1386→                  title="Повторить (Ctrl+Y)"
+  1387→                >
+  1388→                  <Redo2 className="h-4 w-4" />
+  1389→                </Button>
+  1390→                <div className="w-px h-5 bg-border/60 mx-1" />
+  1391→                {/* Rotate page */}
+  1392→                <Button
+  1393→                  variant="ghost"
+  1394→                  size="icon"
+  1395→                  className="h-8 w-8 rounded-full hover:bg-accent"
+  1396→                  onClick={() => rotatePage(currentPage)}
+  1397→                  disabled={isCurrentPageDeleted}
+  1398→                  title={`Повернуть страницу (текущий: ${pageRotations[currentPage] || 0}°)`}
+  1399→                >
+  1400→                  <RotateCw className="h-4 w-4" />
+  1401→                </Button>
+  1402→                {/* Delete page */}
+  1403→                <Button
+  1404→                  variant="ghost"
+  1405→                  size="icon"
+  1406→                  className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
+  1407→                  onClick={() => setDeletePageDialogOpen(true)}
+  1408→                  disabled={isCurrentPageDeleted}
+  1409→                  title="Удалить страницу"
+  1410→                >
+  1411→                  <Trash2 className="h-4 w-4" />
+  1412→                </Button>
+  1413→                <div className="w-px h-5 bg-border/60 mx-1" />
+  1414→                <Button
+  1415→                  variant="ghost"
+  1416→                  size="icon"
+  1417→                  className="h-8 w-8 rounded-full hover:bg-accent"
+  1418→                  onClick={zoomOut}
+  1419→                  disabled={zoomLevel <= 0.25}
+  1420→                >
+  1421→                  <ZoomOut className="h-4 w-4" />
+  1422→                </Button>
+  1423→                <button
+  1424→                  className="text-xs font-semibold tabular-nums min-w-[52px] text-center hover:bg-accent rounded-full py-1 px-2 transition-colors select-none"
+  1425→                  onClick={zoomFit}
+  1426→                  title="Сбросить до 100%"
+  1427→                >
+  1428→                  {zoomPercent}%
+  1429→                </button>
+  1430→                <Button
+  1431→                  variant="ghost"
+  1432→                  size="icon"
+  1433→                  className="h-8 w-8 rounded-full hover:bg-accent"
+  1434→                  onClick={zoomIn}
+  1435→                  disabled={zoomLevel >= 5.0}
+  1436→                >
+  1437→                  <ZoomIn className="h-4 w-4" />
+  1438→                </Button>
+  1439→              </div>
+  1440→            </div>
+  1441→          )}
+  1442→        </div>
+  1443→      </div>
+  1444→
+  1445→      {/* Floating properties bar */}
+  1446→      {showTopBar && (
+  1447→        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 max-w-[calc(100%-1.5rem)] animate-slide-down">
+  1448→          <div className="glass-strong rounded-2xl shadow-elevated gradient-border px-3 py-2 flex items-center gap-2 overflow-x-auto max-w-full">
+  1449→            {/* Text tool hint (no element selected) */}
+  1450→            {activeTool === "text" && !selectedItemId && (
+  1451→              <>
+  1452→                <div className="flex items-center gap-1.5 shrink-0">
+  1453→                  <div className="h-7 w-7 rounded-lg gradient-bg flex items-center justify-center shrink-0 shadow-soft">
+  1454→                    <Type className="h-3.5 w-3.5 text-primary-foreground" strokeWidth={2.5} />
+  1455→                  </div>
+  1456→                </div>
+  1457→                <Divider />
+  1458→                {presetText ? (
+  1459→                  <span className="text-xs text-primary font-semibold shrink-0 truncate max-w-60">
+  1460→                    ✦ {presetText}
+  1461→                  </span>
+  1462→                ) : (
+  1463→                  <span className="text-xs text-muted-foreground shrink-0 font-medium">
+  1464→                    Кликните на PDF — откроется редактор текста
+  1465→                  </span>
+  1466→                )}
+  1467→              </>
+  1468→            )}
+  1469→
+  1470→            {/* Eraser tool settings */}
+  1471→            {activeTool === "eraser" && (
+  1472→              <>
+  1473→                <div className="flex items-center gap-1.5 shrink-0">
+  1474→                  <Eraser className="h-4 w-4 text-muted-foreground" />
+  1475→                  <span className="text-xs text-muted-foreground">Кисть</span>
+  1476→                </div>
+  1477→
+  1478→                <div className="flex items-center gap-1 shrink-0">
+  1479→                  {[5, 10, 20, 40, 60].map((size) => (
+  1480→                    <Button
+  1481→                      key={size}
+  1482→                      variant={
+  1483→                        eraserSettings.brushSize === size
+  1484→                          ? "default"
+  1485→                          : "outline"
+  1486→                      }
+  1487→                      size="sm"
+  1488→                      className="h-7 px-2 text-xs shrink-0 min-w-9"
+  1489→                      onClick={() => setEraserSettings({ brushSize: size })}
+  1490→                    >
+  1491→                      {size}
+  1492→                    </Button>
+  1493→                  ))}
+  1494→                </div>
+  1495→
+  1496→                <Divider />
+  1497→
+  1498→                <div className="flex items-center gap-1.5 shrink-0">
+  1499→                  <span className="text-xs text-muted-foreground">Цвет</span>
+  1500→                  <Input
+  1501→                    type="color"
+  1502→                    value={eraserSettings.color}
+  1503→                    onChange={(e) =>
+  1504→                      setEraserSettings({ color: e.target.value })
+  1505→                    }
+  1506→                    className="h-7 w-8 cursor-pointer p-0"
+  1507→                  />
+  1508→                </div>
+  1509→
+  1510→                <div className="flex items-center gap-1 shrink-0">
+  1511→                  {["#FFFFFF", "#000000", "#F5F5F5", "#D4D4D4"].map((c) => (
+  1512→                    <button
+  1513→                      key={c}
+  1514→                      className={`w-5 h-5 rounded-md border-2 transition-all shrink-0 ${
+  1515→                        eraserSettings.color === c
+  1516→                          ? "border-primary scale-110"
+  1517→                          : "border-border"
+  1518→                      }`}
+  1519→                      style={{ backgroundColor: c }}
+  1520→                      onClick={() => setEraserSettings({ color: c })}
+  1521→                      title={c}
+  1522→                    />
+  1523→                  ))}
+  1524→                </div>
+  1525→
+  1526→                <Divider />
+  1527→
+  1528→                {selectedItemId && selectedItemType === "eraser" && (
+  1529→                  <Button
+  1530→                    variant="destructive"
+  1531→                    size="sm"
+  1532→                    className="h-7 gap-1.5 shrink-0"
+  1533→                    onClick={() => {
+  1534→                      usePdfEditorStore
+  1535→                        .getState()
+  1536→                        .removeEraser(selectedItemId);
+  1537→                      setSelectedItem(null, null);
+  1538→                    }}
+  1539→                  >
+  1540→                    <Trash2 className="h-3 w-3" />
+  1541→                    Удалить
+  1542→                  </Button>
+  1543→                )}
+  1544→
+  1545→                <span className="text-xs text-muted-foreground shrink-0 hidden md:inline">
+  1546→                  Рисуйте чтобы замазать
+  1547→                </span>
+  1548→              </>
+  1549→            )}
+  1550→
+  1551→            {/* Stamp selected element properties */}
+  1552→            {selectedItemId &&
+  1553→              selectedItemType === "stamp" &&
+  1554→              selectedStamp && (
+  1555→                <>
+  1556→                  <div className="flex items-center gap-1.5 shrink-0">
+  1557→                    <span className="text-xs text-muted-foreground">
+  1558→                      Поворот
+  1559→                    </span>
+  1560→                    <Button
+  1561→                      variant="outline"
+  1562→                      size="icon"
+  1563→                      className="h-7 w-7"
+  1564→                      onClick={() =>
+  1565→                        updateStamp(selectedItemId!, {
+  1566→                          rotation: selectedStamp.rotation - 15,
+  1567→                        })
+  1568→                      }
+  1569→                    >
+  1570→                      <RotateCcw className="h-3 w-3" />
+  1571→                    </Button>
+  1572→                    <Input
+  1573→                      type="number"
+  1574→                      min={-180}
+  1575→                      max={180}
+  1576→                      step={1}
+  1577→                      value={Math.round(selectedStamp.rotation)}
+  1578→                      onChange={(e) =>
+  1579→                        updateStamp(selectedItemId!, {
+  1580→                          rotation: parseFloat(e.target.value) || 0,
+  1581→                        })
+  1582→                      }
+  1583→                      className="h-7 text-xs w-14 text-center"
+  1584→                    />
+  1585→                    <span className="text-xs text-muted-foreground">°</span>
+  1586→                    <Button
+  1587→                      variant="outline"
+  1588→                      size="icon"
+  1589→                      className="h-7 w-7"
+  1590→                      onClick={() =>
+  1591→                        updateStamp(selectedItemId!, {
+  1592→                          rotation: selectedStamp.rotation + 15,
+  1593→                        })
+  1594→                      }
+  1595→                    >
+  1596→                      <RotateCw className="h-3 w-3" />
+  1597→                    </Button>
+  1598→                  </div>
+  1599→
+  1600→                  <Divider />
+  1601→
+  1602→                  <div className="flex items-center gap-1.5 shrink-0">
+  1603→                    <span className="text-xs text-muted-foreground">Ш</span>
+  1604→                    <Input
+  1605→                      type="number"
+  1606→                      min={20}
+  1607→                      max={800}
+  1608→                      step={5}
+  1609→                      value={Math.round(selectedStamp.width)}
+  1610→                      onChange={(e) =>
+  1611→                        updateStamp(selectedItemId!, {
+  1612→                          width:
+  1613→                            Math.max(20, parseInt(e.target.value) || 20),
+  1614→                        })
+  1615→                      }
+  1616→                      className="h-7 text-xs w-16 text-center"
+  1617→                    />
+  1618→                  </div>
+  1619→
+  1620→                  <div className="flex items-center gap-1.5 shrink-0">
+  1621→                    <span className="text-xs text-muted-foreground">В</span>
+  1622→                    <Input
+  1623→                      type="number"
+  1624→                      min={20}
+  1625→                      max={800}
+  1626→                      step={5}
+  1627→                      value={Math.round(selectedStamp.height)}
+  1628→                      onChange={(e) =>
+  1629→                        updateStamp(selectedItemId!, {
+  1630→                          height:
+  1631→                            Math.max(20, parseInt(e.target.value) || 20),
+  1632→                        })
+  1633→                      }
+  1634→                      className="h-7 text-xs w-16 text-center"
+  1635→                    />
+  1636→                  </div>
+  1637→
+  1638→                  <Divider />
+  1639→
+  1640→                  <div className="flex items-center gap-1.5 shrink-0">
+  1641→                    <span className="text-xs text-muted-foreground">
+  1642→                      Прозр.
+  1643→                    </span>
+  1644→                    <Input
+  1645→                      type="range"
+  1646→                      min={0.05}
+  1647→                      max={1}
+  1648→                      step={0.05}
+  1649→                      value={selectedStamp.opacity}
+  1650→                      onChange={(e) =>
+  1651→                        updateStamp(selectedItemId!, {
+  1652→                          opacity: parseFloat(e.target.value),
+  1653→                        })
+  1654→                      }
+  1655→                      className="w-20 h-7"
+  1656→                    />
+  1657→                    <span className="text-xs text-muted-foreground w-8 text-right tabular-nums">
+  1658→                      {Math.round(selectedStamp.opacity * 100)}%
+  1659→                    </span>
+  1660→                  </div>
+  1661→
+  1662→                  <Divider />
+  1663→
+  1664→                  <Button
+  1665→                    variant="destructive"
+  1666→                    size="sm"
+  1667→                    className="h-7 gap-1.5 shrink-0"
+  1668→                    onClick={() => {
+  1669→                      usePdfEditorStore
+  1670→                        .getState()
+  1671→                        .removeStamp(selectedItemId!);
+  1672→                      setSelectedItem(null, null);
+  1673→                    }}
+  1674→                  >
+  1675→                    <Trash2 className="h-3 w-3" />
+  1676→                    Удалить
+  1677→                  </Button>
+  1678→                </>
+  1679→              )}
+  1680→
+  1681→            {/* Text selected element properties — compact quick controls + Edit button */}
+  1682→            {selectedItemId &&
+  1683→              selectedItemType === "text" &&
+  1684→              selectedText && (
+  1685→                <>
+  1686→                  {/* Edit text button — opens modal */}
+  1687→                  <Button
+  1688→                    variant="default"
+  1689→                    size="sm"
+  1690→                    className="h-7 gap-1.5 shrink-0 shadow-soft"
+  1691→                    onClick={() => openTextSidebarForEdit(selectedText)}
+  1692→                    title="Редактировать текст"
+  1693→                  >
+  1694→                    <PencilLine className="h-3.5 w-3.5" />
+  1695→                    Изменить текст
+  1696→                  </Button>
+  1697→
+  1698→                  <Divider />
+  1699→
+  1700→                  {/* Quick B/I/U */}
+  1701→                  <Button
+  1702→                    variant={selectedText.bold ? "default" : "outline"}
+  1703→                    size="icon"
+  1704→                    className="h-7 w-7 shrink-0"
+  1705→                    onClick={() =>
+  1706→                      updateText(selectedItemId!, {
+  1707→                        bold: !selectedText.bold,
+  1708→                      })
+  1709→                    }
+  1710→                    title="Жирный"
+  1711→                  >
+  1712→                    <Bold className="h-3 w-3" />
+  1713→                  </Button>
+  1714→                  <Button
+  1715→                    variant={selectedText.italic ? "default" : "outline"}
+  1716→                    size="icon"
+  1717→                    className="h-7 w-7 shrink-0"
+  1718→                    onClick={() =>
+  1719→                      updateText(selectedItemId!, {
+  1720→                        italic: !selectedText.italic,
+  1721→                      })
+  1722→                    }
+  1723→                    title="Курсив"
+  1724→                  >
+  1725→                    <Italic className="h-3 w-3" />
+  1726→                  </Button>
+  1727→                  <Button
+  1728→                    variant={selectedText.underline ? "default" : "outline"}
+  1729→                    size="icon"
+  1730→                    className="h-7 w-7 shrink-0"
+  1731→                    onClick={() =>
+  1732→                      updateText(selectedItemId!, {
+  1733→                        underline: !selectedText.underline,
+  1734→                      })
+  1735→                    }
+  1736→                    title="Подчёркнутый"
+  1737→                  >
+  1738→                    <Underline className="h-3 w-3" />
+  1739→                  </Button>
+  1740→
+  1741→                  <Divider />
+  1742→
+  1743→                  {/* Alignment */}
+  1744→                  <Button
+  1745→                    variant={selectedText.align === "left" ? "default" : "outline"}
+  1746→                    size="icon"
+  1747→                    className="h-7 w-7 shrink-0"
+  1748→                    onClick={() => updateText(selectedItemId!, { align: "left" })}
+  1749→                    title="По левому краю"
+  1750→                  >
+  1751→                    <AlignLeft className="h-3 w-3" />
+  1752→                  </Button>
+  1753→                  <Button
+  1754→                    variant={selectedText.align === "center" ? "default" : "outline"}
+  1755→                    size="icon"
+  1756→                    className="h-7 w-7 shrink-0"
+  1757→                    onClick={() => updateText(selectedItemId!, { align: "center" })}
+  1758→                    title="По центру"
+  1759→                  >
+  1760→                    <AlignCenter className="h-3 w-3" />
+  1761→                  </Button>
+  1762→                  <Button
+  1763→                    variant={selectedText.align === "right" ? "default" : "outline"}
+  1764→                    size="icon"
+  1765→                    className="h-7 w-7 shrink-0"
+  1766→                    onClick={() => updateText(selectedItemId!, { align: "right" })}
+  1767→                    title="По правому краю"
+  1768→                  >
+  1769→                    <AlignRight className="h-3 w-3" />
+  1770→                  </Button>
+  1771→
+  1772→                  <Divider />
+  1773→
+  1774→                  {/* Color */}
+  1775→                  <div className="flex items-center gap-1.5 shrink-0">
+  1776→                    <span className="text-xs text-muted-foreground">Цвет</span>
+  1777→                    <Input
+  1778→                      type="color"
+  1779→                      value={selectedText.color}
+  1780→                      onChange={(e) =>
+  1781→                        updateText(selectedItemId!, { color: e.target.value })
+  1782→                      }
+  1783→                      className="h-7 w-8 cursor-pointer p-0"
+  1784→                    />
+  1785→                  </div>
+  1786→
+  1787→                  <Divider />
+  1788→
+  1789→                  {/* Rotation */}
+  1790→                  <div className="flex items-center gap-1.5 shrink-0">
+  1791→                    <Button
+  1792→                      variant="outline"
+  1793→                      size="icon"
+  1794→                      className="h-7 w-7"
+  1795→                      onClick={() =>
+  1796→                        updateText(selectedItemId!, {
+  1797→                          rotation: selectedText.rotation - 15,
+  1798→                        })
+  1799→                      }
+  1800→                    >
+  1801→                      <RotateCcw className="h-3 w-3" />
+  1802→                    </Button>
+  1803→                    <Input
+  1804→                      type="number"
+  1805→                      min={-180}
+  1806→                      max={180}
+  1807→                      step={1}
+  1808→                      value={Math.round(selectedText.rotation)}
+  1809→                      onChange={(e) =>
+  1810→                        updateText(selectedItemId!, {
+  1811→                          rotation: parseFloat(e.target.value) || 0,
+  1812→                        })
+  1813→                      }
+  1814→                      className="h-7 text-xs w-14 text-center"
+  1815→                    />
+  1816→                    <span className="text-xs text-muted-foreground">°</span>
+  1817→                    <Button
+  1818→                      variant="outline"
+  1819→                      size="icon"
+  1820→                      className="h-7 w-7"
+  1821→                      onClick={() =>
+  1822→                        updateText(selectedItemId!, {
+  1823→                          rotation: selectedText.rotation + 15,
+  1824→                        })
+  1825→                      }
+  1826→                    >
+  1827→                      <RotateCw className="h-3 w-3" />
+  1828→                    </Button>
+  1829→                  </div>
+  1830→
+  1831→                  <Divider />
+  1832→
+  1833→                  <Button
+  1834→                    variant="destructive"
+  1835→                    size="sm"
+  1836→                    className="h-7 gap-1.5 shrink-0"
+  1837→                    onClick={() => {
+  1838→                      usePdfEditorStore.getState().removeText(selectedItemId!);
+  1839→                      setSelectedItem(null, null);
+  1840→                    }}
+  1841→                  >
+  1842→                    <Trash2 className="h-3 w-3" />
+  1843→                    Удалить
+  1844→                  </Button>
+  1845→                </>
+  1846→              )}
+  1847→
+  1848→            {/* Eraser selected element in select mode */}
+  1849→            {selectedItemId &&
+  1850→              selectedItemType === "eraser" &&
+  1851→              activeTool === "select" && (
+  1852→                <Button
+  1853→                  variant="destructive"
+  1854→                  size="sm"
+  1855→                  className="h-7 gap-1.5 shrink-0"
+  1856→                  onClick={() => {
+  1857→                    usePdfEditorStore.getState().removeEraser(selectedItemId);
+  1858→                    setSelectedItem(null, null);
+  1859→                  }}
+  1860→                >
+  1861→                  <Trash2 className="h-3 w-3" />
+  1862→                  Удалить мазок
+  1863→                </Button>
+  1864→              )}
+  1865→          </div>
+  1866→        </div>
+  1867→      )}
+  1868→
+  1869→      {/* Text edit sidebar */}
+  1870→      <TextEditSidebar
+  1871→        open={textSidebar.open}
+  1872→        mode={textSidebar.mode}
+  1873→        initialData={textSidebar.initialData}
+  1874→        onClose={() => setTextSidebar((prev) => ({ ...prev, open: false }))}
+  1875→        onSave={handleTextSidebarSave}
+  1876→      />
+  1877→
+  1878→      {/* Delete page confirmation dialog */}
+  1879→      <AlertDialog
+  1880→        open={deletePageDialogOpen}
+  1881→        onOpenChange={setDeletePageDialogOpen}
+  1882→      >
+  1883→        <AlertDialogContent>
+  1884→          <AlertDialogHeader>
+  1885→            <AlertDialogTitle>Удалить страницу {currentPage}?</AlertDialogTitle>
+  1886→            <AlertDialogDescription>
+  1887→              Страница будет исключена из экспортируемого PDF. Вы можете
+  1888→              восстановить её позже из панели миниатюр или отменить действие
+  1889→              (Ctrl+Z).
+  1890→            </AlertDialogDescription>
+  1891→          </AlertDialogHeader>
+  1892→          <AlertDialogFooter>
+  1893→            <AlertDialogCancel className="rounded-xl">Отмена</AlertDialogCancel>
+  1894→            <AlertDialogAction
+  1895→              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+  1896→              onClick={() => {
+  1897→                deletePage(currentPage);
+  1898→                setDeletePageDialogOpen(false);
+  1899→              }}
+  1900→            >
+  1901→              Удалить
+  1902→            </AlertDialogAction>
+  1903→          </AlertDialogFooter>
+  1904→        </AlertDialogContent>
+  1905→      </AlertDialog>
+  1906→    </div>
+  1907→  );
+  1908→}
+  1909→
+  1910→function Divider() {
+  1911→  return <div className="w-px h-6 bg-border/60 shrink-0" />;
+  1912→}
+  1913→

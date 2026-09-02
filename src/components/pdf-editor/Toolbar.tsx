@@ -87,18 +87,18 @@ export default function Toolbar({
       <div className="flex flex-col gap-2">
         <Button
           variant="outline"
-          className="w-full justify-start gap-2.5 h-10 rounded-xl border-border hover:bg-accent hover:border-primary/35 transition-all group"
+          className="w-full justify-start gap-2.5 h-10 rounded-xl border-border hover:bg-accent hover:border-primary/40 font-medium transition-all group"
           onClick={onUploadClick}
         >
-          <div className="h-6 w-6 rounded-md bg-primary/12 flex items-center justify-center group-hover:scale-105 transition-transform">
+          <div className="h-6 w-6 rounded-lg bg-primary/12 flex items-center justify-center group-hover:scale-105 transition-transform">
             <FileUp className="h-3.5 w-3.5 text-primary" />
           </div>
-          <span className="font-medium">
+          <span>
             {pdfFile ? "Загрузить другой" : "Загрузить PDF"}
           </span>
         </Button>
         <Button
-          className="w-full justify-start gap-2.5 h-10 rounded-xl bg-primary hover:bg-[#c15f3c] text-white shadow-soft transition-colors"
+          className="w-full justify-start gap-2.5 h-10 rounded-xl bg-primary hover:bg-terracotta-dark text-white shadow-soft font-medium transition-colors"
           onClick={onDownloadClick}
           disabled={!pdfFile || isDownloading}
         >
@@ -107,7 +107,7 @@ export default function Toolbar({
           ) : (
             <Download className="h-4 w-4" />
           )}
-          <span className="font-semibold">
+          <span>
             {isDownloading ? "Подготовка..." : "Скачать PDF"}
           </span>
         </Button>
@@ -118,7 +118,7 @@ export default function Toolbar({
       {/* Tools */}
       <div>
         <div className="flex items-center gap-1.5 mb-2.5 px-1">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Инструменты
           </span>
         </div>
@@ -139,7 +139,7 @@ export default function Toolbar({
                 <div
                   className={`relative h-8 w-8 rounded-lg flex items-center justify-center transition-all ${
                     active
-                      ? "gradient-bg shadow-soft"
+                      ? "bg-primary shadow-soft"
                       : "bg-secondary group-hover:bg-primary/10"
                   }`}
                 >
@@ -156,7 +156,7 @@ export default function Toolbar({
                   <div className="text-xs font-semibold leading-tight">
                     {tool.label}
                   </div>
-                  <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                  <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">
                     {tool.desc}
                   </div>
                 </div>
@@ -175,7 +175,7 @@ export default function Toolbar({
           {builtInCustom.length > 0 && (
             <div>
               <div className="flex items-center gap-1.5 mb-2 px-1">
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Ваши печати
                 </span>
               </div>
@@ -198,7 +198,7 @@ export default function Toolbar({
                         draggable={false}
                       />
                     </div>
-                    <span className="relative text-[10px] text-muted-foreground text-center leading-tight font-semibold">
+                    <span className="relative text-[10px] text-muted-foreground text-center leading-tight font-medium">
                       {stamp.name}
                     </span>
                   </button>
@@ -209,10 +209,10 @@ export default function Toolbar({
 
           <div>
             <div className="flex items-center justify-between gap-1.5 mb-2 px-1">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Загруженные
               </span>
-              <span className="text-[10px] text-muted-foreground font-medium px-1.5 py-0.5 rounded-md bg-secondary/70 tabular-nums">
+              <span className="text-[10px] text-muted-foreground font-medium px-1.5 py-0.5 rounded-lg bg-secondary/70 tabular-nums">
                 {customStamps.length} шт.
               </span>
             </div>
@@ -240,7 +240,7 @@ export default function Toolbar({
                           draggable={false}
                         />
                       </div>
-                      <span className="text-[10px] text-muted-foreground text-center leading-tight truncate w-full font-semibold">
+                      <span className="text-[10px] text-muted-foreground text-center leading-tight truncate w-full font-medium">
                         {stamp.name}
                       </span>
                     </button>
@@ -250,7 +250,7 @@ export default function Toolbar({
                       title="Удалить печать"
                       aria-label={`Удалить печать ${stamp.name}`}
                     >
-                      <X className="h-3 w-3" strokeWidth={2.8} />
+                      <X className="h-3 w-3" strokeWidth={2} />
                     </button>
                   </div>
                 ))}
@@ -283,7 +283,7 @@ export default function Toolbar({
           <div className="flex items-start gap-2 p-3 rounded-xl bg-secondary/60 border border-border/60">
             <ChevronRight
               className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5"
-              strokeWidth={2.5}
+              strokeWidth={2}
             />
             <p className="text-[11px] text-muted-foreground leading-relaxed">
               Выберите печать, затем кликните на PDF
@@ -297,7 +297,7 @@ export default function Toolbar({
         <div className="flex flex-col gap-3 animate-fade-in">
           <div>
             <div className="flex items-center gap-1.5 mb-2 px-1">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Готовые тексты
               </span>
             </div>
@@ -322,15 +322,15 @@ export default function Toolbar({
                     }`}
                   >
                     <div
-                      className={`h-6 w-6 rounded-md flex items-center justify-center transition-all ${
-                        active ? "gradient-bg" : "bg-secondary"
+                      className={`h-6 w-6 rounded-lg flex items-center justify-center transition-all ${
+                        active ? "bg-primary" : "bg-secondary"
                       }`}
                     >
                       <Type
                         className={`h-3.5 w-3.5 ${
                           active ? "text-white" : "text-muted-foreground"
                         }`}
-                        strokeWidth={2.2}
+                        strokeWidth={active ? 2.2 : 2}
                       />
                     </div>
                     <span className="truncate font-medium">{preset.text}</span>
@@ -343,7 +343,7 @@ export default function Toolbar({
           <div className="flex items-start gap-2 p-3 rounded-xl bg-secondary/60 border border-border/60">
             <ChevronRight
               className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5"
-              strokeWidth={2.5}
+              strokeWidth={2}
             />
             <p className="text-[11px] text-muted-foreground leading-relaxed">
               Выберите готовый текст или кликните на PDF — откроется редактор
@@ -358,7 +358,7 @@ export default function Toolbar({
         <div className="flex items-start gap-2 p-3 rounded-xl bg-secondary/60 border border-border/60 animate-fade-in">
           <Paintbrush
             className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5"
-            strokeWidth={2.2}
+            strokeWidth={2}
           />
           <p className="text-[11px] text-muted-foreground leading-relaxed">
             Настройки ластика — вверху экрана. Рисуйте на PDF чтобы замазать.

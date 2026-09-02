@@ -97,7 +97,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
       <div className="w-full max-w-md relative animate-slide-up">
         {/* Logo + title */}
         <div className="flex flex-col items-center gap-6 mb-10">
-          <div className="relative h-[4.5rem] w-[4.5rem] rounded-2xl gradient-bg flex items-center justify-center shadow-elevated">
+          <div className="relative h-[4.5rem] w-[4.5rem] rounded-2xl bg-ink flex items-center justify-center shadow-elevated">
             <FileText
               className="h-10 w-10 text-white"
               strokeWidth={1.8}
@@ -105,9 +105,9 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             />
           </div>
           <div className="text-center">
-            <h1 className="font-display text-[2rem] leading-tight font-semibold tracking-tight text-balance">
+            <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-balance">
               PDF{" "}
-              <em className="italic font-medium text-primary">Редактор</em>
+              <span className="text-primary">Редактор</span>
             </h1>
             <p className="text-sm text-muted-foreground mt-2.5 max-w-xs text-balance leading-relaxed">
               Печати, подписи и текст на документах — прямо в браузере
@@ -123,7 +123,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           <div className="space-y-2">
             <label
               htmlFor="password"
-              className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+              className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
             >
               Пароль
             </label>
@@ -139,7 +139,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
                   setError("");
                 }}
                 placeholder="Введите пароль"
-                className="w-full h-12 py-3.5 pl-11 pr-4 rounded-xl border border-input bg-background text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/35 focus:border-primary transition-all placeholder:text-muted-foreground/60"
+                className="w-full h-12 py-3.5 pl-11 pr-4 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/35 focus:border-primary transition-all placeholder:text-muted-foreground/60"
                 disabled={isLoading}
               />
             </div>
@@ -157,7 +157,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
           <Button
             type="submit"
-            className="w-full h-12 text-sm font-semibold rounded-xl bg-primary hover:bg-[#c15f3c] text-white transition-colors"
+            className="w-full h-12 text-sm font-medium rounded-xl bg-primary hover:bg-terracotta-dark text-white transition-colors"
             disabled={isLoading || !password.trim()}
           >
             {isLoading ? (
@@ -733,7 +733,7 @@ export default function Home() {
           )}
 
           {/* Logo */}
-          <div className="relative h-9 w-9 rounded-xl gradient-bg flex items-center justify-center shadow-soft">
+          <div className="relative h-9 w-9 rounded-xl bg-ink flex items-center justify-center shadow-soft">
             <FileText
               className="h-5 w-5 text-white"
               strokeWidth={2}
@@ -741,11 +741,11 @@ export default function Home() {
             />
           </div>
           <div>
-            <h1 className="font-display text-base font-semibold leading-tight tracking-tight">
+            <h1 className="text-base font-semibold leading-tight tracking-tight">
               PDF{" "}
-              <em className="italic font-medium text-primary">Редактор</em>
+              <span className="text-primary">Редактор</span>
             </h1>
-            <p className="text-[11px] text-muted-foreground hidden sm:block font-medium">
+            <p className="text-[11px] text-muted-foreground hidden sm:block">
               Печати и текст на документах
             </p>
           </div>
@@ -776,7 +776,7 @@ export default function Home() {
               <div className="h-6 w-6 rounded-md bg-primary/15 flex items-center justify-center shrink-0">
                 <FileText className="h-3.5 w-3.5 text-primary" />
               </div>
-              <span className="text-xs text-muted-foreground truncate font-medium">
+              <span className="text-xs text-muted-foreground truncate">
                 {pdfFileName}
               </span>
             </div>

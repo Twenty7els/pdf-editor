@@ -1,19 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Lora } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin", "cyrillic"],
-  display: "swap",
-});
-
-const lora = Lora({
-  variable: "--font-display",
-  subsets: ["latin", "cyrillic"],
-  weight: ["500", "600", "700"],
-  style: ["normal", "italic"],
   display: "swap",
 });
 
@@ -40,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${lora.variable} font-sans antialiased bg-background text-foreground`}
+        className={`${inter.variable} font-sans antialiased bg-background text-foreground`}
       >
         {children}
         <Toaster
@@ -50,7 +42,7 @@ export default function RootLayout({
           closeButton
           toastOptions={{
             style: {
-              borderRadius: "12px",
+              borderRadius: "14px",
               fontSize: "13px",
               fontWeight: 500,
               backgroundColor: "#ffffff",

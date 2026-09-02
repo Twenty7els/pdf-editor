@@ -127,11 +127,11 @@ export default function LayersPanel({
           <div className="h-7 w-7 rounded-lg bg-ink flex items-center justify-center shadow-soft">
             <Layers className="h-3.5 w-3.5 text-white" strokeWidth={2.2} />
           </div>
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Слои
           </span>
         </div>
-        <span className="text-[10px] font-semibold text-muted-foreground px-2 py-0.5 rounded-md bg-secondary/70 tabular-nums">
+        <span className="text-[10px] font-medium text-muted-foreground px-2 py-0.5 rounded-lg bg-secondary/70 tabular-nums">
           {counts.total}
         </span>
       </div>
@@ -151,7 +151,7 @@ export default function LayersPanel({
           <div className="h-12 w-12 rounded-xl bg-secondary/60 flex items-center justify-center">
             <Layers className="h-5 w-5 text-muted-foreground/60" />
           </div>
-          <p className="text-xs text-muted-foreground font-medium">
+          <p className="text-xs font-medium text-muted-foreground">
             Пока нет слоёв
           </p>
           <p className="text-[10px] text-muted-foreground/70 leading-relaxed max-w-[200px]">
@@ -184,8 +184,8 @@ export default function LayersPanel({
               >
                 {/* Icon / thumbnail */}
                 <div
-                  className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${
-                    isSelected ? "gradient-bg" : "bg-secondary/70"
+                  className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    isSelected ? "bg-primary" : "bg-secondary/70"
                   }`}
                 >
                   {layer.type === "stamp" && layer.thumbSrc ? (
@@ -200,14 +200,14 @@ export default function LayersPanel({
                       className={`h-4 w-4 ${
                         isSelected ? "text-white" : "text-muted-foreground"
                       }`}
-                      strokeWidth={2.2}
+                      strokeWidth={isSelected ? 2.2 : 2}
                     />
                   )}
                 </div>
 
                 {/* Labels */}
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold truncate leading-tight">
+                  <div className="text-xs font-medium truncate leading-tight">
                     {layer.label || "\u00A0"}
                   </div>
                   <div className="text-[10px] text-muted-foreground truncate leading-tight mt-0.5">
@@ -220,7 +220,7 @@ export default function LayersPanel({
 
                 {/* Page badge if not current */}
                 {!onCurrentPage && (
-                  <span className="text-[9px] font-bold text-muted-foreground/70 px-1.5 py-0.5 rounded bg-secondary/70 shrink-0 tabular-nums">
+                  <span className="text-[10px] font-medium text-muted-foreground/70 px-1.5 py-0.5 rounded-lg bg-secondary/70 shrink-0 tabular-nums">
                     {layer.page}
                   </span>
                 )}
@@ -263,12 +263,9 @@ export default function LayersPanel({
 
       {/* Hint */}
       {layers.length > 0 && (
-        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-secondary/50 border border-border/60">
-          <ChevronRight
-            className="h-3 w-3 text-primary shrink-0 mt-0.5"
-            strokeWidth={2.5}
-          />
-          <p className="text-[10px] text-muted-foreground leading-relaxed">
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-secondary/60 border border-border/60">
+          <ChevronRight className="h-3 w-3 text-primary shrink-0 mt-0.5" />
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
             Клик — выбрать · наведи для скрытия/удаления
           </p>
         </div>
@@ -289,10 +286,10 @@ function StatChip({
   return (
     <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-secondary/50 border border-border/60">
       <div className="flex items-center gap-1">
-        <Icon className="h-3 w-3 text-primary" strokeWidth={2.5} />
-        <span className="text-sm font-bold tabular-nums">{count}</span>
+        <Icon className="h-3 w-3 text-primary" />
+        <span className="text-sm font-semibold tabular-nums">{count}</span>
       </div>
-      <span className="text-[9px] text-muted-foreground font-medium uppercase tracking-wide">
+      <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">
         {label}
       </span>
     </div>

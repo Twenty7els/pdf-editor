@@ -199,3 +199,46 @@ Stage Summary:
 - Приложение переведено на премиальную систему ATELIER v2: редакторская антиква в hero-зонах, тёмные кнопки основного действия, слоистые мягкие тени, зерно бумаги, хореографические входы экранов.
 - Вся логика редактора без изменений; экспорт с цифрами проверен сквозным тестом.
 - Обновления запушены в GitHub: Twenty7els/pdf-editor.
+
+---
+Task ID: 4-a
+Agent: frontend-styling-expert
+Task: Компактный про-рестайл Toolbar + LayersPanel (ATELIER v2, рабочая область)
+
+Work Log:
+- Прочитал worklog.md (Task 3-v2, 2-a/2-b/2-c) и весь globals.css (ATELIER v2: токены ink/terracotta/terracotta-soft, display-title, shadow-soft/float/paper, lift, регламент в шапке).
+- Toolbar.tsx — высота до СЛОИ сокращена (~100px, замерено в браузере):
+  1. «Загрузить другой/Загрузить PDF» + «Скачать PDF/Подготовка...» — из вертикального стека h-10 в ОДИН РЯД grid-cols-2 gap-1.5, оба h-9 rounded-lg text-xs font-medium justify-center gap-1 px-1: скачивание — тёмная bg-ink hover:bg-ink-hover text-white shadow-soft, загрузка — вторичная bg-card border-border hover:bg-secondary/60. Иконка-чип в кнопке загрузки убрана (разрешено ТЗ) — FileUp inline size-3.5 text-terracotta-dark; Download/Loader2 size-3.5 (size-* вместо h-3.5, т.к. базовый класс Button [&_svg:not([class*='size-'])]:size-4 перебивает h-3.5 по специфичности — измерено). Ширина проверена промером Inter 12px в headless-браузере: «Загрузить другой» = 95.2px + иконка + пэдинги = 123px ≤ 125px доступных (w-72), overflow нет (проверено scrollWidth в браузере).
+  2. Плитки инструментов (Выбор/Печать/Текст/Ластик) — компактная сетка 2×2: колонка py-2.5 px-1 rounded-xl text-center, чип h-9 w-9 rounded-lg (был h-10 w-10 rounded-xl) по центру, иконка h-4, label text-[11px] font-medium по центру; активная border-primary/40 bg-terracotta-soft/50 shadow-soft + чип bg-primary text-white, неактивная border-border bg-card + чип bg-secondary text-muted-foreground, hover:border-primary/30 hover:shadow-soft; точка bg-terracotta сохранена (top-1.5 right-1.5 h-1.5 w-1.5); подзаголовки («Перемещение», «Печати и подписи», «Текстовые блоки», «Замазывание») — класс hidden, из разметки не удалены.
+  3. Печати: карточки (ВАШИ ПЕЧАТИ и ЗАГРУЖЕННЫЕ) получили состояние выбора — выбранная border-primary/50 bg-terracotta-soft/40 (условный класс по существующему полю стора selectedStampType, только чтение; ни один сеттер/хендлер не тронут), невыбранная border-border bg-card hover:border-primary/30 hover:shadow-soft; миниатюры h-14 w-14 aspect сохранены; счётчик «N шт.» → бейдж rounded-full bg-secondary px-2 py-0.5 text-[11px]; «Загрузить свою печать» — dashed rounded-xl hover:border-primary/40 hover:bg-terracotta-soft/20, ImagePlus text-primary → text-terracotta-dark.
+  4. Все подсказки-строки («Выберите печать, затем кликните на PDF», текстовая, ластик) → канон rounded-lg bg-secondary/50 border border-border/50 px-2.5 py-2, ChevronRight text-terracotta-dark h-3 w-3 (в подсказке ластика Paintbrush → ChevronRight, чисто презентационная замена иконки; Paintbrush остался импортирован для плитки «Ластик»).
+  5. Контейнер gap-4 → gap-3; внутренний разделитель h-px bg-border/70 → h-px bg-border/50 mx-4 (канон ТЗ).
+- LayersPanel.tsx — компактность без касания строк слоёв:
+  1. StatChip ПЕЧАТИ/ТЕКСТЫ/ЛАСТИК — grid-cols-3 сохранён, чипы px-3 py-2 → px-2 py-1.5, gap-1 → gap-0.5, число text-sm → text-xs leading-none, подпись text-[10px] leading-none (замер: 38px высоты каждый).
+  2. Пустое состояние: py-8 → py-6, gap-2 → gap-1.5, чип h-12 w-12 → h-10 w-10, иконка h-5 → h-4, заголовок display-title text-base → display-title text-sm (сериф пустых состояний сохранён по системе).
+  3. Подсказка «Клик — выбрать · наведи для скрытия/удаления» → тот же канон подсказок (rounded-lg bg-secondary/50 border-border/50 px-2.5 py-2, ChevronRight text-terracotta-dark); заголовок, бейдж-счётчик, разделитель (h-px bg-border/50 mx-4), строки слоёв и amber-индикаторы — не тронуты (канон 2-b).
+- Браузерная верификация (agent-browser, aside w-72): auth через sessionStorage, загрузка тестового PDF, промеры — toolbar root 281px, пара кнопок 36px (было 88px), плитки 78px (было ~102px), overflow текста в кнопках отсутствует; клик по плитке «Печать» → выбор печати «Печать ООО» → класс selected (border-primary/50 bg-terracotta-soft/40) применился; скрытые подзаголовки = display:none. Замечено: загрузка PDF через Playwright setInputFiles даёт NotReadableError «Ошибка загрузки PDF файла» (canvas не рендерится) — воспроизведено и на коде БЕЗ моих изменений (git stash тест) → артефакт инструмента загрузки файлов, не регрессия; в интерактивном режиме (проверка main-агента в 3-v2) поток работает.
+- Верификация: bunx tsc --noEmit — 0 ошибок в src/ (только прежние examples/ и skills/); bun run lint — 0 ошибок/предупреждений; git diff двух файлов — только className/обёртки/порядок разметки + чтение selectedStampType для условных классов; тексты, props, обработчики, state, useEffect, aria — дословно на месте.
+
+Stage Summary:
+- Toolbar стал компактным про-инструментом: пара файловых кнопок в один ряд (h-9, тёмный primary + вторичная), сетка инструментов 2×2 с чипами 36px и скрытыми подзаголовками, печати с явным selected-состоянием (terracotta-soft), бейдж-счётчик, унифицированные hint-строки; высота панели до секции СЛОИ сокращена на ~100px.
+- LayersPanel ужат по вертикали (стат-чипы py-1.5/38px, пустое состояние h-10/display-title text-sm/py-6), строки слоёв не тронуты; разделители h-px bg-border/50 mx-4 в обоих файлах.
+- Проверки: tsc 0 ошибок в src/, lint 0/0; все изменения презентационные (className/layout + hidden подзаголовки), тексты/логика/aria без изменений.
+
+---
+Task ID: 5 (bulk delete + workspace deep redesign)
+Agent: Z.ai Code (main)
+Task: Массовое удаление страниц + глубокий редизайн рабочей области (ввод текста, сцена, панели)
+
+Work Log:
+- Найден и исправлен КРИТИЧЕСКИЙ баг больших документов: корень приложения был min-h-screen → 40 миниатюр раздували страницу до ~7000px, канвас уезжал на y=3182 (невидим). Заменено на h-screen + overflow-hidden + min-h-0 в цепочке флексов (page.tsx, PdfCanvas containerRef).
+- Стор: новое действие setPagesDeleted(pageNums, deleted) — массовая пометка удалённых одним snapshot'ом (один Ctrl+Z отменяет всю пачку), с переносом currentPage при удалении текущей.
+- PageThumbnails: режим мультивыбора (ListChecks в шапке) — чекбоксы на миниатюрах, «Все»/«Снять», красная «Удалить (N)», тост с кнопкой «Отменить» (undo), авто-выход из режима; колонка расширена 124→148px; sticky-шапки панелей.
+- TextEditSidebar — полный редизайн: оверлайн «Редактор текста», живой предпросмотр на «бумажной» карточке (shadow-paper), textarea 120px с счётчиком, шрифтовые чипы в собственных гарнитурах (горизонтальный скролл, активный = ink), степпер размера [−] Npx [+] + пресеты, сегмент-контрол «Стиль и выравнивание» (B I U | L C R в одном контейнере), слайдер интервала, свотчи цвета, sticky-футер. Вся логика (state, Ctrl+Enter/Escape, focus, хендлеры) сохранена.
+- Агент 4-a: Toolbar — файловые кнопки в один ряд, инструменты 2×2 компактные без подзаголовков (−100px высоты до СЛОИ), выбранная печать терракотовым бордером; LayersPanel — компактные stat-чипы и пустое состояние.
+- Рабочая сцена: контрастный .stage-bg (тёплый тон + мелкая чертёжная сетка) — документ «парит» над рабочим полем, визуальное отделение панелей от канваса.
+- Верификация (agent-browser): 40-страничный PDF → канвас виден на 1/40; выбор по одному (3 шт.) и «Все» (40) → удаление пачкой → тост → undo возвращает всё; текст «Отчет №12345 от 15.09.2024 — сумма 87 650 руб.» создан через новую панель, слой появился, предпросмотр живой; мобильный вид (390×844) — ок. Консоль 0 ошибок, dev.log чист, lint 0.
+
+Stage Summary:
+- Функция «удалить много страниц сразу» готова и проверена (частично и все 40), один undo на всю пачку.
+- Рабочая страница переработана по-настоящему: ввод текста полностью новый, сцена с глубиной, панели компактнее, исправлен критический баг раскладки на больших документах.

@@ -143,15 +143,15 @@ export default function LayersPanel({
         <StatChip icon={Paintbrush} count={counts.erasers} label="Ластик" />
       </div>
 
-      <div className="h-px bg-border/70" />
+      <div className="h-px bg-border/50 mx-4" />
 
       {/* Layers list */}
       {layers.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-8 text-center">
-          <div className="h-12 w-12 rounded-xl bg-secondary flex items-center justify-center">
-            <Layers className="h-5 w-5 text-muted-foreground" />
+        <div className="flex flex-col items-center gap-1.5 py-6 text-center">
+          <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
+            <Layers className="h-4 w-4 text-muted-foreground" />
           </div>
-          <p className="display-title text-base text-foreground">
+          <p className="display-title text-sm text-foreground">
             Пока нет слоёв
           </p>
           <p className="text-xs text-muted-foreground leading-relaxed max-w-[200px]">
@@ -263,8 +263,8 @@ export default function LayersPanel({
 
       {/* Hint */}
       {layers.length > 0 && (
-        <div className="flex items-start gap-2 p-3 rounded-xl bg-secondary/60 border border-border/60">
-          <ChevronRight className="h-3 w-3 text-primary shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2 rounded-lg bg-secondary/50 border border-border/50 px-2.5 py-2">
+          <ChevronRight className="h-3 w-3 text-terracotta-dark shrink-0 mt-0.5" />
           <p className="text-[11px] text-muted-foreground leading-relaxed">
             Клик — выбрать · наведи для скрытия/удаления
           </p>
@@ -284,12 +284,14 @@ function StatChip({
   label: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-card px-3 py-2">
+    <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-card px-2 py-1.5">
       <div className="flex items-center gap-1">
         <Icon className="h-3 w-3 text-terracotta-dark" />
-        <span className="text-sm font-semibold tabular-nums">{count}</span>
+        <span className="text-xs font-semibold tabular-nums leading-none">
+          {count}
+        </span>
       </div>
-      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground leading-none">
         {label}
       </span>
     </div>

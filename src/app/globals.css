@@ -250,6 +250,17 @@
     background-size: 22px 22px;
   }
 
+  /* Editor workspace stage — one step deeper than page background,
+     fine drafting-grid texture. The document page floats on it. */
+  .stage-bg {
+    background-color: #f2efe7;
+    background-image: radial-gradient(
+      rgba(31, 30, 29, 0.085) 1px,
+      transparent 1px
+    );
+    background-size: 18px 18px;
+  }
+
   /* Paper grain — barely visible, adds material warmth.
      Apply on the SAME element as a background (position:relative). */
   .grain::after {

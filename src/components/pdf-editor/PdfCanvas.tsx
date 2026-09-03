@@ -1034,7 +1034,7 @@ export default function PdfCanvas() {
   return (
     <div
       ref={containerRef}
-      className="flex-1 flex flex-col overflow-hidden aurora-bg relative"
+      className="flex-1 min-h-0 flex flex-col overflow-hidden stage-bg relative"
     >
       {/* Non-A4 warning banner — persistent */}
       {nonA4Pages.length > 0 && !a4BannerDismissed && (

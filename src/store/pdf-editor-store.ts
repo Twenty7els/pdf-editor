@@ -196,6 +196,8 @@ interface PdfEditorState {
   rotatePage: (pageNum: number) => void;
   deletePage: (pageNum: number) => void;
   undeletePage: (pageNum: number) => void;
+  // Bulk page deletion/restoration — ONE history entry for the whole batch
+  setPagesDeleted: (pageNums: number[], deleted: boolean) => void;
   // Selection-only actions (history-tracked)
   duplicateSelectedItem: () => void;
   // Undo/redo
@@ -507,6 +509,36 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
         past: [...state.past, snap].slice(-MAX_HISTORY),
         future: [],
         deletedPages: state.deletedPages.filter((p) => p !== pageNum),
+      };
+    }),
+
+  setPagesDeleted: (pageNums, deleted) =>
+    set((state) => {
+      const targets = deleted
+        ? pageNums.filter((p) => !state.deletedPages.includes(p))
+        : pageNums.filter((p) => state.deletedPages.includes(p));
+      if (targets.length === 0) return state;
+      const snap = snapshot(state);
+      const newDeleted = deleted
+        ? [...state.deletedPages, ...targets]
+        : state.deletedPages.filter((p) => !targets.includes(p));
+      // If current page became deleted, move to nearest non-deleted page
+      let newCurrent = state.currentPage;
+      if (deleted && newDeleted.includes(state.currentPage)) {
+        let next = state.currentPage + 1;
+        while (next <= state.totalPages && newDeleted.includes(next)) next++;
+        if (next > state.totalPages) {
+          next = state.currentPage - 1;
+          while (next >= 1 && newDeleted.includes(next)) next--;
+          if (next < 1) next = 1;
+        }
+        newCurrent = Math.max(1, next);
+      }
+      return {
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        deletedPages: newDeleted,
+        currentPage: newCurrent,
       };
     }),
 

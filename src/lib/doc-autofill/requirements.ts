@@ -14,12 +14,36 @@ export interface TemplateRequirement {
   important?: boolean;
   /** Поле автоподставляемое: показываем в списке «есть», но не требуем. */
   autoNote?: string;
+  /** Поле считается заполненным, даже если key пуст (автосборка из других полей). */
+  satisfied?: (p: MerchantProfile) => boolean;
 }
 
 export const TARGET_REQUIREMENTS: Record<string, TemplateRequirement[]> = {
   sbp: [
-    { key: "orgName", label: "Наименование организации", hint: "Встанет в наименование мерчанта и ЮЛ", important: true },
+    {
+      key: "orgName",
+      label: "Наименование организации",
+      hint: "Встанет в наименование мерчанта, ЮЛ и brandName",
+      important: true,
+    },
     { key: "inn", label: "ИНН", important: true },
+    {
+      key: "mcc",
+      label: "МСС-код",
+      hint: "Код вида деятельности в СБП, например 7542",
+      important: true,
+    },
+    {
+      key: "merchantId",
+      label: "merchantid (ID ЮЛ в СБП)",
+      hint: "Например: LB0000006800",
+      important: true,
+    },
+    {
+      key: "upid",
+      label: "UPID",
+      hint: "ID для блока «регистрация UPID»",
+    },
     {
       key: "legalAddress",
       label: "Юридический адрес",
@@ -28,10 +52,56 @@ export const TARGET_REQUIREMENTS: Record<string, TemplateRequirement[]> = {
     },
     { key: "account", label: "Расчётный счёт мерчанта", important: true },
     {
+      key: "accountOpenDate",
+      label: "Дата открытия расчётного счёта",
+      hint: "дд.мм.гггг",
+    },
+    {
       key: "birthDate",
       label: "Дата рождения учредителя",
       hint: "дд.мм.гггг — нужна для проверки Fraudscore",
       important: true,
+    },
+    {
+      key: "oldestContractDate",
+      label: "Дата самого старого договора с мерчантом",
+      hint: "дд.мм.гггг — параметр Fraudscore",
+      important: true,
+    },
+    {
+      key: "combatParamsDate",
+      label: "Дата получения боевых параметров СБП",
+      hint: "дд.мм.гггг",
+    },
+    {
+      key: "unitContractNumber",
+      label: "Номер договора с Uniteller",
+      hint: "Например: 123/45 или б/н",
+      important: true,
+    },
+    {
+      key: "unitContractDate",
+      label: "Дата договора с Uniteller",
+      hint: "дд.мм.гггг",
+      important: true,
+    },
+    {
+      key: "unitRate",
+      label: "Ставка по договору с Uniteller",
+      hint: "Например: 1,6%",
+    },
+    {
+      key: "unitContractInfo",
+      label: "Договор с Uniteller: номер и дата",
+      hint: "Нижний блок «Данные по мерчанту»; соберётся из номера и даты выше",
+      satisfied: (p) =>
+        isRequirementFilled(p.unitContractNumber) &&
+        isRequirementFilled(p.unitContractDate),
+    },
+    {
+      key: "bankContractInfo",
+      label: "Договор с банком: номер и дата",
+      hint: "Например: № 123 от 01.02.2024",
     },
   ],
 
@@ -130,12 +200,21 @@ export function isRequirementFilled(v: unknown): boolean {
   return Boolean(String(v ?? "").trim());
 }
 
+/** Требование выполнено: напрямую или через автосборку (satisfied). */
+export function isRequirementSatisfied(
+  r: TemplateRequirement,
+  profile: MerchantProfile
+): boolean {
+  if (r.satisfied) return r.satisfied(profile);
+  return isRequirementFilled(profile[r.key]);
+}
+
 /** Требования шаблона, которых не хватает в профиле. */
 export function missingForTarget(
   targetId: string,
   profile: MerchantProfile
 ): TemplateRequirement[] {
   return (TARGET_REQUIREMENTS[targetId] ?? []).filter(
-    (r) => !isRequirementFilled(profile[r.key])
+    (r) => !isRequirementSatisfied(r, profile)
   );
 }

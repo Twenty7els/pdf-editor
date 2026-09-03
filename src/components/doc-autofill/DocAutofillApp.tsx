@@ -28,7 +28,7 @@ import {
 } from "@/lib/doc-autofill/profile";
 import {
   TARGET_REQUIREMENTS,
-  isRequirementFilled,
+  isRequirementSatisfied,
   missingForTarget,
   type TemplateRequirement,
 } from "@/lib/doc-autofill/requirements";
@@ -72,7 +72,7 @@ export default function DocAutofillApp() {
   const present = useMemo(
     () =>
       requirements.filter(
-        (r) => profile && isRequirementFilled(profile[r.key])
+        (r) => profile && isRequirementSatisfied(r, profile)
       ),
     [requirements, profile]
   );

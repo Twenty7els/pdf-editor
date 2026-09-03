@@ -54,6 +54,21 @@ export interface MerchantProfile {
   ogrip?: string;
   okpo?: string;
   okved?: string;
+
+  // 09 Параметры СБП (заявка на регистрацию мерчанта и UPID)
+  upid?: string;
+  mcc?: string;
+  merchantId?: string; // merchantid (ID ЮЛ в СБП)
+  accountOpenDate?: string; // дд.мм.гггг
+  oldestContractDate?: string; // дд.мм.гггг — параметр Fraudscore
+  combatParamsDate?: string; // дд.мм.гггг
+
+  // 10 Договоры (Uniteller и банк)
+  unitContractNumber?: string;
+  unitContractDate?: string; // дд.мм.гггг
+  unitRate?: string;
+  bankContractInfo?: string; // «№ X от дд.мм.гггг»
+  unitContractInfo?: string; // «X от дд.мм.гггг» (нижний блок)
 }
 
 /** Группы полей для UI-редактора профиля. */
@@ -115,6 +130,27 @@ export const PROFILE_GROUPS: ProfileGroup[] = [
       { key: "turnover", label: "Ожидаемый оборот в месяц" },
       { key: "okpo", label: "ОКПО" },
       { key: "okved", label: "ОКВЭД (основной)" },
+    ],
+  },
+  {
+    title: "Параметры СБП",
+    fields: [
+      { key: "upid", label: "UPID" },
+      { key: "mcc", label: "МСС-код" },
+      { key: "merchantId", label: "merchantid (ID ЮЛ в СБП)" },
+      { key: "accountOpenDate", label: "Дата открытия р/с для СБП" },
+      { key: "oldestContractDate", label: "Дата старого договора с мерчантом" },
+      { key: "combatParamsDate", label: "Дата получения боевых параметров СБП" },
+    ],
+  },
+  {
+    title: "Договоры (Uniteller и банк)",
+    fields: [
+      { key: "unitContractNumber", label: "Номер договора с Uniteller" },
+      { key: "unitContractDate", label: "Дата договора с Uniteller" },
+      { key: "unitRate", label: "Ставка по договору" },
+      { key: "bankContractInfo", label: "Договор с банком (номер и дата)" },
+      { key: "unitContractInfo", label: "Договор с Uniteller (нижний блок)" },
     ],
   },
   {

@@ -33,6 +33,7 @@ import {
   Type,
   Undo2,
   Redo2,
+  Ruler,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -141,6 +142,10 @@ export default function PdfCanvas() {
     duplicateSelectedItem,
     rotatePage,
     deletePage,
+    pageSkew,
+    setPageSkew,
+    setPageSkewLive,
+    pushHistory,
     past,
     future,
   } = usePdfEditorStore();
@@ -182,6 +187,8 @@ export default function PdfCanvas() {
 
   // Delete page confirmation dialog
   const [deletePageDialogOpen, setDeletePageDialogOpen] = useState(false);
+  // Skew compensation popover (bottom pill)
+  const [skewOpen, setSkewOpen] = useState(false);
 
   const isCurrentPageDeleted = deletedPages.includes(currentPage);
 
@@ -401,6 +408,9 @@ export default function PdfCanvas() {
       const userRotation = pageRotations[currentPage] || 0;
       const rotation =
         ((((intrinsic + userRotation) % 360) + 360) % 360) as number;
+      // Fine skew compensation (deskew) — pdf.js viewport only accepts
+      // 90° multiples, so the bitmap is composited rotated by `skew`.
+      const skew = pageSkew[currentPage] || 0;
       const scaledViewport = page.getViewport({ scale, rotation });
       const canvas = canvasRef.current;
       const context = canvas.getContext("2d");
@@ -411,27 +421,71 @@ export default function PdfCanvas() {
       // Render at higher resolution for crisp text, especially on scanned PDFs.
       // Use max(devicePixelRatio, 2) so even non-retina screens get sharp rendering.
       const outputScale = Math.max(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.floor(scaledViewport.width * outputScale);
-      canvas.height = Math.floor(scaledViewport.height * outputScale);
-      canvas.style.width = Math.floor(scaledViewport.width) + "px";
-      canvas.style.height = Math.floor(scaledViewport.height) + "px";
-      const transform = [outputScale, 0, 0, outputScale, 0, 0];
-      setCanvasSize({
-        width: Math.floor(scaledViewport.width),
-        height: Math.floor(scaledViewport.height),
-      });
-      await page.render({
-        canvas,
-        canvasContext: context,
-        viewport: scaledViewport,
-        transform,
-      }).promise;
+      const baseW = scaledViewport.width;
+      const baseH = scaledViewport.height;
+
+      if (!skew) {
+        canvas.width = Math.floor(baseW * outputScale);
+        canvas.height = Math.floor(baseH * outputScale);
+        canvas.style.width = Math.floor(baseW) + "px";
+        canvas.style.height = Math.floor(baseH) + "px";
+        setCanvasSize({
+          width: Math.floor(baseW),
+          height: Math.floor(baseH),
+        });
+        const transform = [outputScale, 0, 0, outputScale, 0, 0];
+        await page.render({
+          canvas,
+          canvasContext: context,
+          viewport: scaledViewport,
+          transform,
+        }).promise;
+      } else {
+        // Deskew composite: render at the 90°-multiple rotation, then draw
+        // the bitmap rotated by `skew` into a bounding-box canvas. Overlays
+        // and pointer math stay axis-aligned (linear) in the bbox space.
+        const rad = (skew * Math.PI) / 180;
+        const cos = Math.abs(Math.cos(rad));
+        const sin = Math.abs(Math.sin(rad));
+        const bw = baseW * cos + baseH * sin;
+        const bh = baseW * sin + baseH * cos;
+        canvas.width = Math.floor(bw * outputScale);
+        canvas.height = Math.floor(bh * outputScale);
+        canvas.style.width = Math.floor(bw) + "px";
+        canvas.style.height = Math.floor(bh) + "px";
+        setCanvasSize({ width: Math.floor(bw), height: Math.floor(bh) });
+
+        const off = document.createElement("canvas");
+        off.width = Math.floor(baseW * outputScale);
+        off.height = Math.floor(baseH * outputScale);
+        const offCtx = off.getContext("2d");
+        if (!offCtx) {
+          renderingRef.current = false;
+          return;
+        }
+        await page.render({
+          canvas: off,
+          canvasContext: offCtx,
+          viewport: scaledViewport,
+          transform: [outputScale, 0, 0, outputScale, 0, 0],
+        }).promise;
+
+        context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = "high";
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, bw, bh);
+        context.translate(bw / 2, bh / 2);
+        context.rotate(rad);
+        context.drawImage(off, -baseW / 2, -baseH / 2, baseW, baseH);
+        context.setTransform(1, 0, 0, 1, 0, 0);
+      }
     } catch (err) {
       console.error("Error rendering page:", err);
     } finally {
       renderingRef.current = false;
     }
-  }, [pdfDoc, currentPage, zoomLevel, pageRotations]);
+  }, [pdfDoc, currentPage, zoomLevel, pageRotations, pageSkew]);
 
   // Initial render + delayed re-render
   useEffect(() => {
@@ -1072,10 +1126,11 @@ export default function PdfCanvas() {
 
         {/* Canvas + bottom controls column */}
         <div className="flex-1 flex flex-col min-h-0 min-w-0">
-          {/* Canvas area */}
-          <div className="flex-1 flex items-center justify-center p-5 overflow-auto">
+          {/* Canvas area — m-auto centering keeps all sides reachable when
+              the zoomed page overflows the scroll container */}
+          <div className="flex-1 flex p-5 overflow-auto">
         {error && (
-          <div className="text-center p-8 animate-fade-in">
+          <div className="text-center p-8 animate-fade-in m-auto">
             <div className="relative h-16 w-16 mx-auto mb-5">
               <div className="relative h-16 w-16 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
                 <AlertCircle className="h-8 w-8 text-destructive" strokeWidth={2} />
@@ -1089,7 +1144,7 @@ export default function PdfCanvas() {
         )}
 
         {isLoading && !error && (
-          <div className="flex flex-col items-center justify-center gap-4 animate-fade-in">
+          <div className="flex flex-col items-center justify-center gap-4 animate-fade-in m-auto">
             <div className="relative">
               <Loader2 className="relative h-12 w-12 animate-spin text-primary" strokeWidth={2} />
             </div>
@@ -1098,7 +1153,7 @@ export default function PdfCanvas() {
         )}
 
         {pdfDoc && !error && !isLoading && isCurrentPageDeleted && (
-          <div className="text-center p-8 animate-fade-in">
+          <div className="text-center p-8 animate-fade-in m-auto">
             <div className="relative h-16 w-16 mx-auto mb-5">
               <div className="relative h-16 w-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
                 <AlertTriangle className="h-8 w-8 text-amber-600" strokeWidth={2} />
@@ -1123,7 +1178,7 @@ export default function PdfCanvas() {
         )}
 
         {pdfDoc && !error && !isLoading && !isCurrentPageDeleted && (
-          <div className="relative shadow-paper border border-border/60 rounded-xl overflow-hidden bg-background">
+          <div className="relative shadow-paper border border-border/60 rounded-xl overflow-hidden bg-background m-auto">
             <canvas ref={canvasRef} className="block" />
 
             {/* Overlay */}
@@ -1339,7 +1394,95 @@ export default function PdfCanvas() {
 
           {/* Bottom center controls */}
           {pdfDoc && !error && !isLoading && (
-            <div className="flex justify-center pb-3 px-4 pt-1">
+            <div className="relative flex justify-center pb-3 px-4 pt-1">
+              {/* Skew compensation popover */}
+              {skewOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-20"
+                    onClick={() => setSkewOpen(false)}
+                  />
+                  <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 z-30 w-72 bg-card rounded-2xl border border-border shadow-elevated p-4 animate-slide-up">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Наклон страницы
+                      </span>
+                      <span className="text-xs font-semibold text-terracotta-dark tabular-nums">
+                        {(pageSkew[currentPage] || 0) > 0 ? "+" : ""}
+                        {pageSkew[currentPage] || 0}°
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={-15}
+                      max={15}
+                      step={0.5}
+                      value={pageSkew[currentPage] || 0}
+                      onChange={(e) =>
+                        setPageSkewLive(currentPage, parseFloat(e.target.value))
+                      }
+                      onPointerDown={pushHistory}
+                      onKeyDown={pushHistory}
+                      disabled={isCurrentPageDeleted}
+                      className="w-full"
+                      style={
+                        {
+                          "--range-progress": `${
+                            (((pageSkew[currentPage] || 0) + 15) / 30) * 100
+                          }%`,
+                        } as React.CSSProperties
+                      }
+                    />
+                    <div className="flex items-center justify-between mt-1 text-[10px] text-muted-foreground">
+                      <span>−15°</span>
+                      <span>Крутите, пока текст не встанет ровно</span>
+                      <span>+15°</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2.5 text-xs rounded-lg flex-1"
+                        onClick={() => {
+                          pushHistory();
+                          setPageSkewLive(
+                            currentPage,
+                            (pageSkew[currentPage] || 0) - 1
+                          );
+                        }}
+                      >
+                        −1°
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2.5 text-xs rounded-lg flex-1"
+                        onClick={() => setPageSkew(currentPage, 0)}
+                      >
+                        Сброс
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2.5 text-xs rounded-lg flex-1"
+                        onClick={() => {
+                          pushHistory();
+                          setPageSkewLive(
+                            currentPage,
+                            (pageSkew[currentPage] || 0) + 1
+                          );
+                        }}
+                      >
+                        +1°
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-2.5 leading-relaxed">
+                      Страница выпрямится на экране; при экспорте печать и текст
+                      лягут по наклону оригинала.
+                    </p>
+                  </div>
+                </>
+              )}
               <div className="flex items-center gap-1 bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-float px-2 py-1 max-w-[calc(100vw-24px)] overflow-x-auto">
                 <Button
                   variant="ghost"
@@ -1398,6 +1541,19 @@ export default function PdfCanvas() {
                   title={`Повернуть страницу (текущий: ${pageRotations[currentPage] || 0}°)`}
                 >
                   <RotateCw className="h-4 w-4" />
+                </Button>
+                {/* Skew compensation (deskew) */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`h-8 w-8 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground ${
+                    (pageSkew[currentPage] || 0) !== 0 ? "text-terracotta-dark" : ""
+                  }`}
+                  onClick={() => setSkewOpen((v) => !v)}
+                  disabled={isCurrentPageDeleted}
+                  title={`Выровнять наклон страницы${(pageSkew[currentPage] || 0) ? ` (текущий: ${pageSkew[currentPage]}°)` : ""}`}
+                >
+                  <Ruler className="h-4 w-4" />
                 </Button>
                 {/* Delete page */}
                 <Button

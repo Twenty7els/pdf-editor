@@ -276,7 +276,7 @@ export default function Home() {
 
       // Read document-level state from store
       const state = usePdfEditorStore.getState();
-      const { pageRotations, deletedPages, exportPageSelection } = state;
+      const { pageRotations, pageSkew, deletedPages, exportPageSelection } = state;
 
       // Determine which pages (1-indexed) to keep in the export
       const pageCount = pdfDoc.getPageCount();
@@ -372,6 +372,53 @@ export default function Home() {
         return { x: px, y: H - py };
       };
 
+      /**
+       * Skew compensation geometry.
+       *
+       * On screen the user sees the page deskewed by `skew` degrees
+       * (fine rotation applied on top of the 90° view rotation T) and
+       * places items in THAT view. The exported page keeps /Rotate = T,
+       * so every view point must be rotated back about the center into
+       * display space D (the T-rotated page), and every item angle must
+       * gain the skew compensation.
+       *
+       * V (bbox Wρ×Hρ) = D (Wv×Hv) rotated visually CW by skew →
+       *   p_D = R_cw(−skew) · (p_V − c_V) + c_D
+       *   angle_D = angle_V − skew   (canvas CW convention)
+       */
+      const makeSkewGeometry = (
+        skewDeg: number,
+        Wv: number,
+        Hv: number
+      ) => {
+        if (!skewDeg) {
+          return {
+            Wrho: Wv,
+            Hrho: Hv,
+            toDisplay: (vx: number, vy: number) => ({ vx, vy }),
+            angleShift: 0,
+          };
+        }
+        const rad = (skewDeg * Math.PI) / 180;
+        const c = Math.cos(rad);
+        const s = Math.sin(rad);
+        const Wrho = Wv * Math.abs(c) + Hv * Math.abs(s);
+        const Hrho = Wv * Math.abs(s) + Hv * Math.abs(c);
+        return {
+          Wrho,
+          Hrho,
+          toDisplay: (vx: number, vy: number) => {
+            const dx = vx - Wrho / 2;
+            const dy = vy - Hrho / 2;
+            return {
+              vx: dx * c + dy * s + Wv / 2,
+              vy: -dx * s + dy * c + Hv / 2,
+            };
+          },
+          angleShift: skewDeg,
+        };
+      };
+
       // Stamps — skip if page not in keepSet
       for (const stamp of exportedStamps) {
         try {
@@ -385,22 +432,36 @@ export default function Home() {
             width: pageWidth,
             height: pageHeight,
           });
+          const skew = pageSkew[stamp.page] || 0;
+          const { Wrho, Hrho, toDisplay, angleShift } = makeSkewGeometry(
+            skew,
+            Wv,
+            Hv
+          );
 
           const cw = stamp.canvasWidth || Wv;
           const ch = stamp.canvasHeight || Hv;
 
           // Item size in view points
-          const pw = (stamp.width / cw) * Wv;
-          const ph = (stamp.height / ch) * Hv;
+          const pw = (stamp.width / cw) * Wrho;
+          const ph = (stamp.height / ch) * Hrho;
 
-          // Item center in view space → PDF space
-          const cvx = ((stamp.x + stamp.width / 2) / cw) * Wv;
-          const cvy = ((stamp.y + stamp.height / 2) / ch) * Hv;
-          const center = viewPointToPdf(cvx, cvy, T, pageHeight, Wv, Hv);
+          // Item center in view space → display space → PDF space
+          const cvx = ((stamp.x + stamp.width / 2) / cw) * Wrho;
+          const cvy = ((stamp.y + stamp.height / 2) / ch) * Hrho;
+          const display = toDisplay(cvx, cvy);
+          const center = viewPointToPdf(
+            display.vx,
+            display.vy,
+            T,
+            pageHeight,
+            Wv,
+            Hv
+          );
 
           // pdf-lib rotates CCW; canvas rotation is CW → invert,
-          // and account for the page's own /Rotate T.
-          const phiDeg = T - stamp.rotation;
+          // account for the page's own /Rotate T and the skew compensation.
+          const phiDeg = T - stamp.rotation + angleShift;
           const rad = (phiDeg * Math.PI) / 180;
 
           // Anchor so the rotated image stays centered on `center`
@@ -451,12 +512,18 @@ export default function Home() {
             width: pageWidth,
             height: pageHeight,
           });
+          const skew = pageSkew[textItem.page] || 0;
+          const { Wrho, Hrho, toDisplay, angleShift } = makeSkewGeometry(
+            skew,
+            Wv,
+            Hv
+          );
 
           const cw = textItem.canvasWidth || Wv;
           const ch = textItem.canvasHeight || Hv;
 
-          const scaledFontSize = (textItem.fontSize / ch) * Hv;
-          const scaledLetterSpacing = (textItem.letterSpacing / cw) * Wv;
+          const scaledFontSize = (textItem.fontSize / ch) * Hrho;
+          const scaledLetterSpacing = (textItem.letterSpacing / cw) * Wrho;
 
           let font: import("pdf-lib").PDFFont;
           const uFonts = await getUnicodeFonts();
@@ -486,8 +553,9 @@ export default function Home() {
           const scaledLineHeight = scaledFontSize * 1.2;
           const leadingHalf = (scaledLineHeight - scaledFontSize) / 2;
 
-          // pdf-lib CCW angle that matches the canvas CW angle after page rotation
-          const phiDeg = T - textItem.rotation;
+          // pdf-lib CCW angle that matches the canvas CW angle after page
+          // rotation and skew compensation
+          const phiDeg = T - textItem.rotation + angleShift;
           const phiRad = (phiDeg * Math.PI) / 180;
 
           for (let li = 0; li < lines.length; li++) {
@@ -499,7 +567,7 @@ export default function Home() {
             // Canvas: top of line-box = textItem.y + li * (fontSize * 1.2)
             const lineCanvasTop = textItem.y + li * textItem.fontSize * 1.2;
             const baselineViewY =
-              (lineCanvasTop / ch) * Hv + leadingHalf + fontAscent;
+              (lineCanvasTop / ch) * Hrho + leadingHalf + fontAscent;
 
             // pdf-lib has no charSpacing option — emulate letter spacing by
             // drawing glyph runs per character when it is non-zero.
@@ -517,7 +585,7 @@ export default function Home() {
               : naturalWidth;
 
             // Compute baseline X in view space based on alignment
-            const baseViewX = (textItem.x / cw) * Wv;
+            const baseViewX = (textItem.x / cw) * Wrho;
             const baselineViewX =
               textItem.align === "center"
                 ? baseViewX - lineWidth / 2
@@ -525,10 +593,12 @@ export default function Home() {
                 ? baseViewX - lineWidth
                 : baseViewX;
 
-            // Baseline start point → PDF space
+            // Baseline start point → display space (deskew back-rotation)
+            // → PDF space
+            const baselineView = toDisplay(baselineViewX, baselineViewY);
             const baselinePdf = viewPointToPdf(
-              baselineViewX,
-              baselineViewY,
+              baselineView.vx,
+              baselineView.vy,
               T,
               pageHeight,
               Wv,
@@ -606,6 +676,8 @@ export default function Home() {
             width: pageWidth,
             height: pageHeight,
           });
+          const skew = pageSkew[eraserItem.page] || 0;
+          const { Wrho, Hrho, toDisplay } = makeSkewGeometry(skew, Wv, Hv);
 
           const cw = eraserItem.canvasWidth || Wv;
           const ch = eraserItem.canvasHeight || Hv;
@@ -615,12 +687,13 @@ export default function Home() {
             ? rgb(eraserColor.r, eraserColor.g, eraserColor.b)
             : rgb(1, 1, 1);
 
-          const pdfStrokeWidth = (eraserItem.strokeWidth / ch) * Hv;
+          const pdfStrokeWidth = (eraserItem.strokeWidth / ch) * Hrho;
 
           const pdfPoints = eraserItem.points.map((p) => {
-            const vx = (p.x / cw) * Wv;
-            const vy = (p.y / ch) * Hv;
-            return viewPointToPdf(vx, vy, T, pageHeight, Wv, Hv);
+            const vx0 = (p.x / cw) * Wrho;
+            const vy0 = (p.y / ch) * Hrho;
+            const view = toDisplay(vx0, vy0);
+            return viewPointToPdf(view.vx, view.vy, T, pageHeight, Wv, Hv);
           });
 
           for (let i = 0; i < pdfPoints.length; i++) {

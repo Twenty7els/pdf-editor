@@ -21,6 +21,7 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
     totalPages,
     currentPage,
     pageRotations,
+    pageSkew,
     deletedPages,
     setCurrentPage,
     rotatePage,
@@ -100,19 +101,56 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
         }
         if (cancelled) return;
         const outputScale = Math.max(window.devicePixelRatio || 1, 2);
-        canvas.width = Math.floor(viewport.width * outputScale);
-        canvas.height = Math.floor(viewport.height * outputScale);
-        canvas.style.width = `${Math.floor(viewport.width)}px`;
-        canvas.style.height = `${Math.floor(viewport.height)}px`;
-        const transform = [outputScale, 0, 0, outputScale, 0, 0];
-        const task = page.render({
-          canvas,
-          canvasContext: ctx,
-          viewport,
-          transform,
-        });
-        renderTasksRef.current[pageNum] = task;
-        await task.promise;
+        // Fine skew (deskew) — composite the bitmap rotated when non-zero
+        const skew = pageSkew[pageNum] || 0;
+        const rad = (skew * Math.PI) / 180;
+        const cosA = Math.abs(Math.cos(rad));
+        const sinA = Math.abs(Math.sin(rad));
+        const bw = viewport.width * cosA + viewport.height * sinA;
+        const bh = viewport.width * sinA + viewport.height * cosA;
+        canvas.width = Math.floor(bw * outputScale);
+        canvas.height = Math.floor(bh * outputScale);
+        canvas.style.width = `${Math.floor(bw)}px`;
+        canvas.style.height = `${Math.floor(bh)}px`;
+        if (!skew) {
+          const transform = [outputScale, 0, 0, outputScale, 0, 0];
+          const task = page.render({
+            canvas,
+            canvasContext: ctx,
+            viewport,
+            transform,
+          });
+          renderTasksRef.current[pageNum] = task;
+          await task.promise;
+        } else {
+          const off = document.createElement("canvas");
+          off.width = Math.floor(viewport.width * outputScale);
+          off.height = Math.floor(viewport.height * outputScale);
+          const offCtx = off.getContext("2d");
+          if (!offCtx) return;
+          const task = page.render({
+            canvas: off,
+            canvasContext: offCtx,
+            viewport,
+            transform: [outputScale, 0, 0, outputScale, 0, 0],
+          });
+          renderTasksRef.current[pageNum] = task;
+          await task.promise;
+          if (cancelled) return;
+          ctx.setTransform(outputScale, 0, 0, outputScale, 0, 0);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, bw, bh);
+          ctx.translate(bw / 2, bh / 2);
+          ctx.rotate(rad);
+          ctx.drawImage(
+            off,
+            -viewport.width / 2,
+            -viewport.height / 2,
+            viewport.width,
+            viewport.height
+          );
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+        }
         if (!cancelled) {
           setThumbState((prev) => ({
             ...prev,
@@ -138,7 +176,7 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
       }
     };
 
-    // Render all thumbnails (re-render when rotations change)
+    // Render all thumbnails (re-render when rotations or skew change)
     for (let p = 1; p <= totalPages; p++) {
       void renderThumb(p);
     }
@@ -146,7 +184,7 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
     return () => {
       cancelled = true;
     };
-  }, [pdfDoc, pdfjsReady, totalPages, pageRotations]);
+  }, [pdfDoc, pdfjsReady, totalPages, pageRotations, pageSkew]);
 
   // Leave selection mode when the document changes underneath us
   useEffect(() => {
@@ -261,6 +299,7 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
         const isDeleted = deletedPages.includes(pageNum);
         const isChecked = selSet.has(pageNum);
         const rotation = pageRotations[pageNum] || 0;
+        const skewVal = pageSkew[pageNum] || 0;
         const st = thumbState[pageNum];
 
         const cardClass = selMode
@@ -328,6 +367,11 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
                 <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 font-medium">
                   <RotateCw className="h-2.5 w-2.5" />
                   {rotation}°
+                </span>
+              )}
+              {rotation === 0 && skewVal !== 0 && (
+                <span className="text-[10px] text-amber-600 font-medium tabular-nums">
+                  ~{skewVal}°
                 </span>
               )}
             </div>

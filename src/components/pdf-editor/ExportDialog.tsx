@@ -29,6 +29,7 @@ export default function ExportDialog({
     totalPages,
     deletedPages,
     pageRotations,
+    pageSkew,
     exportPageSelection,
     setExportPageSelection,
   } = usePdfEditorStore();
@@ -139,19 +140,55 @@ export default function ExportDialog({
         }
       }
       const outputScale = Math.max(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.floor(viewport.width * outputScale);
-      canvas.height = Math.floor(viewport.height * outputScale);
-      canvas.style.width = `${Math.floor(viewport.width)}px`;
-      canvas.style.height = `${Math.floor(viewport.height)}px`;
-      const transform = [outputScale, 0, 0, outputScale, 0, 0];
-      const task = page.render({
-        canvas,
-        canvasContext: ctx,
-        viewport,
-        transform,
-      });
-      renderTasksRef.current[pageNum] = task;
-      await task.promise;
+      // Fine skew (deskew) — composite the bitmap rotated when non-zero
+      const skew = pageSkew[pageNum] || 0;
+      const rad = (skew * Math.PI) / 180;
+      const cosA = Math.abs(Math.cos(rad));
+      const sinA = Math.abs(Math.sin(rad));
+      const bw = viewport.width * cosA + viewport.height * sinA;
+      const bh = viewport.width * sinA + viewport.height * cosA;
+      canvas.width = Math.floor(bw * outputScale);
+      canvas.height = Math.floor(bh * outputScale);
+      canvas.style.width = `${Math.floor(bw)}px`;
+      canvas.style.height = `${Math.floor(bh)}px`;
+      if (!skew) {
+        const transform = [outputScale, 0, 0, outputScale, 0, 0];
+        const task = page.render({
+          canvas,
+          canvasContext: ctx,
+          viewport,
+          transform,
+        });
+        renderTasksRef.current[pageNum] = task;
+        await task.promise;
+      } else {
+        const off = document.createElement("canvas");
+        off.width = Math.floor(viewport.width * outputScale);
+        off.height = Math.floor(viewport.height * outputScale);
+        const offCtx = off.getContext("2d");
+        if (!offCtx) return;
+        const task = page.render({
+          canvas: off,
+          canvasContext: offCtx,
+          viewport,
+          transform: [outputScale, 0, 0, outputScale, 0, 0],
+        });
+        renderTasksRef.current[pageNum] = task;
+        await task.promise;
+        ctx.setTransform(outputScale, 0, 0, outputScale, 0, 0);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, bw, bh);
+        ctx.translate(bw / 2, bh / 2);
+        ctx.rotate(rad);
+        ctx.drawImage(
+          off,
+          -viewport.width / 2,
+          -viewport.height / 2,
+          viewport.width,
+          viewport.height
+        );
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+      }
       setThumbLoaded((prev) => ({ ...prev, [pageNum]: true }));
     } catch (err) {
       // Ignore intentional cancellations
@@ -166,11 +203,11 @@ export default function ExportDialog({
     }
   };
 
-  // Re-render thumbnails when rotations change (the initial render is
+  // Re-render thumbnails when rotations or skew change (the initial render is
   // done by the load effect above — skip to avoid double canvas renders)
   useEffect(() => {
     if (!open || !pdfjsReady) return;
-    const key = JSON.stringify(pageRotations);
+    const key = JSON.stringify(pageRotations) + "|" + JSON.stringify(pageSkew);
     if (lastRotationsKeyRef.current === key) return;
     lastRotationsKeyRef.current = key;
     const pdf = pdfDocRef.current;
@@ -178,7 +215,7 @@ export default function ExportDialog({
     for (let p = 1; p <= totalPages; p++) {
       void renderThumb(pdf, p);
     }
-  }, [pageRotations, open, pdfjsReady, totalPages]);
+  }, [pageRotations, pageSkew, open, pdfjsReady, totalPages]);
 
   const pages = useMemo(
     () => Array.from({ length: totalPages }, (_, i) => i + 1),

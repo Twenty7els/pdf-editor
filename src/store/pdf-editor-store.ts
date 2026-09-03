@@ -68,6 +68,9 @@ export interface HistorySnapshot {
   texts: TextItem[];
   erasers: EraserItem[];
   pageRotations: Record<number, number>;
+  // Fine per-page skew compensation in degrees (−15…15, step 0.5) —
+  // straightens crooked scans on screen; items are compensated on export
+  pageSkew: Record<number, number>;
   deletedPages: number[];
   selectedItemId: string | null;
   selectedItemType: "stamp" | "text" | "eraser" | null;
@@ -99,6 +102,7 @@ function snapshot(s: PdfEditorState): HistorySnapshot {
     texts: s.texts.map((t) => ({ ...t })),
     erasers: s.erasers.map((e) => ({ ...e, points: e.points.map((p) => ({ ...p })) })),
     pageRotations: { ...s.pageRotations },
+    pageSkew: { ...s.pageSkew },
     deletedPages: [...s.deletedPages],
     selectedItemId: s.selectedItemId,
     selectedItemType: s.selectedItemType,
@@ -132,6 +136,8 @@ interface PdfEditorState {
 
   // Page rotations (page number → 0/90/180/270)
   pageRotations: Record<number, number>;
+  // Per-page skew compensation (page number → −15…15 degrees, 0.5 step)
+  pageSkew: Record<number, number>;
   // Deleted page numbers
   deletedPages: number[];
   // Export selection — null = all pages, array = specific pages
@@ -194,6 +200,12 @@ interface PdfEditorState {
   removeCustomStamp: (id: string) => void;
   // Page-level actions (history-tracked)
   rotatePage: (pageNum: number) => void;
+  // Set fine skew compensation for a page (degrees, −15…15, rounded to 0.5)
+  setPageSkew: (pageNum: number, deg: number) => void;
+  // Silent variant for slider drags — history entry is pushed separately via pushHistory at drag start
+  setPageSkewLive: (pageNum: number, deg: number) => void;
+  // Push a snapshot of the CURRENT state onto the undo stack (call BEFORE a live change)
+  pushHistory: () => void;
   deletePage: (pageNum: number) => void;
   undeletePage: (pageNum: number) => void;
   // Bulk page deletion/restoration — ONE history entry for the whole batch
@@ -228,6 +240,7 @@ const initialState = {
   selectedItemId: null,
   selectedItemType: null as "stamp" | "text" | "eraser" | null,
   pageRotations: {} as Record<number, number>,
+  pageSkew: {} as Record<number, number>,
   deletedPages: [] as number[],
   exportPageSelection: null as number[] | null,
   past: [] as HistorySnapshot[],
@@ -265,6 +278,7 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
       currentPage: 1,
       zoomLevel: 1.0,
       pageRotations: {},
+      pageSkew: {},
       deletedPages: [],
       exportPageSelection: null,
       past: [],
@@ -473,6 +487,46 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
         pageRotations: newRotations,
       };
     }),
+
+  setPageSkew: (pageNum, deg) =>
+    set((state) => {
+      // Round to 0.5° steps, clamp to ±15
+      const next = Math.max(-15, Math.min(15, Math.round(deg * 2) / 2));
+      const current = state.pageSkew[pageNum] || 0;
+      if (current === next) return state;
+      const snap = snapshot(state);
+      const newSkew = { ...state.pageSkew };
+      if (next === 0) {
+        delete newSkew[pageNum];
+      } else {
+        newSkew[pageNum] = next;
+      }
+      return {
+        past: [...state.past, snap].slice(-MAX_HISTORY),
+        future: [],
+        pageSkew: newSkew,
+      };
+    }),
+
+  setPageSkewLive: (pageNum, deg) =>
+    set((state) => {
+      const next = Math.max(-15, Math.min(15, Math.round(deg * 2) / 2));
+      const current = state.pageSkew[pageNum] || 0;
+      if (current === next) return state;
+      const newSkew = { ...state.pageSkew };
+      if (next === 0) {
+        delete newSkew[pageNum];
+      } else {
+        newSkew[pageNum] = next;
+      }
+      return { pageSkew: newSkew };
+    }),
+
+  pushHistory: () =>
+    set((state) => ({
+      past: [...state.past, snapshot(state)].slice(-MAX_HISTORY),
+      future: [],
+    })),
 
   deletePage: (pageNum) =>
     set((state) => {

@@ -44,22 +44,87 @@ function xmlText(xml: string): string {
 
 const norm = (s: string) => s.replace(/[\s\u00A0]+/g, " ").trim().toLowerCase();
 
-/** Новый абзац с текстом (без pPr — Word применит стиль ячейки). */
-function valueParagraph(text: string): string {
-  if (!text) return "<w:p/>";
-  return (
-    `<w:p><w:r><w:t xml:space="preserve">${esc(text)}</w:t></w:r></w:p>`
+/** Убрать оформление плейсхолдера (курсив, синий цвет) — оставить шрифт и размер. */
+function stripPlaceholderStyle(rPr: string): string {
+  return rPr
+    .replace(/<w:i\b[^>]*\/>/g, "")
+    .replace(/<w:iCs\b[^>]*\/>/g, "")
+    .replace(/<w:color\b[^>]*\/>/g, "")
+    .replace(/<w:highlight\b[^>]*\/>/g, "");
+}
+
+/**
+ * Гарантировать snapToGrid=0: в документе есть docGrid (linePitch=360) и без
+ * этого флага MS Word привязывает строки вставленных значений к сетке 18pt —
+ * плотные строки шаблона «раздуваются» и вёрстка разъезжается. Подписи шаблона
+ * сами несут snapToGrid=0 — повторяем их приём.
+ */
+function ensureSnapToGrid(rPr: string): string {
+  if (!rPr || /<w:snapToGrid\b/.test(rPr)) return rPr;
+  const snap = '<w:snapToGrid w:val="0"/>';
+  if (/<w:rFonts\b[^>]*\/>/.test(rPr)) {
+    // сразу после rFonts — валидная позиция по схеме rPr
+    return rPr.replace(/(<w:rFonts\b[^>]*\/>)/, `$1${snap}`);
+  }
+  return rPr.replace(/(<w:rPr\b[^>]*>)/, `$1${snap}`);
+}
+
+/** Убрать плейсхолдерный стиль из rPr метки абзаца внутри pPr. */
+function cleanPPr(pPr: string): string {
+  return pPr.replace(
+    /<w:rPr\b[^>]*>[\s\S]*?<\/w:rPr>/,
+    (m) => stripPlaceholderStyle(m)
   );
 }
 
-/** Заменить содержимое ячейки (<w:tc>), сохранив её свойства (<w:tcPr>). */
+/**
+ * Форматирование исходной ячейки: pPr первого абзаца + rPr первого рана
+ * (если рана нет — rPr метки абзаца из pPr). Без этого Word рисует значение
+ * шрифтом по умолчанию (Normal, 12pt) вместо 8pt шаблона.
+ */
+function extractCellFormat(tcInner: string): { pPr: string; rPr: string } {
+  const firstP = tcInner.match(
+    /(?:<w:p\b[^>]*\/>)|<w:p\b[^>]*>[\s\S]*?<\/w:p>/
+  );
+  if (!firstP) return { pPr: "", rPr: "" };
+  const pXml = firstP[0];
+  const pPr =
+    pXml.match(/<w:pPr\b[^>]*\/>/)?.[0] ??
+    pXml.match(/<w:pPr\b[^>]*>[\s\S]*?<\/w:pPr>/)?.[0] ??
+    "";
+  const bodyAfterPPr = pPr
+    ? pXml.slice(pXml.indexOf(pPr) + pPr.length)
+    : pXml;
+  // rPr первого рана (вне pPr)
+  const runRPr =
+    bodyAfterPPr.match(/<w:rPr\b[^>]*\/>/)?.[0] ??
+    bodyAfterPPr.match(/<w:rPr\b[^>]*>[\s\S]*?<\/w:rPr>/)?.[0] ??
+    "";
+  if (runRPr) return { pPr: cleanPPr(pPr), rPr: ensureSnapToGrid(stripPlaceholderStyle(runRPr)) };
+  // рана нет — берём формат метки абзаца (хранит шрифт/размер пустой ячейки)
+  const markRPr =
+    pPr.match(/<w:rPr\b[^>]*\/>/)?.[0] ??
+    pPr.match(/<w:rPr\b[^>]*>[\s\S]*?<\/w:rPr>/)?.[0] ??
+    "";
+  return { pPr: cleanPPr(pPr), rPr: ensureSnapToGrid(stripPlaceholderStyle(markRPr)) };
+}
+
+/** Новый абзац с текстом в формате исходной ячейки. */
+function valueParagraph(text: string, fmt: { pPr: string; rPr: string }): string {
+  if (!text) return "<w:p/>";
+  return (
+    `<w:p>${fmt.pPr}<w:r>${fmt.rPr}<w:t xml:space="preserve">${esc(text)}</w:t></w:r></w:p>`
+  );
+}
+
+/** Заменить содержимое ячейки (<w:tc>), сохранив её форматирование. */
 function setCellValue(tcInner: string, text: string): string {
   // tcPr не может вкладываться в себя: либо самозакрытый, либо до парного закрытия
   const tcPr =
     tcInner.match(/<w:tcPr\b[^>]*\/>/)?.[0] ??
     tcInner.match(/<w:tcPr\b[^>]*>[\s\S]*?<\/w:tcPr>/)?.[0] ??
     "";
-  return tcPr + valueParagraph(text);
+  return tcPr + valueParagraph(text, extractCellFormat(tcInner));
 }
 
 interface DocxRule {
@@ -88,12 +153,12 @@ const DOCX_RULES: DocxRule[] = [
   {
     match: byLabel("Наименование Заказчика"),
     value: (p) => {
-      const fio = clean(p.directorName) || stripOrgPrefix(clean(p.orgName));
-      const form =
-        /ооо|общество/i.test(clean(p.orgName)) || clean(p.ogrip)
-          ? ""
-          : "Индивидуальный предприниматель ";
-      return form + fio;
+      const org = clean(p.orgName);
+      // Юрлицо — полное наименование организации
+      if (/ооо|общество/i.test(org)) return org;
+      // ИП / физлицо — «Индивидуальный предприниматель ФИО»
+      const fio = clean(p.directorName) || stripOrgPrefix(org);
+      return fio ? `Индивидуальный предприниматель ${fio}` : "";
     },
   },
   {
@@ -176,6 +241,29 @@ const DOCX_RULES: DocxRule[] = [
 ];
 
 /**
+ * Убрать хвостовые пустые (пробельные) абзацы перед body-level sectPr.
+ * Заполненные строки становятся чуть выше пустых — и такой абзац
+ * выталкивается на отдельную пустую страницу в конце документа.
+ * Не трогаем абзацы с текстом/картинками/таблицами и случай, когда
+ * sectPr вложен в последний абзац.
+ */
+function trimTrailingEmptyParagraphs(xml: string): string {
+  const sectIdx = xml.lastIndexOf("<w:sectPr");
+  if (sectIdx < 0) return xml;
+  let head = xml.slice(0, sectIdx);
+  const tail = xml.slice(sectIdx);
+  for (;;) {
+    // последний абзац в head (без вложенных <w:p внутри — иначе это таблица/секции)
+    const m = head.match(/<w:p\b[^>]*>(?:(?!<w:p\b)[\s\S])*<\/w:p>\s*$/);
+    if (!m || m.index === undefined) break;
+    const p = m[0];
+    if (xmlText(p).trim() !== "" || /<w:drawing|<w:pict|<w:tbl/.test(p)) break;
+    head = head.slice(0, m.index);
+  }
+  return head + tail;
+}
+
+/**
  * Заполнить шаблон анкеты-заявления данными профиля.
  * Возвращает новый .docx (Buffer).
  */
@@ -213,19 +301,29 @@ export async function fillAnketaDocx(
 
   // ── 2. Финансовые условия: «Наименование Сервиса» в строке с СБП ───
   if (clean(profile.activity)) {
+    // Колонку «Наименование Сервиса» определяем по строке-шапке таблицы,
+    // а не по индексу: в строке СБП ячейка №п/п узкая (567 dxa) и текст
+    // в ней разваливается по одной букве на строку.
+    let serviceCol = 1;
+    for (const m of xml.matchAll(TR_RE)) {
+      const texts = [...m[1].matchAll(TC_RE)].map((c) => xmlText(c[1]));
+      const j = texts.findIndex((t) => norm(t) === "наименование сервиса");
+      if (j >= 0) {
+        serviceCol = j;
+        break;
+      }
+    }
     xml = xml.replace(TR_RE, (trFull, trInner: string) => {
       const tcMatches = [...trInner.matchAll(TC_RE)];
       const texts = tcMatches.map((m) => xmlText(m[1]));
       const sbpIdx = texts.findIndex((t) => norm(t) === "сбп");
-      if (sbpIdx > 0 && !texts[0]) {
-        const tcFull = tcMatches[0][0];
-        const newTc = tcFull.replace(
-          tcMatches[0][1],
-          () => setCellValue(tcMatches[0][1], clean(profile.activity))
-        );
-        return trFull.replace(tcFull, () => newTc);
-      }
-      return trFull;
+      if (sbpIdx < 0 || serviceCol >= tcMatches.length) return trFull;
+      const [tcFull, tcInner] = tcMatches[serviceCol];
+      const newTc = tcFull.replace(
+        tcInner,
+        () => setCellValue(tcInner, clean(profile.activity))
+      );
+      return trFull.replace(tcFull, () => newTc);
     });
   }
 
@@ -233,10 +331,8 @@ export async function fillAnketaDocx(
   const fio = clean(profile.directorName) || stripOrgPrefix(clean(profile.orgName));
   const paragraphReplacements: Array<[RegExp, (m: string) => string]> = [];
   if (fio) {
-    paragraphReplacements.push([
-      /\[\s*Фамилия[^\]]*\]/g,
-      () => esc(fio),
-    ]);
+    // без esc(): newText экранируется один раз при пересборке абзаца
+    paragraphReplacements.push([/\[\s*Фамилия[^\]]*\]/g, () => fio]);
   }
 
   xml = xml.replace(P_RE, (pXml) => {
@@ -261,10 +357,13 @@ export async function fillAnketaDocx(
       bodyAfterPPr.match(/<w:rPr\b[^>]*\/>/)?.[0] ??
       bodyAfterPPr.match(/<w:rPr\b[^>]*>[\s\S]*?<\/w:rPr>/)?.[0] ??
       "";
-    return `<w:p>${pPr}<w:r>${rPr}<w:t xml:space="preserve">${esc(
-      newText
-    )}</w:t></w:r></w:p>`;
+    return `<w:p>${pPr}<w:r>${ensureSnapToGrid(
+      rPr
+    )}<w:t xml:space="preserve">${esc(newText)}</w:t></w:r></w:p>`;
   });
+
+  // ── 4. Хвостовые пустые абзацы → убрать (иначе пустая страница в конце)
+  xml = trimTrailingEmptyParagraphs(xml);
 
   zip.file(path, xml);
   const out = await zip.generateAsync({

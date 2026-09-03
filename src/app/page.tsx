@@ -7,6 +7,7 @@ import Toolbar from "@/components/pdf-editor/Toolbar";
 import LayersPanel from "@/components/pdf-editor/LayersPanel";
 import UploadZone from "@/components/pdf-editor/UploadZone";
 import ExportDialog from "@/components/pdf-editor/ExportDialog";
+import DocAutofillApp from "@/components/doc-autofill/DocAutofillApp";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -22,6 +23,8 @@ import {
   ShieldCheck,
   Lock,
   ArrowRight,
+  FileStack,
+  PenLine,
 } from "lucide-react";
 import {
   checkPassword,
@@ -221,6 +224,18 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  // Режим приложения: редактор PDF или автозаполнение документов
+  const [appMode, setAppMode] = useState<"pdf" | "docs">("pdf");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("app-mode");
+    if (saved === "docs" || saved === "pdf") setAppMode(saved);
+  }, []);
+
+  const switchMode = useCallback((mode: "pdf" | "docs") => {
+    setAppMode(mode);
+    localStorage.setItem("app-mode", mode);
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated()) {
@@ -836,7 +851,7 @@ export default function Home() {
               <span className="text-terracotta-dark">Редактор</span>
             </h1>
             <p className="text-[11px] text-muted-foreground hidden sm:block">
-              Печати и текст на документах
+              Печати, текст и документы
             </p>
           </div>
           {pdfFile && (
@@ -859,6 +874,35 @@ export default function Home() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {/* Переключатель режимов */}
+          <div className="flex items-center gap-0.5 p-1 rounded-xl bg-secondary/60 border border-border/50 mr-1">
+            <button
+              type="button"
+              onClick={() => switchMode("pdf")}
+              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 h-8 rounded-lg text-xs font-medium transition-colors ${
+                appMode === "pdf"
+                  ? "bg-card shadow-soft text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              aria-pressed={appMode === "pdf"}
+            >
+              <PenLine className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Редактор</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("docs")}
+              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 h-8 rounded-lg text-xs font-medium transition-colors ${
+                appMode === "docs"
+                  ? "bg-card shadow-soft text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              aria-pressed={appMode === "docs"}
+            >
+              <FileStack className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Документы</span>
+            </button>
+          </div>
           {pdfFile && (
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-secondary/70 border border-border/50 max-w-[220px]">
               <div className="h-6 w-6 rounded-md bg-primary/15 flex items-center justify-center shrink-0">
@@ -882,17 +926,21 @@ export default function Home() {
       </header>
 
       {/* Main content */}
-      <div className="flex-1 flex overflow-hidden">
-        {pdfFile && (
-          <aside className="hidden md:block w-72 border-r border-border/70 bg-card/30 overflow-y-auto shrink-0">
-            {toolbarContent}
-            <div className="h-px bg-border/60 mx-4" />
-            <LayersPanel currentPage={currentPage} totalPages={totalPages} />
-          </aside>
-        )}
+      {appMode === "docs" ? (
+        <DocAutofillApp />
+      ) : (
+        <div className="flex-1 flex overflow-hidden">
+          {pdfFile && (
+            <aside className="hidden md:block w-72 border-r border-border/70 bg-card/30 overflow-y-auto shrink-0">
+              {toolbarContent}
+              <div className="h-px bg-border/60 mx-4" />
+              <LayersPanel currentPage={currentPage} totalPages={totalPages} />
+            </aside>
+          )}
 
-        {pdfFile ? <PdfCanvas /> : <UploadZone />}
-      </div>
+          {pdfFile ? <PdfCanvas /> : <UploadZone />}
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="border-t border-border/70 glass-strong px-4 py-2.5 text-center text-xs text-muted-foreground shrink-0 mt-auto">

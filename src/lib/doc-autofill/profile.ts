@@ -1,0 +1,161 @@
+/**
+ * Профиль мерчанта — нормализованные данные, извлечённые из заполненной
+ * анкеты («Заявка на подключение», Uniteller) и редактируемые пользователем.
+ */
+export interface MerchantProfile {
+  // 01 Данные организации
+  orgName?: string;
+  inn?: string;
+  kpp?: string;
+  legalAddress?: string;
+  factAddress?: string;
+
+  // 02 Банковские реквизиты
+  bik?: string;
+  bankName?: string;
+  account?: string;
+  corrAccount?: string;
+
+  // 03 Данные руководителя
+  directorName?: string;
+  birthDate?: string; // дд.мм.гггг
+  birthPlace?: string;
+  snils?: string;
+  passSeries?: string;
+  passNumber?: string;
+  passDeptCode?: string;
+  passIssueDate?: string; // дд.мм.гггг
+  passIssuer?: string;
+  regAddress?: string;
+
+  // 04 Контактная информация
+  contactName?: string;
+  phone?: string;
+  email?: string;
+
+  // 05 Вид деятельности
+  activity?: string;
+  turnover?: string;
+
+  // 06 Оборудование
+  equipType?: string;
+  terminalCount?: string;
+  serials?: string[];
+
+  // 07 Адреса точек установки
+  pointAddresses?: string[];
+  pointComments?: string[];
+
+  // 08 Комментарий
+  comment?: string;
+
+  // Поля, которых нет в анкете (заполняются вручную при необходимости)
+  citizenship?: string;
+  ogrip?: string;
+  okpo?: string;
+  okved?: string;
+}
+
+/** Группы полей для UI-редактора профиля. */
+export interface ProfileFieldMeta {
+  key: keyof MerchantProfile;
+  label: string;
+  list?: boolean; // поле-список (serials, pointAddresses, pointComments)
+}
+
+export interface ProfileGroup {
+  title: string;
+  fields: ProfileFieldMeta[];
+}
+
+export const PROFILE_GROUPS: ProfileGroup[] = [
+  {
+    title: "Данные организации",
+    fields: [
+      { key: "orgName", label: "Название организации" },
+      { key: "inn", label: "ИНН" },
+      { key: "kpp", label: "КПП" },
+      { key: "ogrip", label: "ОГРНИП / ОГРН" },
+      { key: "legalAddress", label: "Юридический адрес" },
+      { key: "factAddress", label: "Фактический адрес" },
+    ],
+  },
+  {
+    title: "Банковские реквизиты",
+    fields: [
+      { key: "bankName", label: "Название банка" },
+      { key: "bik", label: "БИК" },
+      { key: "account", label: "Расчётный счёт" },
+      { key: "corrAccount", label: "Корреспондентский счёт" },
+    ],
+  },
+  {
+    title: "Данные руководителя",
+    fields: [
+      { key: "directorName", label: "ФИО руководителя" },
+      { key: "birthDate", label: "Дата рождения" },
+      { key: "birthPlace", label: "Место рождения" },
+      { key: "citizenship", label: "Гражданство" },
+      { key: "snils", label: "СНИЛС" },
+      { key: "passSeries", label: "Серия паспорта" },
+      { key: "passNumber", label: "Номер паспорта" },
+      { key: "passDeptCode", label: "Код подразделения" },
+      { key: "passIssueDate", label: "Дата выдачи паспорта" },
+      { key: "passIssuer", label: "Кем выдан" },
+      { key: "regAddress", label: "Адрес регистрации по паспорту" },
+    ],
+  },
+  {
+    title: "Контакты и деятельность",
+    fields: [
+      { key: "contactName", label: "ФИО контактного лица" },
+      { key: "phone", label: "Телефон" },
+      { key: "email", label: "E-mail" },
+      { key: "activity", label: "Вид деятельности" },
+      { key: "turnover", label: "Ожидаемый оборот в месяц" },
+      { key: "okpo", label: "ОКПО" },
+      { key: "okved", label: "ОКВЭД (основной)" },
+    ],
+  },
+  {
+    title: "Оборудование и точки",
+    fields: [
+      { key: "equipType", label: "Тип оборудования" },
+      { key: "terminalCount", label: "Количество терминалов" },
+      { key: "serials", label: "Серийные номера терминалов", list: true },
+      { key: "pointAddresses", label: "Адреса точек установки", list: true },
+      { key: "pointComments", label: "Комментарии к точкам", list: true },
+      { key: "comment", label: "Дополнительная информация" },
+    ],
+  },
+];
+
+/** Убрать префикс организационной формы, оставить чистое ФИО/наименование. */
+export function stripOrgPrefix(name: string): string {
+  return name
+    .replace(
+      /^индивидуальный\s+предприниматель\s+/i,
+      ""
+    )
+    .replace(/^ИП\s+/i, "")
+    .replace(
+      /^общество\s+с\s+ограниченной\s+ответственностью\s+/i,
+      ""
+    )
+    .replace(/^ООО\s+/i, "")
+    .trim();
+}
+
+/** Является ли значение анкеты пустышкой-плейсхолдером. */
+export function isPlaceholder(v: string): boolean {
+  const t = v.trim();
+  if (!t) return true;
+  return (
+    /^дд\.мм\.гггг$/i.test(t) ||
+    /^\+7\s*\(___\)/.test(t) ||
+    /^000-000/.test(t) ||
+    /^введите число$/i.test(t) ||
+    t === "…" ||
+    t === "..."
+  );
+}

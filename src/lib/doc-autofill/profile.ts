@@ -67,8 +67,8 @@ export interface MerchantProfile {
   unitContractNumber?: string;
   unitContractDate?: string; // дд.мм.гггг
   unitRate?: string;
-  bankContractInfo?: string; // «№ X от дд.мм.гггг»
-  unitContractInfo?: string; // «X от дд.мм.гггг» (нижний блок)
+  bankContractNumber?: string;
+  bankContractDate?: string; // дд.мм.гггг
 }
 
 /** Группы полей для UI-редактора профиля. */
@@ -149,8 +149,8 @@ export const PROFILE_GROUPS: ProfileGroup[] = [
       { key: "unitContractNumber", label: "Номер договора с Uniteller" },
       { key: "unitContractDate", label: "Дата договора с Uniteller" },
       { key: "unitRate", label: "Ставка по договору" },
-      { key: "bankContractInfo", label: "Договор с банком (номер и дата)" },
-      { key: "unitContractInfo", label: "Договор с Uniteller (нижний блок)" },
+      { key: "bankContractNumber", label: "Номер договора с банком" },
+      { key: "bankContractDate", label: "Дата договора с банком" },
     ],
   },
   {

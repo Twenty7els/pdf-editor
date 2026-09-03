@@ -35,7 +35,11 @@ const SBP_FILL_MAP: Array<{ cell: string; get: (p: MerchantProfile) => string }>
   { cell: "C49", get: (p) => p.unitRate ?? "" }, // — ставка
   { cell: "C50", get: (p) => p.account ?? "" }, // р/с мерчанта
   { cell: "C53", get: (p) => p.upid ?? "" }, // UPID
-  { cell: "C63", get: (p) => p.bankContractInfo ?? "" }, // Номер и дата договора с Банком
+  {
+    cell: "C63",
+    get: (p) =>
+      composeContractInfo(p.bankContractNumber ?? "", p.bankContractDate ?? ""),
+  }, // Номер и дата договора с Банком (автосборка)
   { cell: "C64", get: (p) => p.orgName ?? "" }, // наименование ЮЛ
   { cell: "C65", get: (p) => p.inn ?? "" }, // ИНН
   { cell: "C67", get: (p) => p.orgName ?? "" }, // Наименование (brandName)
@@ -45,9 +49,8 @@ const SBP_FILL_MAP: Array<{ cell: string; get: (p: MerchantProfile) => string }>
   {
     cell: "C71",
     get: (p) =>
-      p.unitContractInfo ||
       composeContractInfo(p.unitContractNumber ?? "", p.unitContractDate ?? ""),
-  }, // Дата и номер договора с Uniteller (нижний блок)
+  }, // Дата и номер договора с Uniteller (автосборка)
 ];
 
 export async function fillSbpZayavka(

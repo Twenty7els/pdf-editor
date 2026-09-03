@@ -6,13 +6,14 @@
 import type { MerchantProfile } from "./profile";
 
 export interface TemplateRequirement {
-  key: keyof MerchantProfile;
+  /** Основное поле профиля; для автополей (autoNote) может отсутствовать. */
+  key?: keyof MerchantProfile;
   label: string;
   /** Подсказка в пустом поле ввода. */
   hint?: string;
   /** Важно для этого документа (помечается звёздочкой). */
   important?: boolean;
-  /** Поле автоподставляемое: показываем в списке «есть», но не требуем. */
+  /** Автополе: не требуем и не даём инпут — собирается из других полей. */
   autoNote?: string;
   /** Поле считается заполненным, даже если key пуст (автосборка из других полей). */
   satisfied?: (p: MerchantProfile) => boolean;
@@ -91,17 +92,29 @@ export const TARGET_REQUIREMENTS: Record<string, TemplateRequirement[]> = {
       hint: "Например: 1,6%",
     },
     {
-      key: "unitContractInfo",
-      label: "Договор с Uniteller: номер и дата",
-      hint: "Нижний блок «Данные по мерчанту»; соберётся из номера и даты выше",
+      key: "bankContractNumber",
+      label: "Номер договора с банком",
+      hint: "Например: 77 или б/н",
+    },
+    {
+      key: "bankContractDate",
+      label: "Дата договора с банком",
+      hint: "дд.мм.гггг",
+    },
+    // Автополя: ручной ввод не нужен, собираются из полей выше
+    {
+      label: "Договор с Uniteller: номер и дата (низ)",
+      autoNote: "Соберётся из номера и даты договора с Uniteller",
       satisfied: (p) =>
         isRequirementFilled(p.unitContractNumber) &&
         isRequirementFilled(p.unitContractDate),
     },
     {
-      key: "bankContractInfo",
-      label: "Договор с банком: номер и дата",
-      hint: "Например: № 123 от 01.02.2024",
+      label: "Договор с банком: номер и дата (низ)",
+      autoNote: "Соберётся из номера и даты договора с банком",
+      satisfied: (p) =>
+        isRequirementFilled(p.bankContractNumber) &&
+        isRequirementFilled(p.bankContractDate),
     },
   ],
 
@@ -206,15 +219,16 @@ export function isRequirementSatisfied(
   profile: MerchantProfile
 ): boolean {
   if (r.satisfied) return r.satisfied(profile);
+  if (!r.key) return false;
   return isRequirementFilled(profile[r.key]);
 }
 
-/** Требования шаблона, которых не хватает в профиле. */
+/** Требования шаблона, которых не хватает в профиле (без автополей). */
 export function missingForTarget(
   targetId: string,
   profile: MerchantProfile
 ): TemplateRequirement[] {
   return (TARGET_REQUIREMENTS[targetId] ?? []).filter(
-    (r) => !isRequirementSatisfied(r, profile)
+    (r) => !r.autoNote && !isRequirementSatisfied(r, profile)
   );
 }

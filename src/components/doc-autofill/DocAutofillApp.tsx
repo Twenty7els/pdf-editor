@@ -60,6 +60,21 @@ export default function DocAutofillApp() {
   const templateTargetRef = useRef<string>("");
   const checklistRef = useRef<HTMLDivElement>(null);
 
+  /** Поля, которые пользователь сейчас/только что редактировал в чек-листе:
+   *  пока поле закреплено, инпут не исчезает при вводе и зелёный чип не появляется. */
+  const [pinned, setPinned] = useState<Set<string>>(new Set());
+  const pin = useCallback((k: string) => {
+    setPinned((p) => (p.has(k) ? p : new Set(p).add(k)));
+  }, []);
+  const unpin = useCallback((k: string) => {
+    setPinned((p) => {
+      if (!p.has(k)) return p;
+      const n = new Set(p);
+      n.delete(k);
+      return n;
+    });
+  }, []);
+
   const selectedTarget = targets.find((t) => t.id === selected) ?? null;
   const requirements: TemplateRequirement[] = useMemo(
     () => (selected && profile ? TARGET_REQUIREMENTS[selected] ?? [] : []),
@@ -72,7 +87,24 @@ export default function DocAutofillApp() {
   const present = useMemo(
     () =>
       requirements.filter(
-        (r) => profile && isRequirementSatisfied(r, profile)
+        (r) =>
+          profile &&
+          !pinned.has(String(r.key)) &&
+          isRequirementSatisfied(r, profile)
+      ),
+    [requirements, profile, pinned]
+  );
+  /** Инпуты чек-листа: незаполненные + закреплённые за курсором (чтобы не исчезали при вводе). */
+  const gridReqs = useMemo(() => {
+    const keys = new Set(missing.map((r) => String(r.key)));
+    pinned.forEach((k) => keys.add(k));
+    return requirements.filter((r) => r.key && keys.has(String(r.key)));
+  }, [requirements, missing, pinned]);
+  /** Автополя, которые пока не собраны — показываем как подсказку, без инпута. */
+  const autoPending = useMemo(
+    () =>
+      requirements.filter(
+        (r) => r.autoNote && profile && !isRequirementSatisfied(r, profile)
       ),
     [requirements, profile]
   );
@@ -203,6 +235,11 @@ export default function DocAutofillApp() {
   const setField = (key: keyof MerchantProfile, value: unknown) => {
     setProfile((p) => (p ? { ...p, [key]: value } : p));
   };
+
+  // при смене целевого документа сбрасываем закрепления инпутов
+  useEffect(() => {
+    setPinned(new Set());
+  }, [selected]);
 
   const filledCount = profile
     ? Object.entries(profile).filter(([k, v]) =>
@@ -516,8 +553,12 @@ export default function DocAutofillApp() {
                     <div className="flex flex-wrap gap-1.5">
                       {present.map((r) => (
                         <div
-                          key={String(r.key)}
-                          title={String(profile[r.key] ?? "")}
+                          key={r.key ? String(r.key) : r.label}
+                          title={
+                            r.key
+                              ? String(profile[r.key] ?? "")
+                              : r.autoNote
+                          }
                           className="inline-flex items-center gap-1 max-w-full text-[11px] rounded-full bg-emerald-50/70 border border-emerald-200/50 text-emerald-900 px-2 py-0.5"
                         >
                           <Check className="h-3 w-3 shrink-0 text-emerald-600" />
@@ -529,8 +570,27 @@ export default function DocAutofillApp() {
                     </div>
                   )}
 
-                  {/* Не хватает — дописать здесь */}
-                  {missing.length > 0 && (
+                  {/* Соберётся автоматически — без ручного ввода */}
+                  {autoPending.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {autoPending.map((r) => (
+                        <div
+                          key={`auto-${r.label}`}
+                          title={r.autoNote}
+                          className="inline-flex items-center gap-1 text-[11px] rounded-full bg-secondary/60 border border-border/50 text-muted-foreground px-2 py-0.5"
+                        >
+                          <Sparkles className="h-3 w-3 shrink-0 text-terracotta/70" />
+                          <span>{r.label}</span>
+                          <span className="text-muted-foreground/70">
+                            — {r.autoNote}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Не хватает — дописать здесь (инпут не исчезает, пока поле в фокусе) */}
+                  {gridReqs.length > 0 && (
                     <div className="mt-4">
                       <div className="text-xs text-muted-foreground mb-2.5">
                         Допишите недостающие строки — они встанут в документ.
@@ -538,7 +598,7 @@ export default function DocAutofillApp() {
                         — важно для этого шаблона.
                       </div>
                       <div className="grid sm:grid-cols-2 gap-3">
-                        {missing.map((r) => (
+                        {gridReqs.map((r) => (
                           <div key={String(r.key)}>
                             <label className="text-[11px] text-muted-foreground flex items-center gap-1 mb-1">
                               {r.label}
@@ -547,8 +607,12 @@ export default function DocAutofillApp() {
                               )}
                             </label>
                             <input
-                              value={String(profile[r.key] ?? "")}
-                              onChange={(e) => setField(r.key, e.target.value)}
+                              value={String(profile[r.key!] ?? "")}
+                              onChange={(e) =>
+                                setField(r.key!, e.target.value)
+                              }
+                              onFocus={() => pin(String(r.key))}
+                              onBlur={() => unpin(String(r.key))}
                               placeholder={r.hint ?? "Заполнить…"}
                               className="w-full text-sm rounded-lg border border-amber-200/80 bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta/50 placeholder:text-muted-foreground/50"
                             />

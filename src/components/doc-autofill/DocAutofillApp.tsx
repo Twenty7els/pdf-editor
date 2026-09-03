@@ -6,14 +6,16 @@
  *  2. Редактирование извлечённого профиля мерчанта
  *  3. Выбор целевого документа → генерация и скачивание
  */
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertCircle,
   Check,
+  CircleDashed,
   Download,
   FileSpreadsheet,
   FileText,
+  ListChecks,
   Loader2,
   RefreshCw,
   Sparkles,
@@ -24,6 +26,12 @@ import {
   PROFILE_GROUPS,
   type MerchantProfile,
 } from "@/lib/doc-autofill/profile";
+import {
+  TARGET_REQUIREMENTS,
+  isRequirementFilled,
+  missingForTarget,
+  type TemplateRequirement,
+} from "@/lib/doc-autofill/requirements";
 
 interface TargetInfo {
   id: string;
@@ -50,6 +58,24 @@ export default function DocAutofillApp() {
   const anketaInputRef = useRef<HTMLInputElement>(null);
   const templateInputRef = useRef<HTMLInputElement>(null);
   const templateTargetRef = useRef<string>("");
+  const checklistRef = useRef<HTMLDivElement>(null);
+
+  const selectedTarget = targets.find((t) => t.id === selected) ?? null;
+  const requirements: TemplateRequirement[] = useMemo(
+    () => (selected && profile ? TARGET_REQUIREMENTS[selected] ?? [] : []),
+    [selected, profile]
+  );
+  const missing = useMemo(
+    () => (profile && selected ? missingForTarget(selected, profile) : []),
+    [profile, selected]
+  );
+  const present = useMemo(
+    () =>
+      requirements.filter(
+        (r) => profile && isRequirementFilled(profile[r.key])
+      ),
+    [requirements, profile]
+  );
 
   const loadTargets = useCallback(async () => {
     try {
@@ -385,7 +411,18 @@ export default function DocAutofillApp() {
                       <button
                         type="button"
                         disabled={!t.available}
-                        onClick={() => setSelected(t.id)}
+                        onClick={() => {
+                          setSelected(t.id);
+                          // панель проверки ниже — плавно показать её пользователю
+                          setTimeout(
+                            () =>
+                              checklistRef.current?.scrollIntoView({
+                                behavior: "smooth",
+                                block: "nearest",
+                              }),
+                            60
+                          );
+                        }}
                         className={`w-full text-left rounded-xl border p-4 transition-all ${
                           active
                             ? "border-terracotta bg-terracotta/5 shadow-soft ring-2 ring-terracotta/20"
@@ -450,10 +487,84 @@ export default function DocAutofillApp() {
                 })}
               </div>
 
+              {/* Проверка данных выбранного шаблона */}
+              {selectedTarget && selectedTarget.available && requirements.length > 0 && (
+                <div
+                  ref={checklistRef}
+                  className="mt-4 rounded-xl border border-border/60 bg-secondary/25 p-4"
+                >
+                  <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-terracotta-dark">
+                      <ListChecks className="h-3.5 w-3.5" />
+                      Что встанет в «{selectedTarget.title}»
+                    </div>
+                    {missing.length === 0 ? (
+                      <div className="inline-flex items-center gap-1.5 text-xs font-medium rounded-full bg-emerald-50 border border-emerald-200/70 text-emerald-800 px-2.5 py-1">
+                        <Check className="h-3.5 w-3.5" />
+                        Все данные на месте
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-1.5 text-xs font-medium rounded-full bg-amber-50 border border-amber-200/70 text-amber-800 px-2.5 py-1">
+                        <CircleDashed className="h-3.5 w-3.5" />
+                        Не хватает полей: {missing.length}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Уже есть в анкете */}
+                  {present.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {present.map((r) => (
+                        <div
+                          key={String(r.key)}
+                          title={String(profile[r.key] ?? "")}
+                          className="inline-flex items-center gap-1 max-w-full text-[11px] rounded-full bg-emerald-50/70 border border-emerald-200/50 text-emerald-900 px-2 py-0.5"
+                        >
+                          <Check className="h-3 w-3 shrink-0 text-emerald-600" />
+                          <span className="truncate max-w-[220px]">
+                            {r.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Не хватает — дописать здесь */}
+                  {missing.length > 0 && (
+                    <div className="mt-4">
+                      <div className="text-xs text-muted-foreground mb-2.5">
+                        Допишите недостающие строки — они встанут в документ.
+                        <span className="text-amber-700 font-medium"> * </span>
+                        — важно для этого шаблона.
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        {missing.map((r) => (
+                          <div key={String(r.key)}>
+                            <label className="text-[11px] text-muted-foreground flex items-center gap-1 mb-1">
+                              {r.label}
+                              {r.important && (
+                                <span className="text-amber-700">*</span>
+                              )}
+                            </label>
+                            <input
+                              value={String(profile[r.key] ?? "")}
+                              onChange={(e) => setField(r.key, e.target.value)}
+                              placeholder={r.hint ?? "Заполнить…"}
+                              className="w-full text-sm rounded-lg border border-amber-200/80 bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta/50 placeholder:text-muted-foreground/50"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="mt-5 flex items-center justify-between gap-3 flex-wrap">
                 <p className="text-xs text-muted-foreground max-w-md">
-                  Поля без данных в анкете (ОГРНИП, ОКПО, коды, договоры)
-                  останутся пустыми — их можно вписать вручную после скачивания.
+                  {missing.length > 0
+                    ? `Можно скачать и сейчас: незаполненные поля (${missing.length}) останутся пустыми в документе.`
+                    : "Данные из анкеты проверены — документ готов к формированию."}
                 </p>
                 <Button
                   onClick={handleGenerate}
@@ -462,10 +573,14 @@ export default function DocAutofillApp() {
                 >
                   {generating ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : missing.length === 0 ? (
+                    <Check className="h-4 w-4" />
                   ) : (
                     <Download className="h-4 w-4" />
                   )}
-                  Сформировать документ
+                  {missing.length > 0
+                    ? `Сформировать (${missing.length} пусто)`
+                    : "Сформировать документ"}
                 </Button>
               </div>
             </section>

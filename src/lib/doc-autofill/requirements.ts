@@ -18,7 +18,7 @@ export interface TemplateRequirement {
 
 export const TARGET_REQUIREMENTS: Record<string, TemplateRequirement[]> = {
   sbp: [
-    { key: "orgName", label: "Наименование организации", important: true },
+    { key: "orgName", label: "Наименование организации", hint: "Встанет в наименование мерчанта и ЮЛ", important: true },
     { key: "inn", label: "ИНН", important: true },
     {
       key: "legalAddress",
@@ -26,11 +26,12 @@ export const TARGET_REQUIREMENTS: Record<string, TemplateRequirement[]> = {
       hint: "Если оставить пустым — подставится фактический адрес",
       important: true,
     },
-    { key: "account", label: "Расчётный счёт", important: true },
+    { key: "account", label: "Расчётный счёт мерчанта", important: true },
     {
       key: "birthDate",
       label: "Дата рождения учредителя",
-      hint: "дд.мм.гггг",
+      hint: "дд.мм.гггг — нужна для проверки Fraudscore",
+      important: true,
     },
   ],
 
@@ -82,16 +83,25 @@ export const TARGET_REQUIREMENTS: Record<string, TemplateRequirement[]> = {
   ],
 
   "anketa-yul": [
-    { key: "orgName", label: "Полное наименование организации", important: true },
+    {
+      key: "orgName",
+      label: "Полное фирменное наименование",
+      hint: "Как в уставе, например: ООО «Ромашка»",
+      important: true,
+    },
     { key: "inn", label: "ИНН", important: true },
     { key: "ogrip", label: "ОГРН" },
-    { key: "kpp", label: "КПП" },
     { key: "okpo", label: "ОКПО" },
     { key: "okved", label: "ОКВЭД (основной)" },
-    { key: "legalAddress", label: "Юридический адрес", important: true },
+    {
+      key: "legalAddress",
+      label: "Адрес места нахождения (регистрации)",
+      hint: "Если оставить пустым — подставится фактический адрес",
+      important: true,
+    },
     {
       key: "factAddress",
-      label: "Фактический адрес",
+      label: "Адрес фактического места нахождения",
       hint: "Если оставить пустым — подставится юридический адрес",
     },
     { key: "phone", label: "Контактный телефон", important: true },
@@ -101,11 +111,16 @@ export const TARGET_REQUIREMENTS: Record<string, TemplateRequirement[]> = {
     { key: "corrAccount", label: "Корреспондентский счёт", important: true },
     { key: "account", label: "Расчётный счёт", important: true },
     {
-      key: "directorName",
-      label: "ФИО руководителя (контактное лицо)",
+      key: "contactName",
+      label: "Контактное лицо",
+      hint: "Если оставить пустым — подставится ФИО руководителя",
+    },
+    {
+      key: "activity",
+      label: "Наименование Сервиса (в таблице условий)",
+      hint: "Встанет вместо «Бренднэйм» в строке СБП",
       important: true,
     },
-    { key: "activity", label: "Наименование сервиса (вид деятельности)", important: true },
   ],
 };
 

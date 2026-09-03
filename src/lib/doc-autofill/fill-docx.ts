@@ -151,6 +151,12 @@ const cellEquals =
 const DOCX_RULES: DocxRule[] = [
   // { value: (p) => ..., value: ... }
   {
+    // Форма ЮЛ: полное фирменное наименование (как в уставе)
+    match: (t) =>
+      norm(t[0]).startsWith("полное и (при наличии)") ? 1 : -1,
+    value: (p) => clean(p.orgName),
+  },
+  {
     match: byLabel("Наименование Заказчика"),
     value: (p) => {
       const org = clean(p.orgName);
@@ -185,6 +191,16 @@ const DOCX_RULES: DocxRule[] = [
   {
     match: byLabel("Адрес места жительства"),
     value: (p) => clean(p.regAddress) || clean(p.factAddress),
+  },
+  {
+    // Форма ЮЛ: адрес места нахождения (регистрации)
+    match: byLabel("Адрес места нахождения (регистрации)"),
+    value: (p) => clean(p.legalAddress) || clean(p.factAddress),
+  },
+  {
+    // Форма ЮЛ: адрес фактического места нахождения
+    match: byLabel("Адрес фактического места нахождения"),
+    value: (p) => clean(p.factAddress) || clean(p.legalAddress),
   },
   {
     match: byLabel("Адрес места пребывания"),

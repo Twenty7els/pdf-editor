@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Download, FileText, Check, RotateCw } from "lucide-react";
+import { PDFJS_DOC_OPTIONS } from "@/lib/pdfjs-options";
 
 interface ExportDialogProps {
   open: boolean;
@@ -68,6 +69,7 @@ export default function ExportDialog({
         const loadingTask = pdfjs.getDocument({
           data: new Uint8Array(pdfArrayBuffer.slice(0)),
           useSystemFonts: true,
+          ...PDFJS_DOC_OPTIONS,
         });
         const pdf = await loadingTask.promise;
         if (cancelled) {

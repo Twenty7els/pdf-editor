@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import TextEditSidebar, { type TextSidebarData } from "./TextEditSidebar";
 import PageThumbnails from "./PageThumbnails";
+import { PDFJS_DOC_OPTIONS } from "@/lib/pdfjs-options";
 
 type DragMode = "move" | "resize" | "rotate" | null;
 
@@ -338,6 +339,7 @@ export default function PdfCanvas() {
         const pdfjs = pdfjsRef.current as typeof import("pdfjs-dist");
         const pdf = await pdfjs.getDocument({
           data: new Uint8Array(arrayBuffer),
+          ...PDFJS_DOC_OPTIONS,
         }).promise;
         setPdfDoc(pdf);
         setTotalPages(pdf.numPages);

@@ -128,6 +128,7 @@ export default function PdfCanvas() {
     addStamp,
     addEraser,
     updateStamp,
+    updateStampLive,
     updateText,
     setSelectedItem,
     setCurrentPage,
@@ -189,6 +190,16 @@ export default function PdfCanvas() {
   const [deletePageDialogOpen, setDeletePageDialogOpen] = useState(false);
   // Skew compensation popover (bottom pill)
   const [skewOpen, setSkewOpen] = useState(false);
+
+  // Close the skew popover with Escape
+  useEffect(() => {
+    if (!skewOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSkewOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [skewOpen]);
 
   const isCurrentPageDeleted = deletedPages.includes(currentPage);
 
@@ -1719,7 +1730,7 @@ export default function PdfCanvas() {
                       className="h-7 w-7 rounded-lg"
                       onClick={() =>
                         updateStamp(selectedItemId!, {
-                          rotation: selectedStamp.rotation - 15,
+                          rotation: selectedStamp.rotation - 5,
                         })
                       }
                     >
@@ -1745,7 +1756,7 @@ export default function PdfCanvas() {
                       className="h-7 w-7 rounded-lg"
                       onClick={() =>
                         updateStamp(selectedItemId!, {
-                          rotation: selectedStamp.rotation + 15,
+                          rotation: selectedStamp.rotation + 5,
                         })
                       }
                     >
@@ -1804,10 +1815,12 @@ export default function PdfCanvas() {
                       step={0.05}
                       value={selectedStamp.opacity}
                       onChange={(e) =>
-                        updateStamp(selectedItemId!, {
+                        updateStampLive(selectedItemId!, {
                           opacity: parseFloat(e.target.value),
                         })
                       }
+                      onPointerDown={pushHistory}
+                      onKeyDown={pushHistory}
                       className="w-20 h-7"
                     />
                     <span className="text-[11px] font-medium text-muted-foreground w-8 text-right tabular-nums">
@@ -1950,7 +1963,7 @@ export default function PdfCanvas() {
                       className="h-7 w-7 rounded-lg"
                       onClick={() =>
                         updateText(selectedItemId!, {
-                          rotation: selectedText.rotation - 15,
+                          rotation: selectedText.rotation - 5,
                         })
                       }
                     >
@@ -1976,7 +1989,7 @@ export default function PdfCanvas() {
                       className="h-7 w-7 rounded-lg"
                       onClick={() =>
                         updateText(selectedItemId!, {
-                          rotation: selectedText.rotation + 15,
+                          rotation: selectedText.rotation + 5,
                         })
                       }
                     >

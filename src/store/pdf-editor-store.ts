@@ -184,6 +184,8 @@ interface PdfEditorState {
   setSelectedStamp: (type: string, src: string) => void;
   addStamp: (stamp: StampItem) => void;
   updateStamp: (id: string, updates: Partial<StampItem>) => void;
+  // Silent variant for slider drags — history pushed separately via pushHistory
+  updateStampLive: (id: string, updates: Partial<StampItem>) => void;
   removeStamp: (id: string) => void;
   addText: (text: TextItem) => void;
   updateText: (id: string, updates: Partial<TextItem>) => void;
@@ -329,6 +331,13 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
         ),
       };
     }),
+
+  updateStampLive: (id, updates) =>
+    set((state) => ({
+      stamps: state.stamps.map((s) =>
+        s.id === id ? { ...s, ...updates } : s
+      ),
+    })),
 
   removeStamp: (id) =>
     set((state) => {

@@ -411,12 +411,19 @@ export default function ExportDialog({
 
         <DialogFooter className="border-t border-border/70 pt-4 mt-2">
           <div className="flex items-center justify-between w-full gap-2">
-            <div className="text-xs text-muted-foreground">
-              К экспорту:{" "}
-              <span className="font-semibold text-foreground tabular-nums">
-                {activePageCount}
-              </span>{" "}
-              стр.
+            <div className="text-xs">
+              <span className="text-muted-foreground">
+                К экспорту:{" "}
+                <span className="font-semibold text-foreground tabular-nums">
+                  {activePageCount}
+                </span>{" "}
+                стр.
+              </span>
+              {mode === "selected" && activePageCount === 0 && (
+                <span className="ml-2 text-destructive font-medium animate-fade-in">
+                  Отметьте хотя бы одну страницу
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Button

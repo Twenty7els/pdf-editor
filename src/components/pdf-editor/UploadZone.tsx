@@ -3,6 +3,7 @@
 import React, { useCallback, useState } from "react";
 import { usePdfEditorStore } from "@/store/pdf-editor-store";
 import { Card } from "@/components/ui/card";
+import { toast } from "sonner";
 import {
   FileUp,
   FileText,
@@ -30,6 +31,8 @@ export default function UploadZone() {
       const file = e.target.files?.[0];
       if (file && file.type === "application/pdf") {
         setPdfFile(file);
+      } else if (file) {
+        toast.error("Пожалуйста, выберите PDF файл");
       }
     },
     [setPdfFile]
@@ -43,6 +46,8 @@ export default function UploadZone() {
       const file = e.dataTransfer.files?.[0];
       if (file && file.type === "application/pdf") {
         setPdfFile(file);
+      } else if (file) {
+        toast.error("Пожалуйста, выберите PDF файл");
       }
     },
     [setPdfFile]

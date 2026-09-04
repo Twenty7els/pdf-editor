@@ -54,3 +54,10 @@ server.log
 /skills/upload/
 upload/
 skills/
+
+# workspace artifacts
+tool-results/
+download/
+upload-assets/
+.zscripts/dev.pid
+.tmp-*/

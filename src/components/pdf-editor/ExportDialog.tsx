@@ -44,6 +44,14 @@ export default function ExportDialog({
     exportPageSelection ?? []
   );
 
+  // Внешние изменения (undo, прошлый экспорт) не мутируют useState —
+  // ресинхронизируемся при каждом открытии диалога.
+  useEffect(() => {
+    if (!open) return;
+    setMode(exportPageSelection === null ? "all" : "selected");
+    setSelected(exportPageSelection ?? []);
+  }, [open, exportPageSelection]);
+
   const canvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
   const pdfDocRef = useRef<import("pdfjs-dist").PDFDocumentProxy | null>(null);
   const loadingTaskRef = useRef<import("pdfjs-dist").PDFDocumentLoadingTask | null>(null);
@@ -218,6 +226,19 @@ export default function ExportDialog({
       void renderThumb(pdf, p);
     }
   }, [pageRotations, pageSkew, open, pdfjsReady, totalPages]);
+
+  // Канвасы миниатюр существуют только в режиме «Выбранные страницы» — при
+  // переключении с «Все» они монтируются пустыми, и без этого эффекта
+  // спиннеры крутились бы вечно (эффект выше уже зафиксировал свой ключ).
+  useEffect(() => {
+    if (!open || !pdfjsReady || mode !== "selected") return;
+    const pdf = pdfDocRef.current;
+    if (!pdf) return;
+    for (let p = 1; p <= totalPages; p++) {
+      if (!thumbLoaded[p]) void renderThumb(pdf, p);
+    }
+    // renderThumb стабильно читает актуальные ref-ы; thumbLoaded — фильтр уже отрендеренных
+  }, [mode, open, pdfjsReady, totalPages]);
 
   const pages = useMemo(
     () => Array.from({ length: totalPages }, (_, i) => i + 1),

@@ -9,7 +9,25 @@ export const runtime = "nodejs";
  */
 export async function POST(req: NextRequest) {
   try {
-    const form = await req.formData();
+    // Отсекаем гигантские body ДО парсинга multipart — иначе весь файл
+    // уже материализуется в памяти (DoS-вектор без авторизации).
+    const cl = Number(req.headers.get("content-length") ?? 0);
+    if (cl > 26 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: "Файл слишком большой (максимум 25 МБ)" },
+        { status: 400 }
+      );
+    }
+    let form: FormData;
+    try {
+      form = await req.formData();
+    } catch {
+      // битый multipart / не multipart вообще — это ошибка клиента, не сервера
+      return NextResponse.json(
+        { error: "Некорректный запрос: ожидается multipart/form-data" },
+        { status: 400 }
+      );
+    }
     const file = form.get("file");
     if (!(file instanceof File)) {
       return NextResponse.json(

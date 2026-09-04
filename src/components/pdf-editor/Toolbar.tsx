@@ -4,6 +4,7 @@ import React, { useRef } from "react";
 import { usePdfEditorStore, type CustomStamp } from "@/store/pdf-editor-store";
 import { STAMP_DEFINITIONS } from "@/lib/stamps";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   MousePointer2,
   Stamp,
@@ -65,21 +66,56 @@ export default function Toolbar({
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
+    // Сбрасываем input ДО валидации — иначе выбор того же файла повторно
+    // не сработает (onChange не стреляет при неизменённом value).
+    if (customStampInputRef.current) customStampInputRef.current.value = "";
     if (!file) return;
-    if (!file.type.startsWith("image/")) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Выберите файл изображения (PNG или JPG)");
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("Изображение слишком большое (максимум 4 МБ)");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
       const name = file.name.replace(/\.[^/.]+$/, "");
-      const customStamp: CustomStamp = {
-        id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-        name,
-        dataUrl,
+      const applyStamp = (pngDataUrl: string) => {
+        const customStamp: CustomStamp = {
+          id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+          name,
+          dataUrl: pngDataUrl,
+        };
+        addCustomStamp(customStamp);
+        toast.success("Штамп загружен", { description: name });
       };
-      addCustomStamp(customStamp);
+      // WebP/GIF не встраиваются в PDF через pdf-lib (только PNG/JPEG) —
+      // нормализуем ЛЮБОЕ изображение в PNG через canvas, чтобы штамп
+      // гарантированно попал в экспорт, а не молча пропадал из него.
+      if (file.type === "image/png" || file.type === "image/jpeg") {
+        applyStamp(dataUrl);
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx || !canvas.width || !canvas.height) {
+          toast.error("Не удалось обработать изображение");
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        applyStamp(canvas.toDataURL("image/png"));
+      };
+      img.onerror = () => toast.error("Не удалось прочитать изображение");
+      img.src = dataUrl;
     };
+    reader.onerror = () => toast.error("Не удалось прочитать файл");
     reader.readAsDataURL(file);
-    if (customStampInputRef.current) customStampInputRef.current.value = "";
   };
 
   return (

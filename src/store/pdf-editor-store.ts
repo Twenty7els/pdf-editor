@@ -189,6 +189,8 @@ interface PdfEditorState {
   removeStamp: (id: string) => void;
   addText: (text: TextItem) => void;
   updateText: (id: string, updates: Partial<TextItem>) => void;
+  // Silent variant for drags/inputs — history pushed separately via pushHistory
+  updateTextLive: (id: string, updates: Partial<TextItem>) => void;
   removeText: (id: string) => void;
   addEraser: (eraser: EraserItem) => void;
   updateEraser: (id: string, updates: Partial<EraserItem>) => void;
@@ -375,6 +377,13 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
         ),
       };
     }),
+
+  updateTextLive: (id, updates) =>
+    set((state) => ({
+      texts: state.texts.map((t) =>
+        t.id === id ? { ...t, ...updates } : t
+      ),
+    })),
 
   removeText: (id) =>
     set((state) => {

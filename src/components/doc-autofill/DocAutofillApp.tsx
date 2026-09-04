@@ -59,6 +59,8 @@ export default function DocAutofillApp() {
   const templateInputRef = useRef<HTMLInputElement>(null);
   const templateTargetRef = useRef<string>("");
   const checklistRef = useRef<HTMLDivElement>(null);
+  /** Актуальный флаг разбора для гарда параллельных запусков (без пересоздания колбэка). */
+  const parsingRef = useRef(false);
 
   /** Поля чек-листа, которые пользователь заполнял вручную. Такие поля больше
    *  никогда не исчезают: после ввода они остаются на месте с зелёной отметкой
@@ -126,11 +128,13 @@ export default function DocAutofillApp() {
   }, [loadTargets]);
 
   const handleAnketaFile = useCallback(async (file: File) => {
+    if (parsingRef.current) return; // защита от параллельного разбора
     if (!file.name.toLowerCase().endsWith(".xlsx")) {
       toast.error("Анкета должна быть в формате .xlsx");
       return;
     }
     setParsing(true);
+    parsingRef.current = true;
     try {
       const fd = new FormData();
       fd.append("file", file);
@@ -155,6 +159,7 @@ export default function DocAutofillApp() {
       toast.error("Ошибка загрузки файла");
     } finally {
       setParsing(false);
+      parsingRef.current = false;
     }
   }, []);
 
@@ -284,6 +289,7 @@ export default function DocAutofillApp() {
                   variant="outline"
                   size="sm"
                   className="gap-1.5 rounded-xl"
+                  disabled={parsing}
                   onClick={() => anketaInputRef.current?.click()}
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
@@ -375,11 +381,15 @@ export default function DocAutofillApp() {
                     <div className="space-y-2.5">
                       {group.fields.map((f) => (
                         <div key={String(f.key)}>
-                          <label className="text-[11px] text-muted-foreground block mb-1">
+                          <label
+                            htmlFor={`profile-${String(f.key)}`}
+                            className="text-[11px] text-muted-foreground block mb-1"
+                          >
                             {f.label}
                           </label>
                           {f.list ? (
                             <textarea
+                              id={`profile-${String(f.key)}`}
                               value={((profile[f.key] as string[]) ?? []).join(
                                 "\n"
                               )}
@@ -405,6 +415,7 @@ export default function DocAutofillApp() {
                             />
                           ) : (
                             <input
+                              id={`profile-${String(f.key)}`}
                               value={String(profile[f.key] ?? "")}
                               onChange={(e) =>
                                 setField(f.key, e.target.value)

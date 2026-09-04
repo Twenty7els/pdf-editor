@@ -13,10 +13,19 @@ export const runtime = "nodejs";
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as {
-      targetId?: string;
-      profile?: MerchantProfile;
-    };
+    let body: { targetId?: string; profile?: MerchantProfile };
+    try {
+      body = (await req.json()) as {
+        targetId?: string;
+        profile?: MerchantProfile;
+      };
+    } catch {
+      // битый JSON — ошибка клиента, а не сервера
+      return NextResponse.json(
+        { error: "Некорректный запрос: ожидается JSON" },
+        { status: 400 }
+      );
+    }
     const target = findTarget(body.targetId ?? "");
     if (!target) {
       return NextResponse.json(

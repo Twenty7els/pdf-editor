@@ -14,7 +14,12 @@ function composeContractInfo(num: string, date: string): string {
   const d = date.trim();
   if (!n && !d) return "";
   if (!n || !d) return n || d;
-  const needsHash = !/^№/.test(n) && !/^б\/н/i.test(n) && !/от/i.test(n);
+  // Полная форма уже есть, если номер начинается с «№»/«б/н» или содержит
+  // «от <цифра>». Простое /от/i ловило «от» внутри номера (напр. «5/ОТ-24»)
+  // и зря убирало приставку «№». \b не работает с кириллицей, поэтому
+  // смотрим на символ перед «от» — не буква.
+  const needsHash =
+    !/^№/.test(n) && !/^б\/н/i.test(n) && !/(?:^|[^а-яё])от\s+\d/i.test(n);
   return `${needsHash ? `№ ${n}` : n} от ${d}`;
 }
 

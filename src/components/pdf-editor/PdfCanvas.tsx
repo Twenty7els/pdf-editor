@@ -88,6 +88,11 @@ export default function PdfCanvas() {
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [pdfjsReady, setPdfjsReady] = useState(false);
   const pdfjsRef = useRef<unknown>(null);
+  /** LoadingTask документа, который сейчас показан — уничтожаем его при замене
+   *  (в pdf.js v6 у PDFDocumentProxy нет своего destroy, только через задачу). */
+  const activeTaskRef = useRef<import("pdfjs-dist").PDFDocumentLoadingTask | null>(
+    null
+  );
   const renderingRef = useRef(false);
   const clickedOnElementRef = useRef(false);
 
@@ -131,6 +136,7 @@ export default function PdfCanvas() {
     updateStamp,
     updateStampLive,
     updateText,
+    updateTextLive,
     setSelectedItem,
     setCurrentPage,
     setActiveTool,
@@ -328,6 +334,10 @@ export default function PdfCanvas() {
   // Load PDF when file changes
   useEffect(() => {
     if (!pdfFile || !pdfjsRef.current) return;
+    // Гард от гонки: если файл сменился, пока грузился предыдущий,
+    // завершение старой загрузки не должно перезаписать новый документ.
+    let cancelled = false;
+    let loadingTask: import("pdfjs-dist").PDFDocumentLoadingTask | null = null;
     const loadPdf = async () => {
       setIsLoading(true);
       setError(null);
@@ -335,12 +345,29 @@ export default function PdfCanvas() {
       setA4BannerDismissed(false);
       try {
         const arrayBuffer = await pdfFile.arrayBuffer();
+        if (cancelled) return;
         setPdfArrayBuffer(arrayBuffer.slice(0));
         const pdfjs = pdfjsRef.current as typeof import("pdfjs-dist");
-        const pdf = await pdfjs.getDocument({
+        loadingTask = pdfjs.getDocument({
           data: new Uint8Array(arrayBuffer),
           ...PDFJS_DOC_OPTIONS,
-        }).promise;
+        });
+        const pdf = await loadingTask.promise;
+        if (cancelled) {
+          void loadingTask.destroy();
+          return;
+        }
+        // Предыдущий документ больше не нужен — иначе pdf.js держит его
+        // воркер-память после каждой повторной загрузки.
+        const prevTask = activeTaskRef.current;
+        activeTaskRef.current = loadingTask;
+        if (prevTask && prevTask !== loadingTask) {
+          try {
+            void prevTask.destroy();
+          } catch {
+            // документ мог быть уже уничтожен — не критично
+          }
+        }
         setPdfDoc(pdf);
         setTotalPages(pdf.numPages);
 
@@ -369,6 +396,7 @@ export default function PdfCanvas() {
 
         const nonA4Pages: number[] = [];
         for (let i = 1; i <= pdf.numPages; i++) {
+          if (cancelled) return;
           const page = await pdf.getPage(i);
           const vp = page.getViewport({ scale: 1 });
           const w = vp.width;
@@ -390,13 +418,29 @@ export default function PdfCanvas() {
           setNonA4Pages(nonA4Pages);
         }
       } catch (err) {
-        console.error("Error loading PDF:", err);
-        setError("Ошибка загрузки PDF файла");
+        if (!cancelled) {
+          console.error("Error loading PDF:", err);
+          setError("Ошибка загрузки PDF файла");
+        }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
     loadPdf();
+    return () => {
+      cancelled = true;
+      // Если наш документ так и остался активным (размонтирование или смена
+      // файла до завершения новой загрузки) — уничтожаем его: pdf.js
+      // перестаёт держать воркер-память.
+      if (loadingTask && activeTaskRef.current === loadingTask) {
+        activeTaskRef.current = null;
+        try {
+          void loadingTask.destroy();
+        } catch {
+          // ignore
+        }
+      }
+    };
   }, [pdfFile, pdfjsReady, setTotalPages, setPdfArrayBuffer]);
 
   // Render current page with zoom
@@ -688,6 +732,9 @@ export default function PdfCanvas() {
       e.stopPropagation();
       clickedOnElementRef.current = true;
       setSelectedItem(id, type);
+      // Одна запись истории на всю жесту перетаскивания — иначе каждый
+      // mousemove заталкивал снимок в undo-стек и вытеснял настоящую историю.
+      pushHistory();
       const state = usePdfEditorStore.getState();
       const item =
         type === "stamp"
@@ -721,7 +768,7 @@ export default function PdfCanvas() {
         itemCanvasHeight: ch,
       });
     },
-    [setSelectedItem, canvasSize.width, canvasSize.height]
+    [setSelectedItem, canvasSize.width, canvasSize.height, pushHistory]
   );
 
   // Resize handle mouse down
@@ -736,6 +783,7 @@ export default function PdfCanvas() {
       e.preventDefault();
       clickedOnElementRef.current = true;
       const stampItem = item as StampItem;
+      pushHistory();
       setDragState({
         mode: "resize",
         id,
@@ -755,7 +803,7 @@ export default function PdfCanvas() {
         itemCanvasHeight: stampItem.canvasHeight,
       });
     },
-    []
+    [pushHistory]
   );
 
   // Rotation handle mouse down
@@ -775,6 +823,7 @@ export default function PdfCanvas() {
       const mouseLocalY = e.clientY - rect.top;
       const angle =
         Math.atan2(mouseLocalY - cy, mouseLocalX - cx) * (180 / Math.PI);
+      pushHistory();
       setDragState({
         mode: "rotate",
         id,
@@ -793,7 +842,7 @@ export default function PdfCanvas() {
         itemCanvasHeight: item.canvasHeight,
       });
     },
-    [scaleToDisplay, scaleToDisplayY]
+    [scaleToDisplay, scaleToDisplayY, pushHistory]
   );
 
   // Unified mouse move / up handler
@@ -811,8 +860,8 @@ export default function PdfCanvas() {
         const storeX = dispX * (icw / (canvasSize.width || icw));
         const storeY = dispY * (ich / (canvasSize.height || ich));
         if (dragState.type === "stamp")
-          updateStamp(dragState.id, { x: storeX, y: storeY });
-        else updateText(dragState.id, { x: storeX, y: storeY });
+          updateStampLive(dragState.id, { x: storeX, y: storeY });
+        else updateTextLive(dragState.id, { x: storeX, y: storeY });
       } else if (dragState.mode === "resize" && dragState.type === "stamp") {
         const dx = e.clientX - dragState.startX;
         const dy = e.clientY - dragState.startY;
@@ -844,7 +893,7 @@ export default function PdfCanvas() {
           newHeight = Math.max(30, dragState.startHeight - sdy);
         }
 
-        updateStamp(dragState.id, {
+        updateStampLive(dragState.id, {
           x: newLeft,
           y: newTop,
           width: newWidth,
@@ -872,11 +921,14 @@ export default function PdfCanvas() {
         if (e.shiftKey) {
           newRotation = Math.round(newRotation / 15) * 15;
         }
-        updateStamp(dragState.id, { rotation: newRotation });
+        updateStampLive(dragState.id, { rotation: newRotation });
       }
     };
 
     const handleMouseUp = () => {
+      // Мышь могла уйти за оверлей — click не наступит и флаг завис бы,
+      // съедая следующий клик по пустому месту (снятие выделения).
+      clickedOnElementRef.current = false;
       setDragState(null);
     };
 
@@ -888,8 +940,8 @@ export default function PdfCanvas() {
     };
   }, [
     dragState,
-    updateStamp,
-    updateText,
+    updateStampLive,
+    updateTextLive,
     canvasSize.width,
     canvasSize.height,
     scaleToDisplay,
@@ -969,15 +1021,31 @@ export default function PdfCanvas() {
   // Keyboard arrow for pages
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (textSidebar.open || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === "ArrowLeft")
-        setCurrentPage(Math.max(1, currentPage - 1));
-      if (e.key === "ArrowRight")
-        setCurrentPage(Math.min(totalPages, currentPage + 1));
+      if (
+        textSidebar.open ||
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      )
+        return;
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        const dir = e.key === "ArrowLeft" ? -1 : 1;
+        // Пропускаем удалённые страницы
+        let next = currentPage;
+        do {
+          next += dir;
+        } while (
+          next >= 1 &&
+          next <= totalPages &&
+          deletedPages.includes(next)
+        );
+        if (next >= 1 && next <= totalPages) setCurrentPage(next);
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentPage, totalPages, textSidebar.open, setCurrentPage]);
+  }, [currentPage, totalPages, textSidebar.open, setCurrentPage, deletedPages]);
 
   const pageStamps = stamps.filter((s) => s.page === currentPage);
   const pageTexts = texts.filter((t) => t.page === currentPage);
@@ -1744,8 +1812,9 @@ export default function PdfCanvas() {
                       max={180}
                       step={1}
                       value={Math.round(selectedStamp.rotation)}
+                      onFocus={pushHistory}
                       onChange={(e) =>
-                        updateStamp(selectedItemId!, {
+                        updateStampLive(selectedItemId!, {
                           rotation: parseFloat(e.target.value) || 0,
                         })
                       }
@@ -1776,8 +1845,9 @@ export default function PdfCanvas() {
                       max={800}
                       step={5}
                       value={Math.round(selectedStamp.width)}
+                      onFocus={pushHistory}
                       onChange={(e) =>
-                        updateStamp(selectedItemId!, {
+                        updateStampLive(selectedItemId!, {
                           width:
                             Math.max(20, parseInt(e.target.value) || 20),
                         })
@@ -1794,8 +1864,9 @@ export default function PdfCanvas() {
                       max={800}
                       step={5}
                       value={Math.round(selectedStamp.height)}
+                      onFocus={pushHistory}
                       onChange={(e) =>
-                        updateStamp(selectedItemId!, {
+                        updateStampLive(selectedItemId!, {
                           height:
                             Math.max(20, parseInt(e.target.value) || 20),
                         })
@@ -1977,8 +2048,9 @@ export default function PdfCanvas() {
                       max={180}
                       step={1}
                       value={Math.round(selectedText.rotation)}
+                      onFocus={pushHistory}
                       onChange={(e) =>
-                        updateText(selectedItemId!, {
+                        updateTextLive(selectedItemId!, {
                           rotation: parseFloat(e.target.value) || 0,
                         })
                       }

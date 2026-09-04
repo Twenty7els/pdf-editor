@@ -282,7 +282,7 @@ export default function Home() {
     const loadingToast = toast.loading("Подготовка PDF...");
 
     try {
-      const { PDFDocument, rgb, degrees } = await import("pdf-lib");
+      const { PDFDocument, rgb, degrees, LineCapStyle } = await import("pdf-lib");
 
       const pdfDoc = await PDFDocument.load(pdfArrayBuffer);
 
@@ -434,15 +434,22 @@ export default function Home() {
         };
       };
 
+      /** Кэш встроенных картинок: каждое уникальное изображение штампа
+       *  встраивается один раз (иначе дубли XObject раздували файл). */
+      const stampImageCache = new Map<
+        string,
+        import("pdf-lib").PDFImage
+      >();
+
       // Stamps — skip if page not in keepSet
       for (const stamp of exportedStamps) {
         try {
           const page = pdfDoc.getPage(stamp.page - 1);
           const { width: pageWidth, height: pageHeight } = page.getSize();
 
-          const userRotation = pageRotations[stamp.page] || 0;
-          const intrinsic = page.getRotation().angle || 0;
-          const T = (((intrinsic + userRotation) % 360) + 360) % 360;
+          // /Rotate уже включает пользовательский поворот (применён выше),
+          // повторное сложение давало T = intrinsic + 2·user и съезжающие предметы.
+          const T = (((page.getRotation().angle || 0) % 360) + 360) % 360;
           const { width: Wv, height: Hv } = getViewDims(T, {
             width: pageWidth,
             height: pageHeight,
@@ -479,33 +486,41 @@ export default function Home() {
           const phiDeg = T - stamp.rotation + angleShift;
           const rad = (phiDeg * Math.PI) / 180;
 
-          // Anchor so the rotated image stays centered on `center`
-          const adjX =
-            center.x - (pw / 2) * Math.cos(rad) + (ph / 2) * Math.sin(rad);
-          const adjY =
-            center.y - (pw / 2) * Math.sin(rad) - (ph / 2) * Math.cos(rad);
-
-          const response = await fetch(stamp.src);
-          const imageArrayBuffer = await response.arrayBuffer();
-          const imageBytes = new Uint8Array(imageArrayBuffer);
-
-          let image;
-          try {
-            image = await pdfDoc.embedPng(imageBytes);
-          } catch {
+          let image = stampImageCache.get(stamp.src);
+          if (!image) {
             try {
-              image = await pdfDoc.embedJpg(imageBytes);
-            } catch {
-              console.error("Could not embed stamp image, skipping");
+              const response = await fetch(stamp.src);
+              const imageBytes = new Uint8Array(await response.arrayBuffer());
+              try {
+                image = await pdfDoc.embedPng(imageBytes);
+              } catch {
+                image = await pdfDoc.embedJpg(imageBytes);
+              }
+              stampImageCache.set(stamp.src, image);
+            } catch (embedErr) {
+              console.error("Could not embed stamp image, skipping", embedErr);
               continue;
             }
           }
 
+          // На экране картинка вписана в свой бокс с сохранением пропорций
+          // (object-contain) — экспорт должен повторять это, иначе печать/подпись
+          // растягиваются. Вписываем в pw×ph и центрируем.
+          const fitScale = Math.min(pw / image.width, ph / image.height);
+          const drawW = image.width * fitScale;
+          const drawH = image.height * fitScale;
+
+          // Anchor so the rotated image stays centered on `center`
+          const adjX =
+            center.x - (drawW / 2) * Math.cos(rad) + (drawH / 2) * Math.sin(rad);
+          const adjY =
+            center.y - (drawW / 2) * Math.sin(rad) - (drawH / 2) * Math.cos(rad);
+
           page.drawImage(image, {
             x: adjX,
             y: adjY,
-            width: pw,
-            height: ph,
+            width: drawW,
+            height: drawH,
             rotate: degrees(phiDeg),
             opacity: stamp.opacity,
           });
@@ -520,9 +535,8 @@ export default function Home() {
           const page = pdfDoc.getPage(textItem.page - 1);
           const { width: pageWidth, height: pageHeight } = page.getSize();
 
-          const userRotation = pageRotations[textItem.page] || 0;
-          const intrinsic = page.getRotation().angle || 0;
-          const T = (((intrinsic + userRotation) % 360) + 360) % 360;
+          // /Rotate уже включает пользовательский поворот — см. комментарий выше.
+          const T = (((page.getRotation().angle || 0) % 360) + 360) % 360;
           const { width: Wv, height: Hv } = getViewDims(T, {
             width: pageWidth,
             height: pageHeight,
@@ -684,9 +698,8 @@ export default function Home() {
           const page = pdfDoc.getPage(eraserItem.page - 1);
           const { width: pageWidth, height: pageHeight } = page.getSize();
 
-          const userRotation = pageRotations[eraserItem.page] || 0;
-          const intrinsic = page.getRotation().angle || 0;
-          const T = (((intrinsic + userRotation) % 360) + 360) % 360;
+          // /Rotate уже включает пользовательский поворот — см. комментарий выше.
+          const T = (((page.getRotation().angle || 0) % 360) + 360) % 360;
           const { width: Wv, height: Hv } = getViewDims(T, {
             width: pageWidth,
             height: pageHeight,
@@ -731,6 +744,9 @@ export default function Home() {
                 end: { x: p.x, y: p.y },
                 thickness: pdfStrokeWidth,
                 color: pdfColor,
+                // Круглые концы — как на экране (canvas lineCap "round"),
+                // иначе на изгибах остаются зазоры-«зазубрины».
+                lineCap: LineCapStyle.Round,
               });
             }
           }

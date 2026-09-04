@@ -297,22 +297,37 @@ export async function fillAnketaDocx(
     if (tcMatches.length < 2) return trFull;
     const texts = tcMatches.map((m) => xmlText(m[1]));
 
-    let result = trFull;
+    // Перезаписи «ячейка → новый XML». Важно: String.replace(tcFull, …)
+    // вставил бы значение в ПЕРВУЮ байт-в-байт идентичную ячейку строки,
+    // а не в ту, которую нашло правило по индексу. Поэтому строку
+    // пересобираем по смещениям ячеек.
+    const overrides = new Map<number, string>();
     const applied = new Set<number>();
     for (const rule of DOCX_RULES) {
       const idx = rule.match(texts);
       if (idx < 0 || idx >= tcMatches.length || applied.has(idx)) continue;
       const value = rule.value(profile);
       if (!value) continue; // нет данных — оставляем пустым
-      const tcFull = tcMatches[idx][0];
-      const tcInner = tcMatches[idx][1];
-      const newTc = tcFull.replace(tcInner, () =>
-        setCellValue(tcInner, value)
+      const [tcFull, tcInner] = tcMatches[idx];
+      overrides.set(
+        idx,
+        tcFull.replace(tcInner, () => setCellValue(tcInner, value))
       );
-      result = result.replace(tcFull, () => newTc);
       applied.add(idx);
     }
-    return result;
+    if (overrides.size === 0) return trFull;
+
+    const innerOffset = trFull.indexOf(trInner);
+    let out = "";
+    let cursor = 0;
+    tcMatches.forEach((m, i) => {
+      const start = innerOffset + (m.index ?? 0);
+      out += trFull.slice(cursor, start);
+      out += overrides.get(i) ?? m[0];
+      cursor = start + m[0].length;
+    });
+    out += trFull.slice(cursor);
+    return out;
   });
 
   // ── 2. Финансовые условия: «Наименование Сервиса» в строке с СБП ───
@@ -339,7 +354,13 @@ export async function fillAnketaDocx(
         tcInner,
         () => setCellValue(tcInner, clean(profile.activity))
       );
-      return trFull.replace(tcFull, () => newTc);
+      // Замена по смещению, а не String.replace: идентичная ячейка ранее
+      // в строке иначе перехватила бы значение.
+      const innerOffset = trFull.indexOf(trInner);
+      const start = innerOffset + (tcMatches[serviceCol].index ?? 0);
+      return (
+        trFull.slice(0, start) + newTc + trFull.slice(start + tcFull.length)
+      );
     });
   }
 

@@ -110,86 +110,105 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
       <div className="w-full max-w-md relative">
         {/* Logo + title */}
-        <div className="flex flex-col items-center gap-7 mb-10 stagger-item">
+        <div className="flex flex-col items-center gap-6 mb-9 stagger-item">
           <div className="relative">
             <div className="h-20 w-20 rounded-[1.4rem] bg-ink flex items-center justify-center shadow-elevated">
-              <FileText
-                className="h-9 w-9 text-white"
-                strokeWidth={1.6}
-                fill="rgba(217,119,87,0.35)"
-              />
+              <span
+                className="display-title text-[2.7rem] leading-none text-white select-none"
+                aria-hidden
+              >
+                Д
+              </span>
             </div>
             <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-terracotta ring-4 ring-background" />
           </div>
           <div className="text-center">
             <h1 className="display-title text-[2.6rem] text-balance">
-              PDF{" "}
-              <span className="text-terracotta-dark">Редактор</span>
+              Дело<span className="text-terracotta">.</span>
             </h1>
-            <p className="text-sm text-muted-foreground mt-3 max-w-[17rem] text-balance leading-relaxed">
-              Печати, подписи и текст на документах — прямо в браузере
+            <p className="text-sm text-muted-foreground mt-3 max-w-[19rem] text-balance leading-relaxed">
+              Правка PDF и автозаполнение документов — всё в одной рабочей
+              системе
             </p>
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card/80 border border-border/60 text-xs text-muted-foreground shadow-soft">
+                <PenLine className="h-3 w-3 text-terracotta" />
+                Редактор PDF
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card/80 border border-border/60 text-xs text-muted-foreground shadow-soft">
+                <FileStack className="h-3 w-3 text-terracotta" />
+                Документы
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Login card */}
         <form
           onSubmit={handleSubmit}
-          className="space-y-5 bg-card rounded-2xl p-7 border border-border shadow-elevated stagger-item"
+          className="bg-card rounded-2xl border border-border shadow-elevated overflow-hidden stagger-item"
           style={{ "--stagger-delay": "90ms" } as React.CSSProperties}
         >
-          <div className="space-y-2">
-            <label
-              htmlFor="password"
-              className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-            >
-              Пароль
-            </label>
-            <div className="relative group">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
-              <input
-                id="password"
-                ref={inputRef}
-                type="password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setError("");
-                }}
-                placeholder="Введите пароль"
-                className="w-full h-12 py-3.5 pl-11 pr-4 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/35 focus:border-primary transition-all placeholder:text-muted-foreground/60"
-                disabled={isLoading}
-              />
-            </div>
+          <div className="flex items-center gap-2 px-7 py-4 border-b border-border/60">
+            <div className="h-1.5 w-1.5 rounded-full bg-terracotta" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Вход в систему
+            </span>
           </div>
-
-          {error && (
-            <div
-              className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-destructive/10 border border-destructive/20 animate-fade-in"
-              role="alert"
-            >
-              <div className="h-1.5 w-1.5 rounded-full bg-destructive" />
-              <p className="text-xs font-medium text-destructive">{error}</p>
+          <div className="p-7 space-y-5">
+            <div className="space-y-2">
+              <label
+                htmlFor="password"
+                className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+              >
+                Пароль
+              </label>
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                <input
+                  id="password"
+                  ref={inputRef}
+                  type="password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError("");
+                  }}
+                  placeholder="Введите пароль"
+                  className="w-full h-12 py-3.5 pl-11 pr-4 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/35 focus:border-primary transition-all placeholder:text-muted-foreground/60"
+                  disabled={isLoading}
+                />
+              </div>
             </div>
-          )}
 
-          <Button
-            type="submit"
-            className="w-full h-12 text-sm font-medium rounded-xl bg-ink hover:bg-ink-hover text-white transition-colors shadow-soft disabled:bg-ink/25"
-            disabled={isLoading || !password.trim()}
-          >
-            {isLoading ? (
-              <>
-                <div className="h-4 w-4 mr-2 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Проверка...
-              </>
-            ) : (
-              <>
-                Войти
-                <ArrowRight className="h-4 w-4 ml-2 transition-transform group-hover:translate-x-0.5" />
-              </>
+            {error && (
+              <div
+                className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-destructive/10 border border-destructive/20 animate-fade-in"
+                role="alert"
+              >
+                <div className="h-1.5 w-1.5 rounded-full bg-destructive" />
+                <p className="text-xs font-medium text-destructive">{error}</p>
+              </div>
             )}
-          </Button>
+
+            <Button
+              type="submit"
+              className="w-full h-12 text-sm font-medium rounded-xl bg-ink hover:bg-ink-hover text-white transition-colors shadow-soft disabled:bg-ink/25"
+              disabled={isLoading || !password.trim()}
+            >
+              {isLoading ? (
+                <>
+                  <div className="h-4 w-4 mr-2 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Проверка...
+                </>
+              ) : (
+                <>
+                  Войти
+                  <ArrowRight className="h-4 w-4 ml-2 transition-transform group-hover:translate-x-0.5" />
+                </>
+              )}
+            </Button>
+          </div>
         </form>
 
         {/* Trust badge */}
@@ -883,19 +902,19 @@ export default function Home() {
             }`}
           >
             <div className="relative h-9 w-9 rounded-xl bg-ink flex items-center justify-center shadow-soft shrink-0">
-              <FileText
-                className="h-5 w-5 text-white"
-                strokeWidth={2}
-                fill="rgba(217,119,87,0.4)"
-              />
+              <span
+                className="display-title text-base leading-none text-white select-none"
+                aria-hidden
+              >
+                Д
+              </span>
             </div>
             <div className="text-left">
               <h1 className="display-title text-lg leading-tight">
-                PDF{" "}
-                <span className="text-terracotta-dark">Редактор</span>
+                Дело<span className="text-terracotta">.</span>
               </h1>
               <p className="text-[11px] text-muted-foreground hidden sm:block">
-                Печати, текст и документы
+                Система работы с документами
               </p>
             </div>
           </button>
@@ -1002,7 +1021,7 @@ export default function Home() {
         <div className="flex items-center justify-center gap-2">
           <ShieldCheck className="h-3 w-3 text-primary" />
           <span className="font-medium">
-            PDF Редактор · документы не покидают ваш браузер
+            Дело · документы не покидают ваш браузер
           </span>
         </div>
       </footer>

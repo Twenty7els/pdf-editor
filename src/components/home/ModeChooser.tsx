@@ -66,7 +66,7 @@ export default function ModeChooser({
           <div className="text-center mb-8 stagger-item">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card/80 border border-border/60 text-xs text-muted-foreground mb-4">
               <Sparkles className="h-3.5 w-3.5 text-terracotta" />
-              Все инструменты — в одном месте
+              Дело · все инструменты в одном месте
             </div>
             <h2 className="display-title text-3xl md:text-4xl">
               С чего <span className="text-terracotta-dark">начнём?</span>

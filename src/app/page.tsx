@@ -8,6 +8,7 @@ import LayersPanel from "@/components/pdf-editor/LayersPanel";
 import UploadZone from "@/components/pdf-editor/UploadZone";
 import ExportDialog from "@/components/pdf-editor/ExportDialog";
 import DocAutofillApp from "@/components/doc-autofill/DocAutofillApp";
+import ModeChooser from "@/components/home/ModeChooser";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -224,17 +225,16 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
-  // Режим приложения: редактор PDF или автозаполнение документов
-  const [appMode, setAppMode] = useState<"pdf" | "docs">("pdf");
-
-  useEffect(() => {
-    const saved = localStorage.getItem("app-mode");
-    if (saved === "docs" || saved === "pdf") setAppMode(saved);
-  }, []);
+  // Режим приложения: главный выбор / редактор PDF / автозаполнение документов.
+  // Всегда начинаем с большого выбора на главной странице.
+  const [appMode, setAppMode] = useState<"home" | "pdf" | "docs">("home");
 
   const switchMode = useCallback((mode: "pdf" | "docs") => {
     setAppMode(mode);
-    localStorage.setItem("app-mode", mode);
+  }, []);
+
+  const goHome = useCallback(() => {
+    setAppMode("home");
   }, []);
 
   useEffect(() => {
@@ -837,23 +837,34 @@ export default function Home() {
             </Sheet>
           )}
 
-          {/* Logo */}
-          <div className="relative h-9 w-9 rounded-xl bg-ink flex items-center justify-center shadow-soft">
-            <FileText
-              className="h-5 w-5 text-white"
-              strokeWidth={2}
-              fill="rgba(217,119,87,0.4)"
-            />
-          </div>
-          <div>
-            <h1 className="display-title text-lg leading-tight">
-              PDF{" "}
-              <span className="text-terracotta-dark">Редактор</span>
-            </h1>
-            <p className="text-[11px] text-muted-foreground hidden sm:block">
-              Печати, текст и документы
-            </p>
-          </div>
+          {/* Logo — клик возвращает на главный выбор */}
+          <button
+            type="button"
+            onClick={goHome}
+            aria-label="На главную — выбор режима"
+            className={`relative flex items-center gap-2.5 rounded-xl transition-opacity ${
+              appMode === "home"
+                ? "cursor-default"
+                : "hover:opacity-75"
+            }`}
+          >
+            <div className="relative h-9 w-9 rounded-xl bg-ink flex items-center justify-center shadow-soft shrink-0">
+              <FileText
+                className="h-5 w-5 text-white"
+                strokeWidth={2}
+                fill="rgba(217,119,87,0.4)"
+              />
+            </div>
+            <div className="text-left">
+              <h1 className="display-title text-lg leading-tight">
+                PDF{" "}
+                <span className="text-terracotta-dark">Редактор</span>
+              </h1>
+              <p className="text-[11px] text-muted-foreground hidden sm:block">
+                Печати, текст и документы
+              </p>
+            </div>
+          </button>
           {pdfFile && (
             <div className="hidden lg:flex items-center gap-1.5 ml-6">
               {[
@@ -926,7 +937,13 @@ export default function Home() {
       </header>
 
       {/* Main content */}
-      {appMode === "docs" ? (
+      {appMode === "home" ? (
+        <ModeChooser
+          onPick={switchMode}
+          hasPdf={!!pdfFile}
+          pdfName={pdfFileName}
+        />
+      ) : appMode === "docs" ? (
         <DocAutofillApp />
       ) : (
         <div className="flex-1 flex overflow-hidden">

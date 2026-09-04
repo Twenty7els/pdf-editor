@@ -330,38 +330,68 @@ export async function fillAnketaDocx(
     return out;
   });
 
-  // ── 2. Финансовые условия: «Наименование Сервиса» в строке с СБП ───
-  if (clean(profile.activity)) {
-    // Колонку «Наименование Сервиса» определяем по строке-шапке таблицы,
-    // а не по индексу: в строке СБП ячейка №п/п узкая (567 dxa) и текст
-    // в ней разваливается по одной букве на строку.
-    let serviceCol = 1;
+  // ── 2. Финансовые условия: строка СБП (Сервис, Категория, Вознаграждение)
+  // Колонки определяем по строке-шапке таблицы («Наименование Сервиса»,
+  // «Категория Услуг», «Размер вознаграждения…»), строку данных — по ячейке
+  // «СБП» (Наименование Партнёра). Так формы ИП и ЮЛ заполняются одними
+  // правилами, а номер ячейки не зависит от merges.
+  const FIN_RULES: Array<{
+    headerRe: RegExp;
+    value: (p: MerchantProfile) => string;
+  }> = [
+    { headerRe: /^наименование сервиса/, value: (p) => clean(p.activity) },
+    { headerRe: /^категория услуг/, value: (p) => clean(p.serviceCategory) },
+    {
+      headerRe: /размер вознаграждения/,
+      value: (p) => clean(p.partnerRate),
+    },
+  ];
+  if (FIN_RULES.some((r) => r.value(profile))) {
+    // 2а. Шапка: индексы колонок по подписям
+    const colByRule = new Map<number, number>(); // индекс правила → индекс ячейки
     for (const m of xml.matchAll(TR_RE)) {
       const texts = [...m[1].matchAll(TC_RE)].map((c) => xmlText(c[1]));
-      const j = texts.findIndex((t) => norm(t) === "наименование сервиса");
-      if (j >= 0) {
-        serviceCol = j;
-        break;
-      }
+      FIN_RULES.forEach((rule, ri) => {
+        if (colByRule.has(ri)) return;
+        const j = texts.findIndex((t) => rule.headerRe.test(norm(t)));
+        if (j >= 0) colByRule.set(ri, j);
+      });
+      if (colByRule.size === FIN_RULES.length) break;
     }
-    xml = xml.replace(TR_RE, (trFull, trInner: string) => {
-      const tcMatches = [...trInner.matchAll(TC_RE)];
-      const texts = tcMatches.map((m) => xmlText(m[1]));
-      const sbpIdx = texts.findIndex((t) => norm(t) === "сбп");
-      if (sbpIdx < 0 || serviceCol >= tcMatches.length) return trFull;
-      const [tcFull, tcInner] = tcMatches[serviceCol];
-      const newTc = tcFull.replace(
-        tcInner,
-        () => setCellValue(tcInner, clean(profile.activity))
-      );
-      // Замена по смещению, а не String.replace: идентичная ячейка ранее
-      // в строке иначе перехватила бы значение.
-      const innerOffset = trFull.indexOf(trInner);
-      const start = innerOffset + (tcMatches[serviceCol].index ?? 0);
-      return (
-        trFull.slice(0, start) + newTc + trFull.slice(start + tcFull.length)
-      );
-    });
+    // 2б. Строка с «СБП»: пишем значения по найденным колонкам
+    if (colByRule.size > 0) {
+      xml = xml.replace(TR_RE, (trFull, trInner: string) => {
+        const tcMatches = [...trInner.matchAll(TC_RE)];
+        const texts = tcMatches.map((m) => xmlText(m[1]));
+        if (!texts.some((t) => norm(t) === "сбп")) return trFull;
+        const overrides = new Map<number, string>();
+        FIN_RULES.forEach((rule, ri) => {
+          const col = colByRule.get(ri);
+          if (col == null || col >= tcMatches.length) return;
+          const value = rule.value(profile);
+          if (!value) return;
+          const [tcFull, tcInner2] = tcMatches[col];
+          overrides.set(
+            col,
+            tcFull.replace(tcInner2, () => setCellValue(tcInner2, value))
+          );
+        });
+        if (overrides.size === 0) return trFull;
+        // Пересборка по смещениям — иначе String.replace вставил бы
+        // значение в первую байт-в-байт идентичную ячейку строки
+        const innerOffset = trFull.indexOf(trInner);
+        let out = "";
+        let cursor = 0;
+        tcMatches.forEach((m, i) => {
+          const start = innerOffset + (m.index ?? 0);
+          out += trFull.slice(cursor, start);
+          out += overrides.get(i) ?? m[0];
+          cursor = start + m[0].length;
+        });
+        out += trFull.slice(cursor);
+        return out;
+      });
+    }
   }
 
   // ── 3. Абзацные замены (линия подписи и прочее) ─────────────────────

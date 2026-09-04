@@ -67,6 +67,11 @@ export interface MerchantProfile {
   unitContractNumber?: string;
   unitContractDate?: string; // дд.мм.гггг
   unitRate?: string;
+
+  // 11 Финансовые условия анкеты (таблица «Финансовые условия», строка СБП)
+  serviceCategory?: string; // колонка «Категория Услуг»
+  partnerRate?: string; // «Размер вознаграждения Исполнителя за осущ.
+  // инф.-технолог. взаимодействия, в т.ч. НДС 22%»
 }
 
 /** Группы полей для UI-редактора профиля. */
@@ -147,6 +152,16 @@ export const PROFILE_GROUPS: ProfileGroup[] = [
       { key: "unitContractNumber", label: "Номер договора" },
       { key: "unitContractDate", label: "Дата договора" },
       { key: "unitRate", label: "Ставка по договору" },
+    ],
+  },
+  {
+    title: "Финансовые условия анкеты",
+    fields: [
+      { key: "serviceCategory", label: "Категория услуг" },
+      {
+        key: "partnerRate",
+        label: "Размер вознаграждения (в т.ч. НДС 22%)",
+      },
     ],
   },
   {

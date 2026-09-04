@@ -140,12 +140,21 @@ export const TARGET_REQUIREMENTS: Record<string, TemplateRequirement[]> = {
     { key: "bik", label: "БИК банка", important: true },
     { key: "corrAccount", label: "Корреспондентский счёт", important: true },
     { key: "account", label: "Расчётный счёт", important: true },
-    {
-      key: "contactName",
+    { key: "contactName",
       label: "Контактное лицо",
       hint: "Если оставить пустым — подставится ФИО руководителя",
     },
     { key: "activity", label: "Наименование сервиса (вид деятельности)", important: true },
+    {
+      key: "serviceCategory",
+      label: "Категория услуг",
+      hint: "Колонка «Категория Услуг» в финансовых условиях",
+    },
+    {
+      key: "partnerRate",
+      label: "Размер вознаграждения Исполнителя",
+      hint: "За инф.-технолог. взаимодействие, в т.ч. НДС 22% — например: 1,5%",
+    },
   ],
 
   "anketa-yul": [
@@ -186,6 +195,16 @@ export const TARGET_REQUIREMENTS: Record<string, TemplateRequirement[]> = {
       label: "Наименование Сервиса (в таблице условий)",
       hint: "Встанет вместо «Бренднэйм» в строке СБП",
       important: true,
+    },
+    {
+      key: "serviceCategory",
+      label: "Категория услуг",
+      hint: "Встанет вместо «Наименование категории» в строке СБП",
+    },
+    {
+      key: "partnerRate",
+      label: "Размер вознаграждения Исполнителя",
+      hint: "За инф.-технолог. взаимодействие, в т.ч. НДС 22% — например: 1,5%",
     },
   ],
 };

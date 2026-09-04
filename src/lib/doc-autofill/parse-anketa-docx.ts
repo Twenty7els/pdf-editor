@@ -166,7 +166,8 @@ function normLabel(s: string): string {
   t = t.replace(/^[-–—]\s*/, "");
   // «Юридический адрес (с индексом)» → «юридический адрес»
   t = t.replace(/\s*\([^)]*\)\s*$/g, "").trim();
-  t = t.replace(/[-–—]/g, " ").replace(/\s+/g, " ").trim();
+  // Точки внутри подписи — шум («Кор. счет Банка» = «кор счет банка»)
+  t = t.replace(/\./g, " ").replace(/[-–—]/g, " ").replace(/\s+/g, " ").trim();
   return t;
 }
 
@@ -254,7 +255,9 @@ const RAW_FIELD_MAP: Record<string, keyof MerchantProfile> = {
   "ожидаемый оборот": "turnover",
   "окпо": "okpo",
   "оквед": "okved",
+  "оквэд": "okved",
   "основной оквед": "okved",
+  "основной оквэд": "okved",
 
   // 06 Оборудование
   "тип оборудования": "equipType",
@@ -291,6 +294,29 @@ const RAW_FIELD_MAP: Record<string, keyof MerchantProfile> = {
   "дата договора с uniteller": "unitContractDate",
   "ставка по договору": "unitRate",
   "ставка": "unitRate",
+
+  // 11 Финансовые условия анкеты (таблица «Финансовые условия»)
+  "категория услуг": "serviceCategory",
+  "категория услуги": "serviceCategory",
+  "размер вознаграждения": "partnerRate",
+  "размер вознаграждения исполнителя": "partnerRate",
+  "вознаграждение исполнителя": "partnerRate",
+
+  // Подписи формы «анкета-заявление заказчика» (ИП/ЮЛ)
+  "наименование заказчика": "directorName",
+  "полное и (при наличии)": "orgName",
+  "полное и (при наличии) фирменное наименование": "orgName",
+  "полное и (при наличии) сокращенное фирменное наименование": "orgName",
+  "огрип": "ogrip",
+  "адрес места жительства": "regAddress",
+  "адрес места пребывания": "factAddress",
+  "адрес места нахождения": "legalAddress",
+  "адрес фактического места нахождения": "factAddress",
+  "почтовый адрес": "legalAddress",
+  "адрес электронной почты": "email",
+  "номера контактных телефонов и факсов": "phone",
+  "кор счет банка": "corrAccount",
+  "наименование сервиса": "activity",
 };
 
 /** Ключи словаря прогнаны через ту же нормализацию, что и подписи из файла. */
@@ -314,6 +340,8 @@ const OPTIONAL_KEYS = new Set<keyof MerchantProfile>([
   "unitContractNumber",
   "unitContractDate",
   "unitRate",
+  "serviceCategory",
+  "partnerRate",
 ]);
 
 /** Основные поля: порядок как в xlsx-парсере (влияет на порядок предупреждений). */
@@ -361,26 +389,81 @@ const OPTIONAL_LIST: Array<{ key: keyof MerchantProfile }> = [
   { key: "unitContractNumber" },
   { key: "unitContractDate" },
   { key: "unitRate" },
+  { key: "serviceCategory" },
+  { key: "partnerRate" },
 ];
 
-function lookupKey(rawLabel: string): keyof MerchantProfile | null {
+/** Подписи-заголовки, у которых нет своего поля, но которые НЕ значения. */
+const NOVALUE_LABELS = new Set([
+  "наименование партнера",
+  "сведения о причастности к категории публичных должностных лиц",
+  "причастность к категории публичных должностных лиц",
+  "дата и место рождения",
+  "банковские реквизиты заказчика",
+  "контактная информация заказчика",
+  "финансовые условия",
+  "обособленные подразделения",
+]);
+
+/** Результат поиска подписи в словаре. */
+interface LabelHit {
+  key: keyof MerchantProfile;
+  /** Точное совпадение (иначе — префиксное: длинные заголовки колонок). */
+  exact: boolean;
+}
+
+function lookupHit(rawLabel: string): LabelHit | null {
   const t = normLabel(rawLabel);
-  return FIELD_MAP[t] ?? null;
+  if (!t || NOVALUE_LABELS.has(t)) return null;
+  if (FIELD_MAP[t]) return { key: FIELD_MAP[t], exact: true };
+  // Префикс-матчинг для длинных заголовков таблиц («Размер вознаграждения
+  // Исполнителя за осущ. инф.-технолог. взаимодействия…» → «размер
+  // вознаграждения»). Берём самый длинный подходящий ключ (≥ 10 символов),
+  // чтобы короткие («ставка») не перехватывали чужие подписи.
+  let best: keyof MerchantProfile | null = null;
+  let bestLen = 0;
+  for (const [alias, key] of Object.entries(FIELD_MAP)) {
+    if (alias.length >= 10 && t.startsWith(alias) && alias.length > bestLen) {
+      best = key;
+      bestLen = alias.length;
+    }
+  }
+  return best ? { key: best, exact: false } : null;
+}
+
+function lookupKey(rawLabel: string): keyof MerchantProfile | null {
+  return lookupHit(rawLabel)?.key ?? null;
 }
 
 /** Похожа ли строка на какую-нибудь подпись (чтобы не принять её за значение). */
 function looksLikeLabel(raw: string): boolean {
-  return lookupKey(raw) !== null;
+  return lookupKey(raw) !== null || NOVALUE_LABELS.has(normLabel(raw));
 }
 
 /** Чистое значение: не пусто, не плейсхолдер, не эхо-подпись, не другая подпись. */
 function cleanValue(v: string, labelNorm?: string): string {
   let t = v.replace(/[\s\u00A0]+/g, " ").trim();
-  t = t.replace(/^[:;\-–—]\s*/, "").trim();
-  if (!t || isPlaceholder(t)) return "";
+  // Контактные префиксы формы («тел.: +7…», «Email: ivan@…») — вместе
+  // со всеми точками/двоеточиями после них
+  t = t.replace(/^(тел|факс|e[\s-]?mail|email)\s*[.:\-]*\s*/i, "").trim();
+  // Начальный знак-мусор («: факс:» → «факс:»)
+  t = t.replace(/^[.:;,\-–—\s]+/, "").trim();
+  if (!t || isPlaceholder(t) || isTemplateEcho(t)) return "";
   if (labelNorm && normBase(t) === labelNorm) return "";
   if (looksLikeLabel(t)) return "";
   return t.length > 2000 ? t.slice(0, 2000) : t;
+}
+
+/**
+ * Оформляющие тексты пустого шаблона анкеты-заявления («Бренднэйм»,
+ * «Суммарная комиссия% (Тип1/Тип2/Тип3)», «Индекс,», «www.», «<ФИО, …>»)
+ * — не значения, даже если по раскладке стоят в ячейке-значении.
+ */
+function isTemplateEcho(t: string): boolean {
+  const s = t.replace(/^[<«]+/, "").trimStart();
+  return /^([\[«]?\s*(?:фамилия|фио|брендн[эе]йм)|брендн[эе]йм|наименование (категории|партн)|суммарная комиссия|сбп\s*$|№?\s*п\s*\/\s*п|индекс([.,:]|\s|$)|www|факс([.:]|\s|$)|адрес сайта|размер вознаграждения|индивидуальный предприниматель\s*\[)/i.test(
+    s
+  );
 }
 
 /** Первый непустой абзац ячейки (для поиска подписи в ячейке). */
@@ -418,9 +501,12 @@ function findValue(
     }
   }
 
-  // 2. Значение в следующей непустой строке (следующий абзац/ячейка)
+  // 2. Значение в следующей непустой строке (следующий абзац/ячейка).
+  //    Только для ТОЧНЫХ подписей: у префиксных (заголовки колонок)
+  //    следующая строка — продолжение заголовка, а не значение.
   for (let i = 0; i < lines.length; i++) {
-    if (!isTarget(lines[i])) continue;
+    const lineHit = lookupHit(lines[i]);
+    if (!lineHit || !lineHit.exact || lineHit.key !== target) continue;
     let j = i + 1;
     while (j < lines.length && !lines[j].trim()) j++;
     if (j < lines.length) {
@@ -429,28 +515,48 @@ function findValue(
     }
   }
 
-  // 3. Структура таблицы: подпись в ячейке → значение в той же ячейке ниже,
-  //    в ячейке правее или в первой ячейке следующей строки
+  // 3. Структура таблицы: подпись в ячейке → значение ниже в ТОМ ЖЕ столбце,
+  //    в ячейке правее или в первой чистой ячейке следующей строки
   for (const tbl of tables) {
     for (let r = 0; r < tbl.rows.length; r++) {
       const row = tbl.rows[r];
       for (let c = 0; c < row.cells.length; c++) {
         const cell = row.cells[c];
-        if (!isTarget(cellLabel(cell))) continue;
-        // 3а. значение ниже подписи в той же ячейке
-        for (let k = 1; k < cell.paras.length; k++) {
-          const v = cleanValue(cell.paras[k]);
+        let hit = lookupHit(cellLabel(cell));
+        let allowSameCell = hit?.exact ?? false;
+        if (!hit) {
+          // Многоабзацная подпись («Полное и (при наличии) / фирменное
+          // наименование») — пробуем склеенный текст ячейки;
+          // значение в этой же ячейке уже не ищем
+          const joined = cellValue(cell).trim();
+          if (joined) hit = lookupHit(joined);
+        }
+        if (!hit || hit.key !== target) continue;
+        // 3а. значение ниже подписи в той же ячейке — только для ТОЧНЫХ
+        // подписей: при префиксном/склеенном совпадении остальные абзацы
+        // ячейки — продолжение заголовка («…взаимодействия, / в т.ч. НДС 22%»),
+        // а не значение
+        if (allowSameCell) {
+          for (let k = 1; k < cell.paras.length; k++) {
+            const v = cleanValue(cell.paras[k]);
+            if (v) return v;
+          }
+        }
+        // 3б. ячейка ПРЯМО НИЖЕ в том же столбце следующей строки
+        //     (шапка таблицы → значение под ней)
+        const belowRow = tbl.rows[r + 1];
+        if (belowRow && c < belowRow.cells.length) {
+          const v = cleanValue(cellValue(belowRow.cells[c]));
           if (v) return v;
         }
-        // 3б. ячейка правее в той же строке
+        // 3в. ячейка правее в той же строке
         for (let c2 = c + 1; c2 < row.cells.length; c2++) {
           const v = cleanValue(cellValue(row.cells[c2]));
           if (v) return v;
         }
-        // 3в. следующая строка таблицы
-        const nextRow = tbl.rows[r + 1];
-        if (nextRow) {
-          for (const c3 of nextRow.cells) {
+        // 3г. следующая строка (обход ячеек слева направо)
+        if (belowRow) {
+          for (const c3 of belowRow.cells) {
             const v = cleanValue(cellValue(c3));
             if (v) return v;
           }
@@ -578,8 +684,53 @@ export async function parseAnketaDocx(
   p.pointAddresses = collectList(lines, POINT_LINE, POINTS_HEADER, 5);
   p.pointComments = collectList(lines, COMMENT_LINE, COMMENTS_HEADER, 5);
 
+  // «Наименование Заказчика» на форме ИП — «Индивидуальный предприниматель
+  // ФИО»: в профиль идёт чистое ФИО (правила заполнения сами вернут префикс)
+  if (p.directorName) {
+    const stripped = p.directorName
+      .replace(/^индивидуальный\s+предприниматель\s+/i, "")
+      .replace(/^ип\s+/i, "")
+      .trim();
+    if (stripped) p.directorName = stripped;
+  }
+
+  // «Дата и место рождения» — составное поле формы ИП («01.02.1990 г., Казань»)
+  if (!p.birthDate || !p.birthPlace) {
+    const dm = normLabel("Дата и место рождения");
+    outer: for (const tbl of tables) {
+      for (let r = 0; r < tbl.rows.length; r++) {
+        const row = tbl.rows[r];
+        for (let c = 0; c < row.cells.length; c++) {
+          if (normLabel(cellLabel(row.cells[c])) !== dm) continue;
+          const raw =
+            (row.cells[c + 1] && cellValue(row.cells[c + 1])) ||
+            (tbl.rows[r + 1] && tbl.rows[r + 1].cells[c]
+              ? cellValue(tbl.rows[r + 1].cells[c])
+              : "") ||
+            cellValue(row.cells[c]);
+          const m = raw
+            .replace(/[\s\u00A0]+/g, " ")
+            .trim()
+            .match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s*(?:г\.)?\s*[,;]?\s*(.*)$/i);
+          if (m) {
+            if (!p.birthDate) {
+              p.birthDate = `${m[1].padStart(2, "0")}.${m[2].padStart(2, "0")}.${m[3]}`;
+            }
+            const place = m[4].replace(/[\s,;]+$/, "").trim();
+            if (place && !p.birthPlace) p.birthPlace = place;
+          }
+          break outer;
+        }
+      }
+    }
+  }
+
   // Значения по умолчанию
   if (!p.citizenship) p.citizenship = "Российская Федерация";
+  // Для СБП наименование мерчанта — полное имя ИП
+  if (!p.orgName && p.directorName) {
+    p.orgName = `Индивидуальный предприниматель ${p.directorName}`;
+  }
 
   if (!p.orgName) warnings.push("Не найдено название организации");
   if (!p.inn) warnings.push("Не найден ИНН");

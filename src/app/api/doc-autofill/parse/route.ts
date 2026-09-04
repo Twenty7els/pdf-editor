@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseAnketaXlsx } from "@/lib/doc-autofill/parse-anketa";
+import { parseAnketaDocx } from "@/lib/doc-autofill/parse-anketa-docx";
 import { isAuthorized } from "@/lib/api-auth";
 
 export const runtime = "nodejs";
 
 /**
- * POST /api/doc-autofill/parse — multipart с полем `file` (.xlsx анкеты).
+ * POST /api/doc-autofill/parse — multipart с полем `file` (.xlsx или .docx анкеты).
  * Возвращает извлечённый профиль мерчанта + предупреждения.
  */
 export async function POST(req: NextRequest) {
@@ -39,10 +40,13 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    const name = file.name || "анкета.xlsx";
-    if (!name.toLowerCase().endsWith(".xlsx")) {
+    const name = file.name || "анкета";
+    const lower = name.toLowerCase();
+    const isXlsx = lower.endsWith(".xlsx");
+    const isDocx = lower.endsWith(".docx");
+    if (!isXlsx && !isDocx) {
       return NextResponse.json(
-        { error: "Анкета должна быть в формате .xlsx" },
+        { error: "Анкета должна быть в формате .xlsx или .docx" },
         { status: 400 }
       );
     }
@@ -53,14 +57,16 @@ export async function POST(req: NextRequest) {
       );
     }
     const buf = Buffer.from(await file.arrayBuffer());
-    const result = await parseAnketaXlsx(buf, name);
+    const result = isDocx
+      ? await parseAnketaDocx(buf, name)
+      : await parseAnketaXlsx(buf, name);
     return NextResponse.json(result);
   } catch (err) {
     console.error("doc-autofill/parse error:", err);
     return NextResponse.json(
       {
         error:
-          "Не удалось разобрать анкету. Убедитесь, что это заполненная «Заявка на подключение» (.xlsx).",
+          "Не удалось разобрать анкету. Убедитесь, что это заполненная анкета в формате .xlsx или .docx.",
       },
       { status: 500 }
     );

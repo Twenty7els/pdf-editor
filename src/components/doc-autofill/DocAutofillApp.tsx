@@ -2,7 +2,7 @@
 
 /**
  * Экран «Автозаполнение документов»:
- *  1. Загрузка заполненной анкеты (.xlsx «Заявка на подключение»)
+ *  1. Загрузка заполненной анкеты (.xlsx или .docx «Заявка на подключение»)
  *  2. Редактирование извлечённого профиля мерчанта
  *  3. Выбор целевого документа → генерация и скачивание
  */
@@ -15,6 +15,7 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
+  FileUp,
   ListChecks,
   Loader2,
   RefreshCw,
@@ -132,8 +133,8 @@ export default function DocAutofillApp() {
 
   const handleAnketaFile = useCallback(async (file: File) => {
     if (parsingRef.current) return; // защита от параллельного разбора
-    if (!file.name.toLowerCase().endsWith(".xlsx")) {
-      toast.error("Анкета должна быть в формате .xlsx");
+    if (!/\.(xlsx|docx)$/i.test(file.name)) {
+      toast.error("Анкета должна быть в формате .xlsx или .docx");
       return;
     }
     setParsing(true);
@@ -316,16 +317,17 @@ export default function DocAutofillApp() {
                 {parsing ? (
                   <Loader2 className="h-8 w-8 text-terracotta animate-spin" />
                 ) : (
-                  <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />
+                  <FileUp className="h-8 w-8 text-muted-foreground" />
                 )}
                 <div>
                   <div className="font-medium text-sm">
                     {parsing
                       ? "Разбираем анкету…"
-                      : "Нажмите, чтобы выбрать .xlsx анкету"}
+                      : "Нажмите, чтобы выбрать анкету"}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    «Заявка на подключение» (Uniteller) после заполнения
+                    Файл Excel (.xlsx) или Word (.docx) — «Заявка на
+                    подключение» (Uniteller) после заполнения
                   </div>
                 </div>
               </button>
@@ -696,7 +698,7 @@ export default function DocAutofillApp() {
       <input
         ref={anketaInputRef}
         type="file"
-        accept=".xlsx"
+        accept=".xlsx,.docx"
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];

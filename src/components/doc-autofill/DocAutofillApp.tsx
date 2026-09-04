@@ -60,19 +60,12 @@ export default function DocAutofillApp() {
   const templateTargetRef = useRef<string>("");
   const checklistRef = useRef<HTMLDivElement>(null);
 
-  /** Поля, которые пользователь сейчас/только что редактировал в чек-листе:
-   *  пока поле закреплено, инпут не исчезает при вводе и зелёный чип не появляется. */
-  const [pinned, setPinned] = useState<Set<string>>(new Set());
-  const pin = useCallback((k: string) => {
-    setPinned((p) => (p.has(k) ? p : new Set(p).add(k)));
-  }, []);
-  const unpin = useCallback((k: string) => {
-    setPinned((p) => {
-      if (!p.has(k)) return p;
-      const n = new Set(p);
-      n.delete(k);
-      return n;
-    });
+  /** Поля чек-листа, которые пользователь заполнял вручную. Такие поля больше
+   *  никогда не исчезают: после ввода они остаются на месте с зелёной отметкой
+   *  «Вписано» и всегда доступны для мгновенной правки. */
+  const [touched, setTouched] = useState<Set<string>>(new Set());
+  const touchField = useCallback((k: string) => {
+    setTouched((p) => (p.has(k) ? p : new Set(p).add(k)));
   }, []);
 
   const selectedTarget = targets.find((t) => t.id === selected) ?? null;
@@ -89,17 +82,19 @@ export default function DocAutofillApp() {
       requirements.filter(
         (r) =>
           profile &&
-          !pinned.has(String(r.key)) &&
-          isRequirementSatisfied(r, profile)
+          isRequirementSatisfied(r, profile) &&
+          // поля, которые пользователь заполнял руками, остаются инпутами в сетке
+          !(r.key && touched.has(String(r.key)))
       ),
-    [requirements, profile, pinned]
+    [requirements, profile, touched]
   );
-  /** Инпуты чек-листа: незаполненные + закреплённые за курсором (чтобы не исчезали при вводе). */
+  /** Инпуты чек-листа: незаполненные + всё, что пользователь заполнял руками.
+   *  Заполненные поля остаются в сетке с отметкой «Вписано» — не исчезают. */
   const gridReqs = useMemo(() => {
     const keys = new Set(missing.map((r) => String(r.key)));
-    pinned.forEach((k) => keys.add(k));
+    touched.forEach((k) => keys.add(k));
     return requirements.filter((r) => r.key && keys.has(String(r.key)));
-  }, [requirements, missing, pinned]);
+  }, [requirements, missing, touched]);
   /** Автополя, которые пока не собраны — показываем как подсказку, без инпута. */
   const autoPending = useMemo(
     () =>
@@ -151,6 +146,7 @@ export default function DocAutofillApp() {
       setProfile(data.profile);
       setSourceName(data.sourceName ?? file.name);
       setWarnings(data.warnings ?? []);
+      setTouched(new Set());
       toast.success("Анкета распознана", {
         description: file.name,
       });
@@ -236,9 +232,9 @@ export default function DocAutofillApp() {
     setProfile((p) => (p ? { ...p, [key]: value } : p));
   };
 
-  // при смене целевого документа сбрасываем закрепления инпутов
+  // при смене целевого документа сбрасываем список заполненных вручную полей
   useEffect(() => {
-    setPinned(new Set());
+    setTouched(new Set());
   }, [selected]);
 
   const filledCount = profile
@@ -589,35 +585,58 @@ export default function DocAutofillApp() {
                     </div>
                   )}
 
-                  {/* Не хватает — дописать здесь (инпут не исчезает, пока поле в фокусе) */}
+                  {/* Дописать здесь. Заполненное поле не исчезает: остаётся на месте
+                      с зелёной отметкой «Вписано» и правится в любой момент */}
                   {gridReqs.length > 0 && (
                     <div className="mt-4">
                       <div className="text-xs text-muted-foreground mb-2.5">
                         Допишите недостающие строки — они встанут в документ.
+                        Заполненные поля остаются здесь с отметкой
+                        «Вписано» — их можно поправить в любой момент.
                         <span className="text-amber-700 font-medium"> * </span>
                         — важно для этого шаблона.
                       </div>
                       <div className="grid sm:grid-cols-2 gap-3">
-                        {gridReqs.map((r) => (
-                          <div key={String(r.key)}>
-                            <label className="text-[11px] text-muted-foreground flex items-center gap-1 mb-1">
-                              {r.label}
-                              {r.important && (
-                                <span className="text-amber-700">*</span>
-                              )}
-                            </label>
-                            <input
-                              value={String(profile[r.key!] ?? "")}
-                              onChange={(e) =>
-                                setField(r.key!, e.target.value)
-                              }
-                              onFocus={() => pin(String(r.key))}
-                              onBlur={() => unpin(String(r.key))}
-                              placeholder={r.hint ?? "Заполнить…"}
-                              className="w-full text-sm rounded-lg border border-amber-200/80 bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta/50 placeholder:text-muted-foreground/50"
-                            />
-                          </div>
-                        ))}
+                        {gridReqs.map((r) => {
+                          const key = String(r.key);
+                          const filled = isRequirementSatisfied(r, profile);
+                          return (
+                            <div key={key}>
+                              <label className="text-[11px] text-muted-foreground flex items-center gap-1.5 mb-1">
+                                <span className="truncate">{r.label}</span>
+                                {filled ? (
+                                  <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 border border-emerald-200/60 text-emerald-700 px-1.5 py-px font-medium shrink-0">
+                                    <Check className="h-2.5 w-2.5" />
+                                    Вписано
+                                  </span>
+                                ) : (
+                                  r.important && (
+                                    <span className="text-amber-700">*</span>
+                                  )
+                                )}
+                              </label>
+                              <div className="relative">
+                                <input
+                                  value={String(profile[r.key!] ?? "")}
+                                  onChange={(e) =>
+                                    setField(r.key!, e.target.value)
+                                  }
+                                  onFocus={() => touchField(key)}
+                                  placeholder={r.hint ?? "Заполнить…"}
+                                  aria-label={r.label}
+                                  className={`w-full text-sm rounded-lg border bg-card px-3 py-2 pr-8 focus:outline-none focus:ring-2 transition-colors placeholder:text-muted-foreground/50 ${
+                                    filled
+                                      ? "border-emerald-300/80 bg-emerald-50/40 focus:ring-emerald-200/70 focus:border-emerald-400"
+                                      : "border-amber-200/80 focus:ring-terracotta/30 focus:border-terracotta/50"
+                                  }`}
+                                />
+                                {filled && (
+                                  <Check className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-emerald-600" />
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}

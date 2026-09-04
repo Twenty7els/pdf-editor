@@ -38,8 +38,8 @@ const SBP_FILL_MAP: Array<{ cell: string; get: (p: MerchantProfile) => string }>
   {
     cell: "C63",
     get: (p) =>
-      composeContractInfo(p.bankContractNumber ?? "", p.bankContractDate ?? ""),
-  }, // Номер и дата договора с Банком (автосборка)
+      composeContractInfo(p.unitContractNumber ?? "", p.unitContractDate ?? ""),
+  }, // Номер и дата договора с Банком (тот же договор, что с Uniteller)
   { cell: "C64", get: (p) => p.orgName ?? "" }, // наименование ЮЛ
   { cell: "C65", get: (p) => p.inn ?? "" }, // ИНН
   { cell: "C67", get: (p) => p.orgName ?? "" }, // Наименование (brandName)

@@ -63,12 +63,10 @@ export interface MerchantProfile {
   oldestContractDate?: string; // дд.мм.гггг — параметр Fraudscore
   combatParamsDate?: string; // дд.мм.гггг
 
-  // 10 Договоры (Uniteller и банк)
+  // 10 Договор с Uniteller (номер+дата также идут в нижний блок заявки СБП)
   unitContractNumber?: string;
   unitContractDate?: string; // дд.мм.гггг
   unitRate?: string;
-  bankContractNumber?: string;
-  bankContractDate?: string; // дд.мм.гггг
 }
 
 /** Группы полей для UI-редактора профиля. */
@@ -144,13 +142,11 @@ export const PROFILE_GROUPS: ProfileGroup[] = [
     ],
   },
   {
-    title: "Договоры (Uniteller и банк)",
+    title: "Договор с Uniteller",
     fields: [
-      { key: "unitContractNumber", label: "Номер договора с Uniteller" },
-      { key: "unitContractDate", label: "Дата договора с Uniteller" },
+      { key: "unitContractNumber", label: "Номер договора" },
+      { key: "unitContractDate", label: "Дата договора" },
       { key: "unitRate", label: "Ставка по договору" },
-      { key: "bankContractNumber", label: "Номер договора с банком" },
-      { key: "bankContractDate", label: "Дата договора с банком" },
     ],
   },
   {

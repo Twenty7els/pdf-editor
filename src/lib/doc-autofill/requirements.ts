@@ -91,30 +91,13 @@ export const TARGET_REQUIREMENTS: Record<string, TemplateRequirement[]> = {
       label: "Ставка по договору с Uniteller",
       hint: "Например: 1,6%",
     },
-    {
-      key: "bankContractNumber",
-      label: "Номер договора с банком",
-      hint: "Например: 77 или б/н",
-    },
-    {
-      key: "bankContractDate",
-      label: "Дата договора с банком",
-      hint: "дд.мм.гггг",
-    },
-    // Автополя: ручной ввод не нужен, собираются из полей выше
+    // Автополе: обе нижние строки заявки (с Банком и с Uniteller — один договор)
     {
       label: "Договор с Uniteller: номер и дата (низ)",
-      autoNote: "Соберётся из номера и даты договора с Uniteller",
+      autoNote: "Один договор для обеих нижних строк — соберётся из полей выше",
       satisfied: (p) =>
         isRequirementFilled(p.unitContractNumber) &&
         isRequirementFilled(p.unitContractDate),
-    },
-    {
-      label: "Договор с банком: номер и дата (низ)",
-      autoNote: "Соберётся из номера и даты договора с банком",
-      satisfied: (p) =>
-        isRequirementFilled(p.bankContractNumber) &&
-        isRequirementFilled(p.bankContractDate),
     },
   ],
 

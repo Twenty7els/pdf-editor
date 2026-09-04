@@ -21,7 +21,7 @@ export const AUTOFILL_TARGETS: AutofillTarget[] = [
     id: "sbp",
     title: "Заявка на регистрацию (СБП)",
     description:
-      "СБП — регистрация мерчанта и UPID: наименования, ИНН, р/с, МСС, merchantid, UPID, параметры Fraudscore, договоры с Uniteller и банком.",
+      "СБП — регистрация мерчанта и UPID: наименования, ИНН, р/с, МСС, merchantid, UPID, параметры Fraudscore, договор с Uniteller.",
     file: "zayavka-sbp.xlsx",
     ext: "xlsx",
   },

@@ -41,7 +41,15 @@ function cellText(c: ExcelJS.Cell): string {
   if (c.value == null) return "";
   if (typeof c.value === "object") {
     const v = c.value as unknown as Record<string, unknown>;
-    if ("text" in v) return String(v.text ?? "").trim(); // rich text / hyperlink
+    if (Array.isArray(v.richText)) {
+      // частично-жирные ячейки: склеиваем текстовые прогоны,
+      // иначе String(cell) даёт «[object Object]»
+      return v.richText
+        .map((rt) => String((rt as Record<string, unknown>)?.text ?? ""))
+        .join("")
+        .trim();
+    }
+    if ("text" in v) return String(v.text ?? "").trim(); // hyperlink
     if ("result" in v) return String(v.result ?? "").trim(); // formula
     if (v instanceof Date) return "";
     return String(c.value).trim();
@@ -120,6 +128,7 @@ function listFor(
   slaves: Set<string>
 ): string[] {
   const out: string[] = [];
+  // eachRow не умеет прерываться — просто собираем и режем в конце
   ws.eachRow((row) => {
     row.eachCell((cell, col) => {
       const t = cellText(cell);
@@ -132,7 +141,6 @@ function listFor(
         if (v) out.push(v);
       }
     });
-    if (out.length >= maxCount * 2) return;
   });
   return out.slice(0, maxCount);
 }

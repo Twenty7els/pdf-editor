@@ -72,6 +72,9 @@ export interface HistorySnapshot {
   // straightens crooked scans on screen; items are compensated on export
   pageSkew: Record<number, number>;
   deletedPages: number[];
+  // Текущая страница тоже часть состояния: после undo удаления страницы
+  // пользователь остаётся на восстановленной, а не на «переехавшей»
+  currentPage: number;
   selectedItemId: string | null;
   selectedItemType: "stamp" | "text" | "eraser" | null;
 }
@@ -104,6 +107,7 @@ function snapshot(s: PdfEditorState): HistorySnapshot {
     pageRotations: { ...s.pageRotations },
     pageSkew: { ...s.pageSkew },
     deletedPages: [...s.deletedPages],
+    currentPage: s.currentPage,
     selectedItemId: s.selectedItemId,
     selectedItemType: s.selectedItemType,
   };
@@ -274,6 +278,7 @@ export const usePdfEditorStore = create<PdfEditorState>((set, get) => ({
     set({
       pdfFile: file,
       pdfFileName: file?.name ?? "",
+      totalPages: 0, // сброс: при неудачной загрузке не должен остаться старым
       stamps: [],
       texts: [],
       erasers: [],

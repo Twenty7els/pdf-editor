@@ -38,6 +38,12 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
     Record<number, import("pdfjs-dist").RenderTask | undefined>
   >({});
   const [thumbState, setThumbState] = useState<Record<number, ThumbState>>({});
+  /** Ключ последнего успешного рендера каждой миниатюры (док + поворот + наклон).
+   *  Позволяет перерисовывать только изменённые страницы: тик слайдера наклона
+   *  или один поворот не должны перезапускать рендер ВСЕХ миниатюр. */
+  const renderedKeysRef = useRef<Record<number, string>>({});
+  const docIdRef = useRef(0);
+  const prevDocRef = useRef<unknown>(null);
 
   // Bulk selection mode — pick many pages, delete them in one undoable step
   const [selMode, setSelMode] = useState(false);
@@ -63,13 +69,45 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
     };
   }, []);
 
+  // Смена документа: сброс состояний миниатюр + отмена всех задач старого
+  // документа (иначе до завершения новых рендеров видны миниатюры старого PDF).
+  useEffect(() => {
+    if (prevDocRef.current === pdfDoc) return;
+    prevDocRef.current = pdfDoc;
+    docIdRef.current += 1;
+    renderedKeysRef.current = {};
+    setThumbState({});
+    for (const t of Object.values(renderTasksRef.current)) {
+      try {
+        t?.cancel();
+      } catch {
+        // ignore
+      }
+    }
+    renderTasksRef.current = {};
+  }, [pdfDoc]);
+
+  // Размонтирование: гасим незавершённые задачи рендера (воркер не тратим)
+  useEffect(() => {
+    return () => {
+      for (const t of Object.values(renderTasksRef.current)) {
+        try {
+          t?.cancel();
+        } catch {
+          // ignore
+        }
+      }
+      renderTasksRef.current = {};
+    };
+  }, []);
+
   // Render each page's thumbnail
   useEffect(() => {
     if (!pdfDoc || !pdfjsReady) return;
     let cancelled = false;
     const pdf = pdfDoc as import("pdfjs-dist").PDFDocumentProxy;
 
-    const renderThumb = async (pageNum: number) => {
+    const renderThumb = async (pageNum: number, renderKey: string) => {
       try {
         const page = await pdf.getPage(pageNum);
         // Total rotation = intrinsic page rotation + user rotation
@@ -152,6 +190,9 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
           ctx.setTransform(1, 0, 0, 1, 0, 0);
         }
         if (!cancelled) {
+          // Помечаем успешный рендер — эффект с тем же ключом больше не
+          // перерисует страницу, пока не изменится поворот/наклон/документ
+          renderedKeysRef.current[pageNum] = renderKey;
           setThumbState((prev) => ({
             ...prev,
             [pageNum]: { loaded: true, error: false },
@@ -176,9 +217,12 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
       }
     };
 
-    // Render all thumbnails (re-render when rotations or skew change)
+    // Рендерим только те миниатюры, чьи ключ (документ/поворот/наклон)
+    // изменился с последнего успешного рендера
     for (let p = 1; p <= totalPages; p++) {
-      void renderThumb(p);
+      const key = `${docIdRef.current}|${pageRotations[p] || 0}|${pageSkew[p] || 0}`;
+      if (renderedKeysRef.current[p] === key) continue;
+      void renderThumb(p, key);
     }
 
     return () => {
@@ -348,7 +392,7 @@ export default function PageThumbnails({ pdfDoc }: PageThumbnailsProps) {
                   {isChecked && (
                     <Check
                       className="h-3 w-3 text-white"
-                      strokeWidth={3}
+                      strokeWidth={2}
                     />
                   )}
                 </span>

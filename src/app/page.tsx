@@ -587,6 +587,26 @@ export default function Home() {
           const phiDeg = T - textItem.rotation + angleShift;
           const phiRad = (phiDeg * Math.PI) / 180;
 
+          // Ширины строк считаем заранее: на экране div текста имеет
+          // width: fit-content (= самая широкая строка) и textAlign —
+          // выравнивание каждой строки ВНУТРИ этого бокса. Экспорт обязан
+          // повторять именно это, иначе center/right уезжают на полстроки.
+          const hasSpacing = Math.abs(scaledLetterSpacing) > 0.001;
+          const measureLine = (line: string): number => {
+            if (!line) return 0;
+            if (!hasSpacing) {
+              return font.widthOfTextAtSize(line, scaledFontSize);
+            }
+            const cs = Array.from(line);
+            let w = 0;
+            for (const c of cs) {
+              w += font.widthOfTextAtSize(c, scaledFontSize);
+            }
+            return w + scaledLetterSpacing * Math.max(0, cs.length - 1);
+          };
+          const lineWidths = lines.map(measureLine);
+          const textBoxWidth = Math.max(0, ...lineWidths);
+
           for (let li = 0; li < lines.length; li++) {
             const line = lines[li];
             if (!line) {
@@ -600,27 +620,23 @@ export default function Home() {
 
             // pdf-lib has no charSpacing option — emulate letter spacing by
             // drawing glyph runs per character when it is non-zero.
-            const hasSpacing = Math.abs(scaledLetterSpacing) > 0.001;
             const chars = hasSpacing ? Array.from(line) : null;
             const charWidths = chars
               ? chars.map((c) => font.widthOfTextAtSize(c, scaledFontSize))
               : null;
-            const totalSpacing = charWidths
-              ? scaledLetterSpacing * Math.max(0, chars!.length - 1)
-              : 0;
-            const naturalWidth = font.widthOfTextAtSize(line, scaledFontSize);
-            const lineWidth = charWidths
-              ? charWidths.reduce((a, b) => a + b, 0) + totalSpacing
-              : naturalWidth;
+            const lineWidth = lineWidths[li];
 
-            // Compute baseline X in view space based on alignment
+            // Compute baseline X in view space based on alignment:
+            // строка выравнивается внутри бокса шириной textBoxWidth,
+            // левый край бокса = textItem.x (как fit-content div на экране).
             const baseViewX = (textItem.x / cw) * Wrho;
-            const baselineViewX =
+            const alignOffset =
               textItem.align === "center"
-                ? baseViewX - lineWidth / 2
+                ? (textBoxWidth - lineWidth) / 2
                 : textItem.align === "right"
-                ? baseViewX - lineWidth
-                : baseViewX;
+                ? textBoxWidth - lineWidth
+                : 0;
+            const baselineViewX = baseViewX + alignOffset;
 
             // Baseline start point → display space (deskew back-rotation)
             // → PDF space
@@ -728,12 +744,14 @@ export default function Home() {
             const p = pdfPoints[i];
 
             if (i === 0 && pdfPoints.length === 1) {
-              const halfSize = pdfStrokeWidth / 2;
-              page.drawRectangle({
-                x: p.x - halfSize,
-                y: p.y - halfSize,
-                width: pdfStrokeWidth,
-                height: pdfStrokeWidth,
+              // Одиночный клик = круглая точка (на экране — canvas arc,
+              // не квадрат)
+              const r = pdfStrokeWidth / 2;
+              page.drawEllipse({
+                x: p.x,
+                y: p.y,
+                xScale: r,
+                yScale: r,
                 color: pdfColor,
               });
             } else if (i > 0) {
@@ -959,9 +977,7 @@ export default function Home() {
           hasPdf={!!pdfFile}
           pdfName={pdfFileName}
         />
-      ) : appMode === "docs" ? (
-        <DocAutofillApp />
-      ) : (
+      ) : appMode === "pdf" ? (
         <div className="flex-1 flex overflow-hidden">
           {pdfFile && (
             <aside className="hidden md:block w-72 border-r border-border/70 bg-card/30 overflow-y-auto shrink-0">
@@ -973,7 +989,13 @@ export default function Home() {
 
           {pdfFile ? <PdfCanvas /> : <UploadZone />}
         </div>
-      )}
+      ) : null}
+      {/* Режим «Документы»: держим смонтированным всегда (скрытым вне режима),
+          чтобы разобранная анкета и вписанные данные не терялись при
+          переключении в редактор и обратно. */}
+      <div className={appMode === "docs" ? "contents" : "hidden"}>
+        <DocAutofillApp />
+      </div>
 
       {/* Footer */}
       <footer className="border-t border-border/70 glass-strong px-4 py-2.5 text-center text-xs text-muted-foreground shrink-0 mt-auto">

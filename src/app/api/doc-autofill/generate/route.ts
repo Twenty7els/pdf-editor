@@ -3,16 +3,29 @@ import { readFileSync } from "fs";
 import { findTarget, targetAvailable, targetPath } from "@/lib/doc-autofill/targets";
 import { fillSbpZayavka } from "@/lib/doc-autofill/fill-sbp";
 import { fillAnketaDocx } from "@/lib/doc-autofill/fill-docx";
-import type { MerchantProfile } from "@/lib/doc-autofill/profile";
+import { sanitizeProfile, type MerchantProfile } from "@/lib/doc-autofill/profile";
+import { isAuthorized } from "@/lib/api-auth";
 
 export const runtime = "nodejs";
+
+const MAX_BODY_SIZE = 5 * 1024 * 1024; // JSON-профиль мал, 5 МБ с запасом
 
 /**
  * POST /api/doc-autofill/generate — JSON { targetId, profile }.
  * Возвращает готовый файл (binary) с заголовками скачивания.
  */
 export async function POST(req: NextRequest) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: "Требуется авторизация" }, { status: 401 });
+  }
   try {
+    const cl = Number(req.headers.get("content-length") ?? 0);
+    if (cl > MAX_BODY_SIZE) {
+      return NextResponse.json(
+        { error: "Тело запроса слишком большое" },
+        { status: 400 }
+      );
+    }
     let body: { targetId?: string; profile?: MerchantProfile };
     try {
       body = (await req.json()) as {
@@ -39,7 +52,9 @@ export async function POST(req: NextRequest) {
         { status: 409 }
       );
     }
-    const profile = body.profile ?? {};
+    // Санитизация: клиент может прислать всё что угодно — приводим каждое
+    // поле к строке/списку строк (иначе .trim() на числе/объекте падает 500-й)
+    const profile = sanitizeProfile(body.profile ?? {});
     const template = readFileSync(targetPath(target));
 
     const buffer =

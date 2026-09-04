@@ -2,7 +2,19 @@
 // Password hash (SHA-256) — the actual password is not stored here
 const PASSWORD_HASH = "f3fc2f7af0e33a3ef10055dbbfc752d963eab4b095fea0e3a948b5f3ae042143";
 
+/** Токен, которым клиент подтверждает авторизацию на API
+ *  (заголовок x-pdf-editor-auth — сравнивается на сервере). */
+export const AUTH_TOKEN = PASSWORD_HASH;
+
 const SESSION_KEY = "pdf-editor-auth";
+
+/** Заголовки для fetch к API: токен доступа (если пользователь авторизован). */
+export function getAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  return isAuthenticated()
+    ? { "x-pdf-editor-auth": AUTH_TOKEN }
+    : {};
+}
 
 /**
  * Hash a string with SHA-256 (browser-native)
@@ -36,6 +48,7 @@ export function isAuthenticated(): boolean {
  */
 export function setAuthenticated(): void {
   sessionStorage.setItem(SESSION_KEY, "1");
+  sessionStorage.setItem(SESSION_KEY + "-token", AUTH_TOKEN);
 }
 
 /**

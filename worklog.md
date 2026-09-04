@@ -487,3 +487,75 @@ Stage Summary:
 - Исправлены 3 критичных/мажорных бага (двойной поворот экспорта, отсутствие POST шаблонов, pdf.js утечка/гонка) и ~15 минорных
 - Коммит a69787b отправлен на GitHub (Twenty7els/pdf-editor, main)
 - Осознанно НЕ трогали (задокументировано): координаты элементов не мигрируют при повороте/наклоне страницы после размещения (экран и экспорт консистентны между собой); next.config ignoreBuildErrors оставлен (tsconfig цепляет examples/skills)
+
+---
+Task ID: 19-a
+Agent: QA-review (doc-autofill)
+Task: Глубокое код-ревью doc-autofill
+
+Work Log:
+- Прочитан worklog (Tasks 8-18) — зафиксирован список уже исправленного в a69787b, чтобы не дублировать.
+- Прочитаны все целевые файлы: parse-anketa.ts, profile.ts, requirements.ts, targets.ts, fill-docx.ts, fill-sbp.ts, routes (parse/generate/templates), DocAutofillApp.tsx, ModeChooser.tsx, page.tsx, layout.tsx, document-templates/ (3 файла на месте); дополнительно auth.ts, Caddyfile, next.config, node_modules/exceljs@4.4 (Value.getType/RichTextValue) для проверки гипотез.
+- Верификация на реальных данных (read-only bun-скрипты): дамп upload/АвтомойкаЭксель.xlsx, Анкета.xlsx, Заявка на регистрацию.xlsx; реальный запуск parseAnketaXlsx (27 полей, warnings=0, даты «09.02.1983», serials по порядку); прогон fillSbpZayavka/fillAnketaDocx с вредоносными/кривыми значениями ("=HYPERLINK", "<>&\"", richText-защита, 500 символов, не-строки в profile).
+- Сверка DOCX_RULES с фактическими подписями строк обоих docx-шаблонов (дамп всех <w:tr> → совпадения/границы проверены построчно).
+- Файлы проекта не изменялись (кроме этой записи worklog.md).
+
+Stage Summary:
+- КРИТИЧНО: на всех трёх API doc-autofill нет серверной авторизации (auth.ts — только sessionStorage на клиенте, middleware отсутствует, Caddy без basic_auth); POST /api/doc-autofill/templates = анонимная перезапись шаблонов на диске сервера.
+- МАЖОР: templates POST проверяет только расширение, не содержимое (OOXML-валидация из Task 8 потеряна) → загрузка не-zip необратимо портит шаблон, все генерации target падают 500.
+- МАЖОР: списковые поля шага 2 «глотают» Enter в конце строки (split→trim→filter(Boolean)→join откатывает хвостовой \n) — второй серийный номер/адрес добавить нельзя, ввод склеивается в одну строку.
+- МАЖОР: переключение режима (шапка/логотип) размонтирует DocAutofillApp → разобранная анкета и ручной ввод теряются (у PDF-редактора состояние живёт в Zustand-сторе).
+- МАЖОР: POST /generate без content-length лимита и без валидации типов profile (число/объект → TypeError → 500, подтверждено; гигабайтный JSON → память).
+- МИНОР: защита непустых ячеек fill-sbp обходится richText/formula-значениями (.text не существует — подтверждено тестом, C50 перезаписан); templates: битый multipart → 500 вместо 400 (в parse — 400); isPlaceholder не ловит «—»/«нет»/«не указано»; rich-text ячейка анкеты дала бы «[object Object]»; при пустых полях в docx остаются литералы шаблона («[Фамилия…]», «Индекс,», «www.», «тел.: факс:») вопреки тексту «незаполненные поля останутся пустыми».
+- КОСМОС: двойная «от …» в composeContractInfo при полной строке в поле номера; отсутствие maxLength у инпутов; trimTrailingEmptyParagraphs не тримит <w:p/>; dead-code early-exit в listFor/findLabel.
+- Проверено и НЕ баги: excel-даты (exceljs отдаёт Date, getUTC* корректен — сверено на реальном файле), «=…» пишется строкой, а не формулой (formula injection в xlsx через ExcelJS невозможен), path traversal в targetId/имени файла (whitelist + фиксированный targetPath), XML-экранирование esc(), идемпотентность повторной генерации, гард параллельного parse (parsingRef), merged-slave защита парсера (дублей нет), URL.revokeObjectURL, сброс file-input.
+
+---
+Task ID: 19-b
+Agent: QA-review (pdf-editor)
+Task: Глубокое код-ревью PDF-редактора
+
+Work Log:
+- Перечитал worklog (фиксы a69787b), затем ВЕСЬ код: pdf-editor-store.ts (698), PdfCanvas.tsx (2155), Toolbar, PageThumbnails, ExportDialog, TextEditSidebar, LayersPanel, UploadZone, pdfjs-options, stamps, font-base64, utils, ModeChooser, page.tsx (1003, экспортная геометрия построчно). Файлы НЕ менял.
+- Прогнал чек-лист: координаты/zoom/поворот/deskew, undo/redo edge cases, гонки рендера и экспорта, утечки, экспорт (кириллица/ластики/пустые/удалённые), клавиатура, immutable-ность zustand, UI-края (1 стр. / 500 стр. / без текстового слоя).
+- Подтвердил в коде все фиксы a69787b (двойной поворот, lifecycle pdf.js, ресинк ExportDialog, contain-fit + кэш XObject, lineCap Round, клик-флаг, стрелки, тосты).
+- Новых правок не вносил — только отчёт (файлы не тронуты, этот worklog — единственная запись).
+
+Stage Summary:
+- МАЖОР: (1) align center/right — экспорт центрирует строку на textItem.x, экран же рендерит бокс с left=x (fit-content) → сдвиг на ~полширины строки, для multi-line расхождение усиливается (page.tsx:616-623 vs PdfCanvas.tsx:1395-1431); (2) PageThumbnails перерисовывает ВСЕ миниатюры на каждый тик skew-слайдера и любой поворот (deps pageSkew/pageRotations, :180-187) — на 500 стр. непрактично; (3) гонка основного рендера: renderingRef дропает запрос, retry только 100/400мс — рендер дольше 400мс (скан × zoom 5 × dpr2) оставляет stale-вид, RenderTask.cancel в PdfCanvas отсутствует (:448-449, :548-557); (4) color-input текста льёт updateText (не Live) в undo-стек на каждый тик пипетки (PdfCanvas.tsx:2019-2027).
+- МИНОР: setPdfFile не сбрасывает totalPages; pushHistory на mousedown/±1°-кнопках без изменения = пустые undo-записи; ластик невыбираем кликом по холсту (pointer-events только у выбранного) + stuck клик-флаг после click-селекта мазка; MediaBox origin/CropBox≠MediaBox не учтены в экспорте (pdf.js view vs pdf-lib mediabox); одиночный мазок = квадрат в PDF vs круг на экране; Delete/стрелки работают под открытыми модалками; Escape не снимает выделение/инструмент; undo не восстанавливает currentPage; thumbState/канвасы миниатюр не сбрасываются при смене документа; тройной рендер страницы (0/100/400мс) + resize-рендер без нужды.
+- КОСМЕТИКА: rotation-инпут пишет 0 при очистке и не клампится; Ш/В показывают stored-, а не экранные px; Check strokeWidth 3 в PageThumbnails (канон 2.2); бейдж поворота в ExportDialog без градусов; CSS letter-spacing n× vs экспорт (n−1)×.
+- Подтверждено корректным: immutable-обновления store (мутаций нет), bounded history 50, future очищается, pageRotations/skew/deletedPages читаются из getState на экспорте, keepSet-фильтрация скрытых/чужих страниц, destroy loadingTask в ExportDialog/PageThumbnails-cleanup, revokeObjectURL, ленивые шрифты только при наличии текстов.
+- Персиста нет (F5 сбрасывает всю работу) — вероятно осознанно, но нигде не задокументировано.
+
+---
+Task ID: 19
+Agent: Z.ai Code (main) + 2 QA-ревьюера (general-purpose)
+Task: Повторный глубокий QA-проход «как тестировщик»: найти оставшиеся баги и устранить + предложения по улучшению
+
+Work Log:
+- Два параллельных код-ревью (19-a doc-autofill, 19-b pdf-editor) с верификацией гипотез реальными прогонами на данных; Appedны в worklog (19-a, 19-b)
+- БЕЗОПАСНОСТЬ (критично): все 3 API doc-autofill были доступны анонимно, POST /templates позволял незалогиненному затереть рабочие шаблоны на диске → серверная проверка x-pdf-editor-auth (src/lib/api-auth.ts, 401 на POST parse/generate/templates); клиент шлёт токен через getAuthHeaders() во всех fetch
+- templates POST: валидация содержимого OOXML через JSZip (docx → word/document.xml, xlsx → xl/workbook.xml) — текстовый файл с именем .docx больше не портит шаблон навсегда; битый multipart → 400 (было 500)
+- generate POST: content-length лимит 5 МБ + sanitizeProfile (строки обрезаются, списки фильтруются, числа/объекты отбрасываются) — {orgName:123} раньше падал 500 (.trim is not a function), теперь 200
+- parse-anketa: richText-ячейки склеиваются (было «[object Object]»), порядок проверок value: richText → hyperlink.text → formula.result → Date
+- fill-sbp: «защита непустых ячеек» теперь видит richText/formula/hyperlink (раньше обходилась, ячейка затиралась)
+- isPlaceholder: прочерки «- – —» и «нет/не указано/отсутствует» больше не попадают в профиль и документы
+- textarea списков (serials/точки): Enter в конце строки больше не «съедается» — пустые строки сохраняются при вводе, фильтруются на сервере; isRequirementFilled учитывает пустые строки; счётчик заполненности не считает пустой хвост
+- Состояние doc-autofill переживает смену режима: компонент держится смонтированным (hidden вне «Документов») — разобранная анкета не теряется при заходе в редактор
+- РЕДАКТОР: экспорт текста align center/right теперь повторяет экран (бокс = самая широкая строка, off = (boxW−lineW)/2; правый = boxW−lineW) — раньше уезжало на полширины строки; E2E-сверка позиций в экспортированном PDF через pdfjs: оси совпадают (расхождение ≤2pt — разница метрик Arial/Helvetica, было бы 61pt со старым кодом)
+- РЕДАКТОР: одиночный мазок ластика экспортируется кругом (drawEllipse), не квадратом
+- РЕДАКТОР: пипетка цвета — pushHistory на focus + Live на change (было: snapshot на каждый тик, undo-стек забивался)
+- РЕДАКТОР: гонка рендера страницы — запрос, пришедший во время рендера, не теряется: pending-флаг + повтор через renderPageRef (актуальное замыкание)
+- РЕДАКТОР: Delete/Ctrl+Z/стрелки глушатся при открытой модалке ([role=dialog/alertdialog]) — раньше Delete «из-под» диалога экспорта удалял элемент; Escape снимает выделение
+- РЕДАКТОР: клик по мазку ластика выбирает его (pointer-events при «выборе»), убран застревающий clickedOnElementRef-флаг, «съедавший» следующий клик по фону
+- РЕДАКТОР: миниатюры — per-page ключи рендера (поворот/наклон тика перерисовывают только изменённую страницу, не все), сброс + отмена задач при смене документа и размонтировании; Check strokeWidth 3→2
+- СТОР: setPdfFile сбрасывает totalPages; HistorySnapshot включает currentPage — undo/redo возвращают на восстановленную страницу (проверено E2E: удаление стр. 3 → переезд на 4 → undo → снова на 3)
+- Текст кнопки «Сформировать (N пусто)» → «Сформировать (не хватает N)»
+- E2E верификация: 401 на все API без токена; fake-docx → 400 + шаблон не тронут; битый multipart → 400; generate с мусорным профилем → 200; Enter/трейлинг в textarea; состояние при смене режимов; Escape/Delete/Delete-под-модалкой; undo страницы; поворот миниатюры (бейдж 90°, без ошибок); диалог экспорта «выбранные страницы» 5 канвасов 0 залипших спиннеров; мобильный 390px; консоль чистая; lint+tsc чисто
+
+Stage Summary:
+- Закрыты 2 серьёзные дыры (анонимный доступ к API + перезапись шаблонов), ~8 мажорных и ~10 минорных багов
+- Экспорт center/right теперь геометрически совпадает с экраном (подтверждено извлечением координат из PDF)
+- undo/redo вернулись к полной консистентности (currentPage в снапшоте)
+- Осталось осознанно (документировано): метрики Arial(CSS) vs Helvetica(pdf-lib) дают ≤2pt разброс позиций текста; MediaBox с ненулевым origin/CropBox; координаты элементов не мигрируют при повороте страницы после размещения; zustand без persist (F5 сбрасывает); auth-токен = хэш пароля в клиентском бандле (лёгкий gate, не серверная защита данных — все данные клиентские)

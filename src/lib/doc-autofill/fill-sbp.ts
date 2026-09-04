@@ -71,17 +71,27 @@ export async function fillSbpZayavka(
     const value = get(profile).trim();
     if (!value) continue;
     const c = ws.getCell(cell);
-    // Защита: не перезаписываем непустые ячейки (фикс. значения шаблона)
-    const existing =
-      c.value == null
-        ? ""
-        : c.value instanceof Date
-        ? String(c.value)
-        : typeof c.value === "object"
-        ? String(
-            (c.value as unknown as Record<string, unknown>).text ?? ""
-          )
-        : String(c.value);
+    // Защита: не перезаписываем непустые ячейки (фикс. значения шаблона).
+    // Учитываем richText/formula/hyperlink — у них нет .text как строки.
+    let existing = "";
+    if (c.value != null) {
+      if (c.value instanceof Date) {
+        existing = String(c.value);
+      } else if (typeof c.value === "object") {
+        const v = c.value as unknown as Record<string, unknown>;
+        if (Array.isArray(v.richText)) {
+          existing = (v.richText as Array<{ text?: unknown }>)
+            .map((rt) => String(rt?.text ?? ""))
+            .join("");
+        } else if ("result" in v) {
+          existing = String(v.result ?? "");
+        } else if ("text" in v) {
+          existing = String(v.text ?? "");
+        }
+      } else {
+        existing = String(c.value);
+      }
+    }
     if (existing.trim()) continue;
     c.value = value;
   }

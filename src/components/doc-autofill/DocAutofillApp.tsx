@@ -22,6 +22,7 @@ import {
   Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getAuthHeaders } from "@/lib/auth";
 import {
   PROFILE_GROUPS,
   type MerchantProfile,
@@ -108,7 +109,9 @@ export default function DocAutofillApp() {
 
   const loadTargets = useCallback(async () => {
     try {
-      const res = await fetch("/api/doc-autofill/templates");
+      const res = await fetch("/api/doc-autofill/templates", {
+        headers: getAuthHeaders(),
+      });
       const data = await res.json();
       setTargets(data.targets ?? []);
       setSelected((prev) => {
@@ -140,6 +143,7 @@ export default function DocAutofillApp() {
       fd.append("file", file);
       const res = await fetch("/api/doc-autofill/parse", {
         method: "POST",
+        headers: getAuthHeaders(),
         body: fd,
       });
       const data = await res.json();
@@ -174,7 +178,10 @@ export default function DocAutofillApp() {
     try {
       const res = await fetch("/api/doc-autofill/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
         body: JSON.stringify({ targetId: selected, profile }),
       });
       if (!res.ok) {
@@ -215,6 +222,7 @@ export default function DocAutofillApp() {
         fd.append("targetId", targetId);
         const res = await fetch("/api/doc-autofill/templates", {
           method: "POST",
+          headers: getAuthHeaders(),
           body: fd,
         });
         const data = await res.json();
@@ -245,7 +253,7 @@ export default function DocAutofillApp() {
   const filledCount = profile
     ? Object.entries(profile).filter(([k, v]) =>
         LIST_KEYS.has(k)
-          ? (v as string[]).length > 0
+          ? (v as string[]).some((s) => String(s).trim())
           : Boolean(String(v ?? "").trim())
       ).length
     : 0;
@@ -394,12 +402,15 @@ export default function DocAutofillApp() {
                                 "\n"
                               )}
                               onChange={(e) =>
+                                // НЕ фильтруем пустые строки на входе: иначе
+                                // Enter в конце последней строки «съедался» и
+                                // вторую строку нельзя было начать. Пустые
+                                // строки отфильтруются на сервере (sanitize).
                                 setField(
                                   f.key,
                                   e.target.value
                                     .split("\n")
                                     .map((s) => s.trim())
-                                    .filter(Boolean)
                                 )
                               }
                               rows={Math.min(
@@ -673,7 +684,7 @@ export default function DocAutofillApp() {
                     <Download className="h-4 w-4" />
                   )}
                   {missing.length > 0
-                    ? `Сформировать (${missing.length} пусто)`
+                    ? `Сформировать (не хватает ${missing.length})`
                     : "Сформировать документ"}
                 </Button>
               </div>

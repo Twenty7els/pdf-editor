@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseAnketaXlsx } from "@/lib/doc-autofill/parse-anketa";
+import { isAuthorized } from "@/lib/api-auth";
 
 export const runtime = "nodejs";
 
@@ -8,6 +9,9 @@ export const runtime = "nodejs";
  * Возвращает извлечённый профиль мерчанта + предупреждения.
  */
 export async function POST(req: NextRequest) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: "Требуется авторизация" }, { status: 401 });
+  }
   try {
     // Отсекаем гигантские body ДО парсинга multipart — иначе весь файл
     // уже материализуется в памяти (DoS-вектор без авторизации).

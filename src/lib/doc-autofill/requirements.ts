@@ -192,7 +192,11 @@ export const TARGET_REQUIREMENTS: Record<string, TemplateRequirement[]> = {
 
 /** Значение профиля заполнено (строка или список). */
 export function isRequirementFilled(v: unknown): boolean {
-  if (Array.isArray(v)) return v.length > 0;
+  if (Array.isArray(v)) {
+    // список заполнен, если есть хотя бы одна непустая строка
+    // (при редактировании в textarea в конце может висеть пустая строка)
+    return v.some((x) => Boolean(String(x ?? "").trim()));
+  }
   return Boolean(String(v ?? "").trim());
 }
 

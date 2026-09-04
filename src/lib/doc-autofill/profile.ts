@@ -188,6 +188,41 @@ export function isPlaceholder(v: string): boolean {
     /^000-000/.test(t) ||
     /^введите число$/i.test(t) ||
     t === "…" ||
-    t === "..."
+    t === "..." ||
+    // рукописные прочерки и отказы — это тоже «нет значения»
+    /^[-–—]+$/.test(t) ||
+    /^(нет|не указано|не указан|не указана|отсутствует)$/i.test(t)
   );
+}
+
+const LIST_FIELDS = new Set(["serials", "pointAddresses", "pointComments"]);
+
+/**
+ * Привести произвольный JSON-объект к валидному MerchantProfile:
+ * строки — обрезаются, списки — массив непустых строк, всё остальное
+ * (числа/объекты/null) отбрасывается. Защита и от 500 на сервере
+ * (.trim() не функция), и от мусорных значений в документах.
+ */
+export function sanitizeProfile(raw: unknown): MerchantProfile {
+  if (!raw || typeof raw !== "object") return {};
+  const src = raw as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(src)) {
+    if (LIST_FIELDS.has(key)) {
+      if (Array.isArray(value)) {
+        const list = value
+          .map((v) => String(v ?? "").trim())
+          .filter(Boolean)
+          .slice(0, 100);
+        if (list.length) out[key] = list;
+      }
+      continue;
+    }
+    if (typeof value === "string") {
+      const t = value.trim();
+      if (t) out[key] = t.slice(0, 2000);
+    }
+    // числа/объекты/прочее — игнорируем
+  }
+  return out as MerchantProfile;
 }

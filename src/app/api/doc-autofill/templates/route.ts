@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFileSync } from "fs";
+import JSZip from "jszip";
 import {
   AUTOFILL_TARGETS,
   findTarget,
   targetAvailable,
   targetPath,
 } from "@/lib/doc-autofill/targets";
+import { isAuthorized } from "@/lib/api-auth";
 
 export const runtime = "nodejs";
 
@@ -26,10 +28,31 @@ export async function GET() {
 const MAX_TEMPLATE_SIZE = 10 * 1024 * 1024; // 10 МБ
 
 /**
+ * Проверка содержимого OOXML: файл должен быть ZIP-контейнером с
+ * обязательными частями. Иначе текстовый файл с расширением .docx затёр бы
+ * рабочий шаблон и все генерации навсегда падали бы (восстановление — из git).
+ */
+async function isValidOoxml(buf: Buffer, ext: "xlsx" | "docx"): Promise<boolean> {
+  try {
+    const zip = await JSZip.loadAsync(buf);
+    if (!zip.file("[Content_Types].xml")) return false;
+    if (ext === "docx") {
+      return !!zip.file("word/document.xml");
+    }
+    return !!zip.file("xl/workbook.xml");
+  } catch {
+    return false; // не ZIP вообще
+  }
+}
+
+/**
  * POST /api/doc-autofill/templates — multipart { file, targetId }.
  * Ручная загрузка шаблона, если его ещё нет на сервере (fallback).
  */
 export async function POST(req: NextRequest) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: "Требуется авторизация" }, { status: 401 });
+  }
   try {
     const cl = Number(req.headers.get("content-length") ?? 0);
     if (cl > MAX_TEMPLATE_SIZE + 64 * 1024) {
@@ -38,7 +61,16 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    const form = await req.formData();
+    let form: FormData;
+    try {
+      form = await req.formData();
+    } catch {
+      // битый multipart / не multipart вообще — ошибка клиента, не сервера
+      return NextResponse.json(
+        { error: "Некорректный запрос: ожидается multipart/form-data" },
+        { status: 400 }
+      );
+    }
     const file = form.get("file");
     if (!(file instanceof File)) {
       return NextResponse.json(
@@ -66,6 +98,17 @@ export async function POST(req: NextRequest) {
       );
     }
     const buf = Buffer.from(await file.arrayBuffer());
+    if (!(await isValidOoxml(buf, target.ext))) {
+      return NextResponse.json(
+        {
+          error:
+            target.ext === "docx"
+              ? "Файл не похож на документ Word (.docx) — проверьте, что выбран правильный файл"
+              : "Файл не похож на книгу Excel (.xlsx) — проверьте, что выбран правильный файл",
+        },
+        { status: 400 }
+      );
+    }
     writeFileSync(targetPath(target), buf);
     return NextResponse.json({ ok: true, targetId: target.id });
   } catch (err) {

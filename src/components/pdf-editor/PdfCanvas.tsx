@@ -94,6 +94,12 @@ export default function PdfCanvas() {
     null
   );
   const renderingRef = useRef(false);
+  /** Запрос на повторный рендер пришёл ВО ВРЕМЯ текущего рендера — не теряем
+   *  его, а повторяем после завершения (иначе смена зума/страницы во время
+   *  тяжёлого рендера скана оставалась бы «stale» до следующего события). */
+  const rerenderPendingRef = useRef(false);
+  /** Всегда актуальная версия renderPage — для отложенного повторного рендера. */
+  const renderPageRef = useRef<() => void>(() => {});
   const clickedOnElementRef = useRef(false);
 
   // Eraser drawing state
@@ -446,7 +452,13 @@ export default function PdfCanvas() {
   // Render current page with zoom
   // zoomLevel = 1.0 means 100% (real PDF size, 1pt = 1px on screen)
   const renderPage = useCallback(async () => {
-    if (!pdfDoc || !canvasRef.current || renderingRef.current) return;
+    if (!pdfDoc || !canvasRef.current) return;
+    if (renderingRef.current) {
+      // Рендер уже идёт — запоминаем запрос и повторим с актуальными
+      // аргументами сразу после его завершения (см. finally).
+      rerenderPendingRef.current = true;
+      return;
+    }
     renderingRef.current = true;
     try {
       const page = await pdfDoc.getPage(currentPage);
@@ -541,8 +553,21 @@ export default function PdfCanvas() {
       console.error("Error rendering page:", err);
     } finally {
       renderingRef.current = false;
+      if (rerenderPendingRef.current) {
+        rerenderPendingRef.current = false;
+        // Вызываем СВЕЖУЮ версию renderPage (замыкание здесь могло устареть,
+        // пока шёл долгий рендер): ref обновляется на каждом рендере.
+        setTimeout(() => renderPageRef.current(), 0);
+      }
     }
   }, [pdfDoc, currentPage, zoomLevel, pageRotations, pageSkew]);
+
+  // Держим ref актуальным для отложенных повторных рендеров
+  useEffect(() => {
+    renderPageRef.current = () => {
+      void renderPage();
+    };
+  }, [renderPage]);
 
   // Initial render + delayed re-render
   useEffect(() => {
@@ -961,6 +986,9 @@ export default function PdfCanvas() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (textSidebar.open) return;
+      // Открытая модалка (экспорт, подтверждение) — глушим горячие клавиши,
+      // иначе Delete «из-под» диалога удаляет выделенный элемент.
+      if (document.querySelector("[role='dialog'], [role='alertdialog']")) return;
       // Don't trigger delete when typing in any input/textarea/select
       const target = e.target as HTMLElement;
       if (
@@ -978,6 +1006,9 @@ export default function PdfCanvas() {
         else if (selectedItemType === "eraser")
           usePdfEditorStore.getState().removeEraser(selectedItemId);
         setSelectedItem(null, null);
+      } else if (e.key === "Escape" && selectedItemId) {
+        // Escape снимает выделение — привычное поведение графических редакторов
+        setSelectedItem(null, null);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -988,6 +1019,7 @@ export default function PdfCanvas() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (textSidebar.open) return;
+      if (document.querySelector("[role='dialog'], [role='alertdialog']")) return;
       const target = e.target as HTMLElement;
       if (
         target instanceof HTMLInputElement ||
@@ -1023,6 +1055,7 @@ export default function PdfCanvas() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
         textSidebar.open ||
+        document.querySelector("[role='dialog'], [role='alertdialog']") ||
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
         e.target instanceof HTMLSelectElement
@@ -1312,14 +1345,19 @@ export default function PdfCanvas() {
                       strokeLinejoin="round"
                       fill="none"
                       className={
-                        selectedItemId === eraserItem.id
+                        // Выделенный мазок ИЛИ инструмент «выбор»: клик по мазку
+                        // выделяет его. Во время рисования ластиком мазки
+                        // прозрачны для мыши — не мешают рисовать поверх.
+                        selectedItemId === eraserItem.id || activeTool === "select"
                           ? "pointer-events-auto cursor-pointer"
                           : "pointer-events-none"
                       }
                       onClick={(e) => {
-                        if (activeTool === "select" || activeTool === "eraser") {
+                        if (activeTool === "select") {
                           e.stopPropagation();
-                          clickedOnElementRef.current = true;
+                          // ВАЖНО: не трогаем clickedOnElementRef — click
+                          // срабатывает ПОСЛЕ mouseup, флаг «застревал» и
+                          // съедал следующий клик по фону.
                           setSelectedItem(eraserItem.id, "eraser");
                         }
                       }}
@@ -2019,8 +2057,12 @@ export default function PdfCanvas() {
                     <Input
                       type="color"
                       value={selectedText.color}
+                      onFocus={pushHistory}
                       onChange={(e) =>
-                        updateText(selectedItemId!, { color: e.target.value })
+                        // Live: пикетт цвета шлёт десятки onChange за выбор —
+                        // по одному snapshot'у на каждый тик undo-стек забивался
+                        // мусором и вытеснял настоящую историю.
+                        updateTextLive(selectedItemId!, { color: e.target.value })
                       }
                       className="h-7 w-8 cursor-pointer p-0"
                     />

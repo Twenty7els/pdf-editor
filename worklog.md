@@ -460,3 +460,30 @@ Stage Summary:
 - Заполненные вручную поля больше никогда не исчезают из чек-листа: остаются на месте с зелёной отметкой «Вписано» и мгновенно редактируются
 - Зелёные чипы сверху теперь только для полей, пришедших из анкеты; всё, что вводил пользователь, живёт в сетке инпутов
 - Коммит 5e408f2 отправлен на GitHub (Twenty7els/pdf-editor, main)
+
+---
+Task ID: 16-a/b/c + 17 + 18
+Agent: Z.ai Code (main) + 3 субагента (Explore ×1, general-purpose ×2)
+Task: Провести проект в порядок — удалить лишние файлы и строки, найти и устранить все баги
+
+Work Log:
+- Три параллельных аудита: (16-a) мёртвые файлы/экспорты/зависимости, (16-b) баги doc-autofill, (16-c) баги PDF-редактора; все находки верифицированы вручную перед правками (агент 16-a ошибся по isPlaceholder/stripOrgPrefix — они используются, оставлены)
+- Удалено: tool-results/ (27 файлов из git), tests/ (дубли .zscripts), scripts/test-docx-*.ts + verify-docx-fill.ts, download/README.md, src/app/api/route.ts (scaffold), 41 мёртвый shadcn-компонент + use-toast + use-mobile, tailwind.config.ts (инертен в v4 — нет @config), public/fonts/ (9 файлов), 6 стоковых PNG-штампов; -48 npm-зависимостей (radix-сироты, dnd-kit, tanstack, framer-motion, recharts, sharp, zod и др.); z-ai-web-dev-sdk и prisma-стек оставлены (платформенные)
+- .gitignore: +tool-results/, download/, upload-assets/, .zscripts/dev.pid, .tmp-*/; убран из git .zscripts/dev.pid
+- КРИТИЧНЫЙ ФИКС (редактор): экспорт дважды прибавлял userRotation (T = intrinsic + 2·user) во всех трёх циклах (штампы/тексты/ластики) — после предприменения /Rotate getRotation() уже возвращает полный угол; E2E-подтверждение: экспорт повёрнутой страницы с штампом → /Rotate 90 (не 180), изображение встроено (902KB)
+- pdf.js lifecycle в PdfCanvas: activeTaskRef, destroy предыдущего LoadingTask при замене документа (в v6 у PDFDocumentProxy нет своего destroy), cancel при гонке смены файла, destroy при размонтировании
+- ExportDialog: миниатюры теперь рендерятся при переключении «Все»→«Выбранные» (раньше спиннеры навсегда); ресинк mode/selected при каждом открытии
+- Undo: pushHistory один раз на жест (mousedown move/resize/rotate), Live-обновления в mousemove и числовых инпутах; в сторе добавлен updateTextLive
+- Штампы: экспорт contain-fit по пропорциям (подписи не растягиваются), кэш PDFImage по src, WebP/GIF → PNG-нормализация при загрузке + тосты, сброс file-input до валидации
+- Ластик: lineCap Round; клик-флаг очищается в mouseup; стрелки пропускают удалённые страницы; UploadZone/Toolbar тосты об ошибках
+- doc-autofill: реализован отсутствовавший POST /api/doc-autofill/templates (кнопка «Загрузить шаблон» всегда падала 405) с валидацией targetId/ext/10МБ; content-length лимит ДО парсинга multipart; битый JSON/multipart → 400; fill-docx — замена ячеек по смещениям (String.replace ловил первую идентичную); composeContractInfo — «от» внутри номера больше не убирает «№» (регресс-тесты: 6/6); гард параллельного разбора; htmlFor/id в шаге 2
+- db.ts: SQL-лог только в development
+- Попутно найден и обойдён подвох E2E: document.querySelector('canvas') ловил миниатюру страницы, а не холст редактора — размещение штампа только реальным mouse (agent-browser mouse move/down/up) по canvas[3]
+- Стабильный stale-кэш Turbopack: ошибки промежуточных состояний правок висели в консоли после исправления — лечится перезапуском dev-сервера/полной перезагрузкой
+- Верификация: lint 0/0, tsc чисто, E2E: редактор (загрузка PDF, штамп реальным кликом, поворот, экспорт с проверкой /Rotate=90 + /Image), диалог экспорта (миниатюры 3/3), doc-autofill (9→6, поле живо, чип «Вписано», генерация xlsx и docx с проверкой содержимого), API-валидация (4×400), консоль без ошибок
+
+Stage Summary:
+- Проект почищен: -111 файлов/строк в git, -48 зависимостей; в src/components/ui осталось только 7 используемых компонентов
+- Исправлены 3 критичных/мажорных бага (двойной поворот экспорта, отсутствие POST шаблонов, pdf.js утечка/гонка) и ~15 минорных
+- Коммит a69787b отправлен на GitHub (Twenty7els/pdf-editor, main)
+- Осознанно НЕ трогали (задокументировано): координаты элементов не мигрируют при повороте/наклоне страницы после размещения (экран и экспорт консистентны между собой); next.config ignoreBuildErrors оставлен (tsconfig цепляет examples/skills)
